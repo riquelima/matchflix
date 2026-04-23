@@ -15,6 +15,8 @@ export default defineConfig({
         primeiroLogin: resolve(__dirname, 'primeiroLogin.html'),
         selecaoGeneros: resolve(__dirname, 'selecaoGeneros.html'),
         descobrir:     resolve(__dirname, 'descobrir.html'),
+        meusmatches:   resolve(__dirname, 'meusmatches.html'),
+        colecoes:      resolve(__dirname, 'colecoes.html'),
       }
     }
   }

@@ -375,8 +375,8 @@
                     .from('curtidas_filmes')
                     .select('filme_id')
                     .eq('usuario_id', currentUser.id)
-                    .eq('curtiu', true)
-                    .order('criado_em', { ascending: false });
+                    .eq('curtiu', true);
+                
                 
                 if (error) throw error;
                 // Cria "mock" inicial com ID para o enrichMovie fazer a busca real

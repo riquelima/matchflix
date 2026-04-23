@@ -281,13 +281,19 @@
         async function saveActionToSupabase(movie, liked) {
             if (!currentUser) return;
             try {
-                await supabase.from('curtidas_filmes').insert({
+                const { error } = await supabase.from('curtidas_filmes').upsert({
                     usuario_id: currentUser.id,
                     filme_id: movie.id,
                     curtiu: liked
-                });
-            } catch (error) {
-                console.error("Erro ao salvar ação no Supabase:", error);
+                }, { onConflict: 'usuario_id, filme_id' });
+                
+                if (error) {
+                    console.error("Supabase Error ao salvar ação:", error.message, error);
+                    // Fallback para debug visual
+                    if (error.code === '42703') console.error("Parece que as colunas da tabela não conferem.");
+                }
+            } catch (err) {
+                console.error("Erro inesperado no Supabase:", err);
             }
         }
 
@@ -511,25 +517,19 @@
             const btnAcaoOverlay = element.querySelector('.btn-acao-overlay');
             const heartIcon = overlayEl.querySelector('.bg-primary-container'); // O coração no canto superior da sinopse
 
-            // Quando der like (Match) - Exibe toast e auto-avança
+            // Quando der like (Match) - Exibe toast e auto-avança em paralelo
             function triggerMatch() {
-                // Apenas checa isMatched — isAnimating já foi setado antes de chamar
                 if (isMatched) return;
                 isMatched = true;
                 
+                // 1. Salva no banco instantaneamente (async background)
                 saveActionToSupabase(movie, true);
 
-                gsap.killTweensOf(element); // garante estado limpo
-                gsap.to(element, {
-                    scale: 1.06,
-                    duration: 0.12,
-                    ease: "power2.out",
-                    onComplete: () => {
-                        showMatchToast(movie.title, () => {
-                            throwOut(1);
-                        });
-                    }
-                });
+                // 2. Dispara o toast sem bloquear a animação do card
+                showMatchToast(movie.title);
+
+                // 3. Joga o card para fora imediatamente
+                throwOut(1);
             }
 
             // Alternar a Sinopse (Modo Leitura)
@@ -586,10 +586,11 @@
             // Mapeando botões do layout
             btnLike.onclick = () => {
                 if (isMatched || isAnimating) return;
-                isAnimating = true; // bloqueia re-entrada imediatamente
+                isAnimating = true;
                 gsap.killTweensOf(element);
+                // Dá um leve pulso visual antes de voar pra direita
                 gsap.to(element, {
-                    x: 0, rotation: 0, scale: 1.05, duration: 0.15, ease: "power2.out",
+                    scale: 1.03, duration: 0.1, yoyo: true, repeat: 1, ease: "power2.out",
                     onComplete: triggerMatch
                 });
             };
@@ -614,6 +615,8 @@
             element.addEventListener('touchstart', dragStart, { passive: false });
             element.addEventListener('mousedown', dragStart);
 
+            let rafId = null;
+
             function dragStart(e) {
                 if (isAnimating || isMatched || isInfoOpen) return;
                 isDragging = true;
@@ -625,6 +628,7 @@
                 startY = clientY - currentY;
                 
                 element.style.transition = 'none';
+                element.style.willChange = 'transform';
             }
 
             window.addEventListener('touchmove', dragMove, { passive: false });
@@ -640,13 +644,18 @@
                 currentX = clientX - startX;
                 currentY = clientY - startY;
 
-                const rotation = currentX * 0.05;
-                
-                gsap.set(element, {
-                    x: currentX,
-                    y: currentY,
-                    rotation: rotation
-                });
+                if (!rafId) {
+                    rafId = requestAnimationFrame(() => {
+                        const rotation = currentX * 0.05;
+                        gsap.set(element, {
+                            x: currentX,
+                            y: currentY,
+                            rotation: rotation,
+                            force3D: true
+                        });
+                        rafId = null;
+                    });
+                }
             }
 
             window.addEventListener('touchend', dragEnd);
@@ -655,17 +664,19 @@
             function dragEnd(e) {
                 if (!isDragging) return;
                 isDragging = false;
+                element.style.willChange = 'auto';
+                if (rafId) {
+                    cancelAnimationFrame(rafId);
+                    rafId = null;
+                }
                 
                 const threshold = window.innerWidth * 0.25;
 
                 if (currentX > threshold) {
-                    // Like (Swipe Right)
-                    isAnimating = true; // bloqueia re-entrada imediatamente
+                    // Like (Swipe Right) - Continua o movimento fluido pra fora
+                    isAnimating = true;
                     gsap.killTweensOf(element);
-                    gsap.to(element, {
-                        x: 0, y: 0, rotation: 0, duration: 0.25, ease: "power2.out",
-                        onComplete: triggerMatch
-                    });
+                    triggerMatch();
                 } else if (currentX < -threshold) {
                     // Dislike (Swipe Left)
                     throwOut(-1);
