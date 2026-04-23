@@ -398,8 +398,8 @@
     </div>
 
     <!-- Universal Modal (Synopsis) -->
-    <div id="synopsis-modal" class="fixed inset-x-0 bottom-0 z-[300] translate-y-full transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]">
-        <div id="modal-backdrop" class="fixed inset-0 bg-black/80 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-500"></div>
+    <div id="synopsis-modal" class="fixed inset-x-0 bottom-0 z-[300] translate-y-full will-change-transform">
+        <div id="modal-backdrop" class="fixed inset-0 bg-black/80 backdrop-blur-md opacity-0 pointer-events-none will-change-[opacity]"></div>
         <div class="relative bg-neutral-900 rounded-t-[2.5rem] border-t border-white/10 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
             <div class="w-12 h-1.5 bg-white/20 rounded-full mx-auto mt-4 mb-2 shrink-0"></div>
             <div id="modal-scroll-container" class="overflow-y-auto pb-20">
@@ -882,7 +882,7 @@
             }
         }
 
-        function openVideoTrailer(key) {
+        window.openVideoTrailer = function(key) {
             const overlay = document.getElementById('video-overlay');
             const content = document.getElementById('video-content');
             const container = document.getElementById('video-container');
@@ -895,7 +895,7 @@
             document.body.style.overflow = 'hidden';
         }
 
-        function closeVideoTrailer() {
+        window.closeVideoTrailer = function() {
             const overlay = document.getElementById('video-overlay');
             const content = document.getElementById('video-content');
             const container = document.getElementById('video-container');
@@ -909,9 +909,9 @@
             }, 300);
         }
 
-        document.getElementById('close-video').addEventListener('click', closeVideoTrailer);
+        document.getElementById('close-video').addEventListener('click', window.closeVideoTrailer);
         document.getElementById('video-overlay').addEventListener('click', (e) => {
-            if (e.target === document.getElementById('video-overlay')) closeVideoTrailer();
+            if (e.target === document.getElementById('video-overlay')) window.closeVideoTrailer();
         });
 
         // Cache para provedores de streaming
@@ -1342,8 +1342,21 @@
 
             updateWatchedUI();
 
+            // Abrir com GSAP para suavidade premium
             modal.classList.remove('translate-y-full');
-            modalBackdrop.classList.remove('opacity-0', 'pointer-events-none');
+            modalBackdrop.classList.remove('pointer-events-none');
+            
+            gsap.fromTo(modal, 
+                { y: "100%" }, 
+                { y: 0, duration: 0.6, ease: "expo.out", clearProps: "transform" }
+            );
+            
+            gsap.to(modalBackdrop, { 
+                opacity: 0.8, 
+                duration: 0.4, 
+                ease: "power2.out" 
+            });
+            
             document.body.style.overflow = 'hidden';
         }
 
@@ -1443,18 +1456,24 @@
         function closeSynopsis() {
             gsap.to(modal, {
                 y: "100%",
-                duration: 0.4,
-                ease: "power2.inOut",
+                duration: 0.5,
+                ease: "expo.inOut",
                 onComplete: () => {
                     modal.classList.add('translate-y-full');
-                    modalBackdrop.classList.add('opacity-0', 'pointer-events-none');
+                    modalBackdrop.classList.add('pointer-events-none');
                     document.body.style.overflow = '';
-                    // Limpar transform para deixar a classe Tailwind assumir
                     gsap.set(modal, { clearProps: "transform" });
-                    gsap.set(modalBackdrop, { clearProps: "opacity" });
+                    gsap.set(modalBackdrop, { opacity: 0 });
                 }
             });
+            
+            gsap.to(modalBackdrop, { 
+                opacity: 0, 
+                duration: 0.4, 
+                ease: "power2.inOut" 
+            });
         }
+        window.closeSynopsis = closeSynopsis;
 
         modalBackdrop.addEventListener('click', closeSynopsis);
         
