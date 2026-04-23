@@ -1,302 +1,171 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="dark">
+<html lang="pt-BR">
+
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MatchFlix - Minha Coleção</title>
-
-    <!-- PWA -->
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#e50914">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="MatchFlix">
-    <link rel="apple-touch-icon" href="/logoApp.png">
-
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:ital,wght@0,500;0,700;0,800;0,900;1,800&display=swap" rel="stylesheet" />
-    <!-- Material Symbols -->
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
-
-    <!-- Tailwind & GSAP -->
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MatchFlix - Minha Playlist</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-    <script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary-container": "#e50914",
-                        "secondary-container": "#921512",
-                        "on-primary-container": "#fff7f6",
-                        "surface": "#131313",
-                        "surface-container-lowest": "#0e0e0e",
-                        "surface-container-low": "#1c1b1b",
-                        "surface-container": "#201f1f",
-                        "surface-container-high": "#2a2a2a",
-                        "surface-container-highest": "#353534",
-                        "surface-variant": "#353534",
-                        "on-surface": "#e5e2e1",
-                        "on-surface-variant": "#e9bcb6",
-                        "outline-variant": "#5e3f3b",
-                        "tertiary": "#fabd00",
-                        "error": "#ffb4ab",
-                    },
-                    fontFamily: {
-                        headline: ["Plus Jakarta Sans"],
-                        body: ["Inter"],
-                    },
-                }
-            }
-        }
-    </script>
-
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Outfit:wght@700;900&display=swap" rel="stylesheet">
+    
     <style>
-        * { -webkit-tap-highlight-color: transparent; }
+        :root {
+            --primary: #E50914;
+            --primary-container: #FF3B47;
+            --surface: #0A0A0A;
+            --surface-container: #1A1A1A;
+            --surface-container-lowest: #050505;
+            --on-surface: #F5F5F5;
+            --tertiary: #FFD700;
+        }
 
         body {
-            background: #0e0e0e;
-            min-height: 100dvh;
+            background-color: var(--surface-container-lowest);
+            color: var(--on-surface);
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        /* Grain overlay */
-        body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
-            opacity: 0.03;
-            pointer-events: none;
-            z-index: 0;
+        .font-headline { font-family: 'Outfit', sans-serif; }
+
+        /* Estilo Cyber-Noir */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        /* ── Card ── */
+        /* Grid e Cards */
         .film-card {
             position: relative;
             border-radius: 16px;
             overflow: hidden;
-            background: #1c1b1b;
-            cursor: pointer;
-            transform: translateY(20px);
+            background: var(--surface-container);
+            transition: all 0.4s cubic-bezier(0.2, 0, 0, 1);
             opacity: 0;
-            transition: transform 0.28s cubic-bezier(.4,0,.2,1), box-shadow 0.28s;
+            transform: translateY(20px);
         }
+
         .film-card.visible {
-            transform: translateY(0);
             opacity: 1;
+            transform: translateY(0);
         }
-        .film-card:active {
-            transform: scale(0.97);
-        }
+
         .film-card img {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            display: block;
+            transition: transform 0.6s cubic-bezier(0.2, 0, 0, 1);
         }
-        .film-card .card-overlay {
+
+        .card-overlay {
             position: absolute;
             inset: 0;
-            background: linear-gradient(to top, rgba(14,14,14,0.95) 0%, rgba(14,14,14,0.4) 50%, transparent 100%);
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 40%, transparent 100%);
         }
-        .film-card .card-info {
+
+        .card-info {
             position: absolute;
             bottom: 0;
             left: 0;
             right: 0;
-            padding: 14px;
+            padding: 12px;
         }
 
-        /* ── Synopsis Modal ── */
+        /* Modal / Sheet */
         #synopsis-modal {
             position: fixed;
             inset: 0;
-            z-index: 200;
-            display: flex;
+            z-index: 100;
+            display: none;
             align-items: flex-end;
-            pointer-events: none;
             opacity: 0;
-            will-change: opacity;
         }
+
         #synopsis-modal.open {
-            pointer-events: all;
+            display: flex;
             opacity: 1;
         }
-        #synopsis-modal .modal-backdrop {
+
+        #modal-backdrop {
             position: absolute;
             inset: 0;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0, 0, 0, 0.85);
             backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
         }
-        #synopsis-modal .modal-sheet {
+
+        #modal-sheet {
             position: relative;
-            z-index: 1;
             width: 100%;
-            background: #1c1b1b;
-            border-radius: 24px 24px 0 0;
-            padding: 0 0 40px;
-            transform: translateY(100%);
-            max-height: 88dvh;
+            max-height: 85vh;
+            background: #0F0F0F;
+            border-radius: 32px 32px 0 0;
             overflow-y: auto;
-            will-change: transform;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 40px;
+            transform: translateY(100%);
         }
 
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #5e3f3b; border-radius: 9999px; }
-
-        /* ── Page entrance ── */
-        .page-header { animation: fadeSlideDown 0.4s ease both; }
-        @keyframes fadeSlideDown {
-            from { opacity: 0; transform: translateY(-12px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-
-        /* ── Empty state ── */
-        #empty-state { animation: fadeIn 0.5s ease 0.3s both; }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.96); }
-            to   { opacity: 1; transform: scale(1); }
-        }
-
-        /* ── Count badge ── */
-        .count-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: #e50914;
-            color: white;
-            font-size: 11px;
-            font-weight: 800;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            letter-spacing: 0.05em;
-            border-radius: 9999px;
-            min-width: 22px;
-            height: 22px;
-            padding: 0 6px;
-            box-shadow: 0 0 12px rgba(229,9,20,0.5);
-        }
-
-        /* glass panel */
-        .glass-panel {
-            background: rgba(255,255,255,0.05);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.08);
-        }
-
-        /* Remove btn */
-        .btn-remove {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 28px;
-            height: 28px;
-            border-radius: 9999px;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(6px);
+        /* Trailer & Providers */
+        .providers-list {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            color: rgba(255,255,255,0.6);
-            font-size: 16px;
-            border: 1px solid rgba(255,255,255,0.1);
-            transition: background 0.2s, color 0.2s;
-            z-index: 10;
+            gap: 12px;
+            overflow-x: auto;
+            padding: 4px 0;
+            scrollbar-width: none;
         }
-        .btn-remove:active { background: rgba(229,9,20,0.8); color: white; }
-
-        /* ── Page Transition ── */
-        @keyframes pageEnter {
-            from { opacity: 0; transform: scale(1.02); }
-            to   { opacity: 1; transform: scale(1); }
-        }
-        body { animation: pageEnter 0.4s cubic-bezier(.4,0,.2,1) both; }
+        .providers-list::-webkit-scrollbar { display: none; }
         
-        .nav-item {
-            color: #737373;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border-radius: 24px;
-            padding: 8px 16px;
-            position: relative;
-        }
-        .nav-item.active {
-            color: #e50914;
-            background: rgba(229, 9, 20, 0.15);
-            box-shadow: 0 0 20px rgba(229, 9, 20, 0.1);
-        }
-        .nav-item.active .material-symbols-outlined {
-            font-variation-settings: 'FILL' 1;
-        }
-        
-        body.exiting-left, body.exiting-right {
-            opacity: 0 !important;
-            filter: blur(10px);
-            transform: scale(0.98);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-            pointer-events: none;
-        }
-
-        /* Streaming Providers Styles */
         .provider-icon {
             width: 52px;
             height: 52px;
             border-radius: 12px;
-            object-fit: cover;
-            border: 1px solid rgba(255,255,255,0.15);
-            box-shadow: 0 6px 16px rgba(0,0,0,0.6);
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        .provider-icon:hover {
-            transform: scale(1.1) translateY(-2px);
-            border-color: rgba(229, 9, 20, 0.5);
-            box-shadow: 0 0 15px rgba(229, 9, 20, 0.3);
-        }
-        .providers-section {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid rgba(255,255,255,0.05);
-        }
-        .providers-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 14px;
-            margin-top: 12px;
+            background: #1a1a1a;
+            object-fit: contain;
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
 
-        /* Trailer Section Styles */
-        .trailer-section {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid rgba(255,255,255,0.05);
-        }
         .trailer-btn {
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            width: 100%;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 8px 14px;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s;
         }
-        .trailer-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: #e50914;
-            transform: translateY(-1px);
+
+        .trailer-btn:active {
+            transform: scale(0.98);
+            background: rgba(255, 255, 255, 0.08);
         }
+
         .trailer-icon-img {
-            width: 22px;
-            height: 22px;
+            width: 24px;
+            height: 24px;
             object-fit: contain;
         }
+
+        /* Bottom Nav */
+        .nav-item {
+            color: rgba(255, 255, 255, 0.3);
+            transition: all 0.3s;
+        }
+        .nav-item.active {
+            color: var(--primary-container);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
     </style>
 </head>
 
@@ -317,10 +186,10 @@
     <!-- ── Page Title ── -->
     <div class="px-6 pt-5 pb-3 shrink-0">
         <p class="text-[10px] tracking-[0.3em] uppercase text-primary-container/70 font-bold font-headline mb-1">Sua Coleção</p>
-        <h2 class="font-headline font-black text-3xl tracking-tighter text-white leading-none">Filmes <span class="text-white/30">curtidos</span></h2>
+        <h2 class="font-headline font-black text-3xl tracking-tighter text-white leading-none">Minha <span class="text-white/30">Playlist</span></h2>
     </div>
 
-    <!-- ── Grid ── -->
+    <!-- ── Content ── -->
     <main class="flex-grow overflow-y-auto px-4 pb-24" id="main-scroll">
 
         <!-- Empty State -->
@@ -336,79 +205,81 @@
             </a>
         </div>
 
-        <!-- Film Grid -->
-        <div id="film-grid" class="grid grid-cols-2 gap-3 pt-2 pb-4"></div>
+        <!-- Section: Quero Assistir -->
+        <section id="section-pending" class="mb-10 hidden">
+            <div class="flex items-center gap-2 mb-4 px-2">
+                <div class="w-1.5 h-6 bg-primary-container rounded-full shadow-[0_0_10px_rgba(229,9,20,0.5)]"></div>
+                <h3 class="font-headline font-black text-xl tracking-tighter text-white uppercase italic">Quero Assistir</h3>
+            </div>
+            <div id="grid-pending" class="grid grid-cols-2 gap-3 pb-4"></div>
+        </section>
+
+        <!-- Section: Assistidos -->
+        <section id="section-watched" class="mb-10 hidden">
+            <div class="flex items-center gap-2 mb-4 px-2">
+                <div class="w-1.5 h-6 bg-green-500 rounded-full shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+                <h3 class="font-headline font-black text-xl tracking-tighter text-white uppercase italic">Assistidos</h3>
+            </div>
+            <div id="grid-watched" class="grid grid-cols-2 gap-3 pb-4"></div>
+        </section>
     </main>
 
-    <!-- ── BottomNavBar ── -->
-    <nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-4 pt-3 bg-neutral-900/60 backdrop-blur-3xl rounded-t-2xl shadow-[0_-10px_40px_rgba(229,9,20,0.1)]">
-        <!-- Match -->
-        <a class="flex flex-col items-center justify-center text-neutral-500 hover:text-red-400 transition-colors transform active:scale-90" href="descobrir.html">
-            <span class="material-symbols-outlined mb-0.5 text-xl">style</span>
-            <span class="font-headline text-[9px] font-semibold uppercase tracking-widest">Match</span>
-        </a>
-        <!-- Filmes (Active) -->
-        <a class="flex flex-col items-center justify-center bg-red-600/15 text-primary-container rounded-full px-5 py-1.5 shadow-[0_0_15px_rgba(229,9,20,0.2)] transform active:scale-90 transition-all" href="colecoes.html">
-            <span class="material-symbols-outlined mb-0.5 text-xl" style="font-variation-settings: 'FILL' 1;">format_list_bulleted</span>
-            <span class="font-headline text-[9px] font-bold uppercase tracking-widest">Filmes</span>
-        </a>
-        <!-- Perfil -->
-        <a class="flex flex-col items-center justify-center text-neutral-500 hover:text-red-400 transition-colors transform active:scale-90" href="#">
-            <span class="material-symbols-outlined mb-0.5 text-xl">person</span>
-            <span class="font-headline text-[9px] font-semibold uppercase tracking-widest">Perfil</span>
-        </a>
-    </nav>
-
-    <!-- ── Synopsis Modal (Bottom Sheet) ── -->
+    <!-- ── Synopsis Modal ── -->
     <div id="synopsis-modal">
-        <div class="modal-backdrop" id="modal-backdrop"></div>
-        <div class="modal-sheet" id="modal-sheet">
-            <!-- Drag handle -->
-            <div class="flex justify-center pt-3 pb-1">
-                <div class="w-10 h-1 rounded-full bg-white/20"></div>
+        <div id="modal-backdrop"></div>
+        <div id="modal-sheet">
+            <!-- Drag Handle -->
+            <div class="w-full flex justify-center pt-3 pb-4 sticky top-0 bg-[#0F0F0F] z-10">
+                <div class="w-12 h-1.5 bg-white/10 rounded-full"></div>
             </div>
 
-            <!-- Poster + Info Row -->
-            <div class="flex gap-4 px-5 pt-4 pb-5">
-                <img id="modal-poster" src="" alt="" class="w-[90px] aspect-[2/3] object-cover rounded-xl shrink-0 shadow-[0_8px_24px_rgba(0,0,0,0.6)]" loading="lazy"/>
-                <div class="flex flex-col justify-end gap-1 min-w-0">
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
-                        <span id="modal-rating" class="font-headline font-bold text-sm text-tertiary"></span>
-                        <span id="modal-year" class="text-white/40 text-xs"></span>
+            <!-- Header Info -->
+            <div class="px-6 pt-2 flex gap-5">
+                <div class="w-28 shrink-0">
+                    <img id="modal-poster" src="" class="w-full aspect-[2/3] object-cover rounded-2xl shadow-2xl border border-white/5" alt="">
+                </div>
+                <div class="flex flex-col justify-end pb-1">
+                    <h2 id="modal-title" class="font-headline font-black text-2xl leading-tight tracking-tight text-white mb-2"></h2>
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-1 bg-tertiary/10 px-2 py-0.5 rounded-lg">
+                            <span class="material-symbols-outlined text-tertiary text-[14px]" style="font-variation-settings: 'FILL' 1;">star</span>
+                            <span id="modal-rating" class="font-headline font-black text-tertiary text-xs"></span>
+                        </div>
+                        <span id="modal-year" class="text-white/40 text-xs font-bold font-headline"></span>
                     </div>
-                    <h3 id="modal-title" class="font-headline font-black text-xl tracking-tighter text-white leading-tight"></h3>
-                    <div id="modal-genres" class="flex flex-wrap gap-1 mt-2"></div>
+                    <div id="modal-genres" class="flex flex-wrap gap-1.5 mt-3"></div>
                 </div>
             </div>
-
-            <!-- Divider -->
-            <div class="mx-5 h-px bg-white/5 mb-5"></div>
 
             <!-- Synopsis -->
-            <div class="px-5">
-                <p class="text-[10px] tracking-[0.25em] uppercase text-primary-container/60 font-bold font-headline mb-3">Sinopse</p>
-                <p id="modal-synopsis" class="text-white/70 font-body text-sm leading-relaxed mb-4"></p>
+            <div class="px-6 mt-8">
+                <p class="text-primary-container/60 text-[10px] font-bold tracking-[0.25em] uppercase mb-2">Sinopse</p>
+                <p id="modal-synopsis" class="text-white/60 text-[13px] leading-relaxed font-medium line-clamp-6"></p>
+            </div>
 
-                <div id="modal-trailer-section" class="px-0 trailer-section hidden mb-4">
-                    <p class="text-primary-container/60 text-[10px] font-bold tracking-[0.25em] uppercase mb-2">Trailer</p>
+            <!-- Scrollable Content -->
+            <div class="px-6 mt-8 space-y-8">
+                <!-- Trailer Section -->
+                <div id="modal-trailer-section" class="hidden">
+                    <p class="text-primary-container/60 text-[10px] font-bold tracking-[0.25em] uppercase mb-3">Trailer</p>
                     <div id="modal-trailer-container"></div>
                 </div>
-                
-                <div id="modal-providers-section" class="px-0 providers-section hidden">
+
+                <!-- Providers Section -->
+                <div id="modal-providers-section" class="hidden">
                     <p class="text-primary-container/60 text-[10px] font-bold tracking-[0.25em] uppercase mb-2">Onde Assistir</p>
                     <div id="modal-providers-list" class="providers-list"></div>
                 </div>
             </div>
 
             <!-- Actions -->
-            <div class="px-5 mt-6 flex gap-3">
-                <button id="modal-remove" class="flex-1 py-3 rounded-full border border-white/10 text-white/60 font-headline font-bold text-sm tracking-wider uppercase active:scale-95 transition-transform">
+            <div class="px-5 mt-10 flex gap-3">
+                <button id="modal-remove" class="flex-1 py-3.5 rounded-full border border-white/10 text-white/60 font-headline font-bold text-sm tracking-wider uppercase active:scale-95 transition-transform">
                     Remover
                 </button>
-                <a href="descobrir.html" class="flex-1 py-3 rounded-full bg-primary-container text-white font-headline font-bold text-sm tracking-wider uppercase active:scale-95 transition-transform text-center shadow-[0_0_20px_rgba(229,9,20,0.4)]">
-                    + Filmes
-                </a>
+                <button id="modal-watched" class="flex-1 py-3.5 rounded-full bg-primary-container text-white font-headline font-bold text-sm tracking-wider uppercase active:scale-95 transition-transform text-center shadow-[0_0_20px_rgba(229,9,20,0.4)]">
+                    Assistido
+                </button>
             </div>
         </div>
     </div>
@@ -423,14 +294,26 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { supabase } from './js/supabase.js';
+
         const API_KEY = "416394469462693ee5727abe4c864848";
         const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 
-        const grid = document.getElementById('film-grid');
+        let currentUser = null;
+        let likedMovies = [];
+        let activeMovieId = null;
+        let watchedMovieIds = new Set(JSON.parse(localStorage.getItem('matchflix_watched_movies') || '[]'));
+
+        // Elements
+        const gridPending = document.getElementById('grid-pending');
+        const gridWatched = document.getElementById('grid-watched');
+        const sectionPending = document.getElementById('section-pending');
+        const sectionWatched = document.getElementById('section-watched');
         const emptyState = document.getElementById('empty-state');
-        const countBadge = document.getElementById('count-badge');
+        
         const modal = document.getElementById('synopsis-modal');
+        const sheet = document.getElementById('modal-sheet');
         const modalBackdrop = document.getElementById('modal-backdrop');
         const modalPoster = document.getElementById('modal-poster');
         const modalTitle = document.getElementById('modal-title');
@@ -439,23 +322,92 @@
         const modalGenres = document.getElementById('modal-genres');
         const modalSynopsis = document.getElementById('modal-synopsis');
         const modalRemove = document.getElementById('modal-remove');
+        const modalWatchedBtn = document.getElementById('modal-watched');
 
-        // ── Load liked movies from localStorage ──
-        function getLikedMovies() {
+        // Check Auth
+        (async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+            } else {
+                currentUser = session.user;
+                render();
+            }
+        })();
+
+        async function render() {
+            likedMovies = await fetchLikedMoviesFromDB();
+            const genreMap = await getGenreMap();
+
+            if (likedMovies.length === 0) {
+                emptyState.classList.remove('hidden');
+                sectionPending.classList.add('hidden');
+                sectionWatched.classList.add('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            
+            // Enriching movies in parallel
+            const enriched = await Promise.all(likedMovies.map(m => enrichMovie(m)));
+            
+            const pending = enriched.filter(m => !watchedMovieIds.has(m.id));
+            const watched = enriched.filter(m => watchedMovieIds.has(m.id));
+
+            renderSection(pending, gridPending, sectionPending, genreMap);
+            renderSection(watched, gridWatched, sectionWatched, genreMap);
+            
+            if (pending.length === 0 && watched.length === 0) {
+                emptyState.classList.remove('hidden');
+            }
+        }
+
+        function renderSection(movies, gridElement, sectionElement, genreMap) {
+            if (movies.length === 0) {
+                sectionElement.classList.add('hidden');
+                return;
+            }
+            sectionElement.classList.remove('hidden');
+            gridElement.innerHTML = '';
+            
+            movies.forEach((movie, i) => {
+                const card = document.createElement('div');
+                card.className = 'film-card';
+                card.innerHTML = `
+                    <img src="${movie.poster_path ? IMAGE_BASE + movie.poster_path : ''}" alt="${movie.title}" loading="lazy">
+                    <div class="card-overlay"></div>
+                    <div class="card-info">
+                        <h4 class="text-white font-headline font-bold text-xs truncate">${movie.title}</h4>
+                        <div class="flex items-center gap-1 opacity-60">
+                            <span class="material-symbols-outlined text-[10px] text-tertiary">star</span>
+                            <span class="text-[9px] text-white font-bold">${movie.vote_average?.toFixed(1) || 'N/A'}</span>
+                        </div>
+                    </div>
+                `;
+                card.onclick = () => openModal(movie, genreMap);
+                gridElement.appendChild(card);
+                
+                // Staggered entrance
+                setTimeout(() => card.classList.add('visible'), i * 50);
+            });
+        }
+
+        async function fetchLikedMoviesFromDB() {
+            if (!currentUser) return [];
             try {
-                const raw = localStorage.getItem('matchflix_liked_movies');
-                return raw ? JSON.parse(raw) : [];
-            } catch { return []; }
+                const { data, error } = await supabase
+                    .from('curtidas_filmes')
+                    .select('filme_id')
+                    .eq('usuario_id', currentUser.id)
+                    .eq('curtiu', true);
+                if (error) throw error;
+                return data.map(item => ({ id: item.filme_id }));
+            } catch (err) {
+                console.error("Erro ao buscar curtidas:", err);
+                return [];
+            }
         }
 
-        function saveLikedMovies(movies) {
-            localStorage.setItem('matchflix_liked_movies', JSON.stringify(movies));
-        }
-
-        let likedMovies = getLikedMovies();
-        let activeMovieId = null;
-
-        // ── Fetch genres map ──
         async function getGenreMap() {
             try {
                 const cached = sessionStorage.getItem('mf_genres');
@@ -469,108 +421,30 @@
             } catch { return {}; }
         }
 
-        // ── Fetch movie details if incomplete ──
         async function enrichMovie(movie) {
-            if (movie.overview && movie.genre_ids) return movie;
+            if (movie.title) return movie;
             try {
                 const res = await fetch(`https://api.themoviedb.org/3/movie/${movie.id}?api_key=${API_KEY}&language=pt-BR`);
-                const data = await res.json();
-                return { ...movie, ...data, genre_ids: (data.genres || []).map(g => g.id) };
+                return await res.json();
             } catch { return movie; }
         }
 
-        // ── Build card ──
-        function buildCard(movie, genreMap, index) {
-            const card = document.createElement('article');
-            card.className = 'film-card aspect-[2/3]';
-            card.dataset.id = movie.id;
-
-            const poster = movie.poster_path
-                ? `${IMAGE_BASE}${movie.poster_path}`
-                : `https://via.placeholder.com/300x450/1c1b1b/e50914?text=${encodeURIComponent(movie.title || '?')}`;
-
-            const genreNames = (movie.genre_ids || [])
-                .slice(0, 2)
-                .map(id => genreMap[id] || '')
-                .filter(Boolean)
-                .join(' · ');
-
-            const rating = movie.vote_average ? movie.vote_average.toFixed(1) : '—';
-            const year = movie.release_date ? movie.release_date.split('-')[0] : '';
-
-            card.innerHTML = `
-                <img src="${poster}" alt="${movie.title}" loading="lazy" />
-                <div class="card-overlay"></div>
-                <div class="card-info">
-                    ${genreNames ? `<p class="text-[9px] uppercase tracking-widest text-white/50 font-headline font-bold mb-1">${genreNames}</p>` : ''}
-                    <h3 class="font-headline font-black text-[15px] leading-tight text-white tracking-tight line-clamp-2">${movie.title}</h3>
-                    <div class="flex items-center gap-1.5 mt-1.5">
-                        <span class="material-symbols-outlined text-tertiary text-xs" style="font-variation-settings: 'FILL' 1;">star</span>
-                        <span class="font-headline font-bold text-xs text-tertiary">${rating}</span>
-                        ${year ? `<span class="text-white/30 text-[10px]">${year}</span>` : ''}
-                    </div>
-                </div>
-                <button class="btn-remove" data-remove="${movie.id}" title="Remover">
-                    <span class="material-symbols-outlined" style="font-size:16px;">close</span>
-                </button>
-            `;
-
-            // Stagger entrance
-            setTimeout(() => card.classList.add('visible'), 60 + index * 60);
-
-            // Click → open modal
-            card.addEventListener('click', (e) => {
-                if (e.target.closest('.btn-remove')) return;
-                openModal(movie, genreMap);
-            });
-
-            // Remove btn
-            card.querySelector('.btn-remove').addEventListener('click', (e) => {
-                e.stopPropagation();
-                removeMovie(movie.id);
-            });
-
-            return card;
-        }
-
-        // ── Remove movie ──
-        function removeMovie(id) {
-            likedMovies = likedMovies.filter(m => m.id !== id);
-            saveLikedMovies(likedMovies);
-            // Remove from DOM with animation
-            const card = grid.querySelector(`[data-id="${id}"]`);
-            if (card) {
-                card.style.transition = 'opacity 0.2s, transform 0.2s';
-                card.style.opacity = '0';
-                card.style.transform = 'scale(0.9)';
-                setTimeout(() => { card.remove(); checkEmpty(); updateBadge(); }, 220);
-            }
-            // Close modal if open for this movie
-            if (activeMovieId === id) closeModal();
-        }
-
-        // ── Modal ──
+        // ── Modal Logic ──
         function openModal(movie, genreMap) {
             activeMovieId = movie.id;
-            const poster = movie.poster_path
-                ? `${IMAGE_BASE}${movie.poster_path}`
-                : '';
-
-            modalPoster.src = poster;
-            modalPoster.alt = movie.title;
+            modalPoster.src = movie.poster_path ? IMAGE_BASE + movie.poster_path : '';
             modalTitle.textContent = movie.title || '';
             modalRating.textContent = movie.vote_average ? movie.vote_average.toFixed(1) : '—';
             modalYear.textContent = movie.release_date ? movie.release_date.split('-')[0] : '';
             modalSynopsis.textContent = movie.overview || 'Sinopse não disponível.';
 
-            // Limpar e carregar trailer
+            // Trailers & Providers
             const mTrailerSection = document.getElementById('modal-trailer-section');
             const mTrailerContainer = document.getElementById('modal-trailer-container');
             mTrailerSection.classList.add('hidden');
             mTrailerContainer.innerHTML = '';
             fetchAndRenderTrailer(movie.id, mTrailerContainer, mTrailerSection);
 
-            // Limpar e carregar provedores
             const mProvidersSection = document.getElementById('modal-providers-section');
             const mProvidersList = document.getElementById('modal-providers-list');
             mProvidersSection.classList.add('hidden');
@@ -579,18 +453,17 @@
 
             // Genres
             modalGenres.innerHTML = '';
-            (movie.genre_ids || []).slice(0, 3).forEach(id => {
-                if (!genreMap[id]) return;
+            const movieGenres = movie.genres || (movie.genre_ids ? movie.genre_ids.map(id => ({ name: genreMap[id] })) : []);
+            movieGenres.slice(0, 3).forEach(g => {
                 const chip = document.createElement('span');
                 chip.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider font-headline glass-panel text-white/60';
-                chip.textContent = genreMap[id];
+                chip.textContent = g.name;
                 modalGenres.appendChild(chip);
             });
 
             modal.classList.add('open');
             document.body.style.overflow = 'hidden';
             
-            // Animando abertura com GSAP
             gsap.fromTo(sheet, 
                 { y: "100%" }, 
                 { y: 0, duration: 0.6, ease: "expo.out", clearProps: "transform" }
@@ -599,15 +472,77 @@
                 { opacity: 0 }, 
                 { opacity: 1, duration: 0.4, ease: "power2.out" }
             );
+
+            updateWatchedUI();
         }
 
         function closeModal() {
-            modal.classList.remove('open');
-            document.body.style.overflow = '';
-            activeMovieId = null;
+            gsap.to(sheet, {
+                y: "100%",
+                duration: 0.5,
+                ease: "expo.inOut",
+                onComplete: () => {
+                    modal.classList.remove('open');
+                    document.body.style.overflow = '';
+                    activeMovieId = null;
+                    gsap.set(sheet, { clearProps: "transform" });
+                }
+            });
+            gsap.to(modal, {
+                opacity: 0,
+                duration: 0.4,
+                ease: "power2.inOut"
+            });
+        }
+        window.closeModal = closeModal;
+        modalBackdrop.addEventListener('click', closeModal);
+
+        function updateWatchedUI() {
+            if(!activeMovieId) return;
+            const isWatched = watchedMovieIds.has(activeMovieId);
+            if(isWatched) {
+                modalWatchedBtn.innerHTML = '<span class="material-symbols-outlined">check_circle</span> ASSISTIDO';
+                modalWatchedBtn.classList.replace('bg-primary-container', 'bg-green-600');
+            } else {
+                modalWatchedBtn.innerHTML = 'ASSISTIDO';
+                modalWatchedBtn.classList.replace('bg-green-600', 'bg-primary-container');
+            }
         }
 
-        // Cache e busca de trailers
+        async function toggleWatched() {
+            if(!activeMovieId) return;
+            if(watchedMovieIds.has(activeMovieId)) {
+                watchedMovieIds.delete(activeMovieId);
+            } else {
+                watchedMovieIds.add(activeMovieId);
+            }
+            localStorage.setItem('matchflix_watched_movies', JSON.stringify([...watchedMovieIds]));
+            updateWatchedUI();
+            render(); // Refresh lists
+        }
+        modalWatchedBtn.onclick = toggleWatched;
+
+        async function removeMovie() {
+            if (!activeMovieId || !currentUser) return;
+            if (!confirm('Remover este filme da sua lista?')) return;
+            
+            try {
+                const { error } = await supabase
+                    .from('curtidas_filmes')
+                    .delete()
+                    .eq('usuario_id', currentUser.id)
+                    .eq('filme_id', activeMovieId);
+                
+                if (error) throw error;
+                closeModal();
+                render();
+            } catch (err) {
+                alert("Erro ao remover filme.");
+            }
+        }
+        modalRemove.onclick = removeMovie;
+
+        // ── Trailers & Providers ──
         const trailersCache = new Map();
         async function fetchAndRenderTrailer(movieId, containerElement, sectionElement) {
             try {
@@ -637,6 +572,29 @@
             } catch (err) { console.error(err); }
         }
 
+        const providersCache = new Map();
+        async function fetchAndRenderProviders(movieId, listElement, sectionElement) {
+            try {
+                let providers = providersCache.get(movieId);
+                if (!providers) {
+                    const res = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/watch/providers?api_key=${API_KEY}`);
+                    const data = await res.json();
+                    providers = data.results?.BR?.flatrate || [];
+                    providersCache.set(movieId, providers);
+                }
+                if (providers && providers.length > 0) {
+                    sectionElement.classList.remove('hidden');
+                    listElement.innerHTML = providers.map(p => `
+                        <img src="https://image.tmdb.org/t/p/original${p.logo_path}" 
+                             alt="${p.provider_name}" 
+                             class="provider-icon"
+                             loading="lazy">
+                    `).join('');
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        // Global Trailer Functions
         window.openVideoTrailer = function(key) {
             const overlay = document.getElementById('video-overlay');
             const content = document.getElementById('video-content');
@@ -666,103 +624,45 @@
             if (e.target === document.getElementById('video-overlay')) window.closeVideoTrailer();
         });
 
-        // Cache e busca de provedores
-        const providersCache = new Map();
-        async function fetchAndRenderProviders(movieId, listElement, sectionElement) {
-            try {
-                let providers = providersCache.get(movieId);
-                if (!providers) {
-                    const res = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/watch/providers?api_key=${API_KEY}`);
-                    const data = await res.json();
-                    providers = data.results?.BR?.flatrate || [];
-                    providersCache.set(movieId, providers);
-                }
-                if (providers && providers.length > 0) {
-                    sectionElement.classList.remove('hidden');
-                    listElement.innerHTML = providers.map(p => `
-                        <img src="https://image.tmdb.org/t/p/original${p.logo_path}" 
-                             alt="${p.provider_name}" 
-                             title="${p.provider_name}"
-                             class="provider-icon"
-                             loading="lazy">
-                    `).join('');
-                }
-            } catch (err) { console.error(err); }
-        }
-
-        modalBackdrop.addEventListener('click', closeModal);
-
-        // --- Drag to Close Implementation (Premium Feel) ---
+        // Drag to Close Modal
         let dragStartY = 0;
-        let dragCurrentY = 0;
         let isDragging = false;
-        const sheet = document.getElementById('modal-sheet');
-
-        sheet.addEventListener('touchstart', e => {
+        sheet.addEventListener('touchstart', (e) => {
+            if (sheet.scrollTop > 0) return;
             dragStartY = e.touches[0].clientY;
             isDragging = true;
-            sheet.style.transition = 'none'; // Disable CSS transition during drag
-        }, { passive: true });
-
-        sheet.addEventListener('touchmove', e => {
+        });
+        sheet.addEventListener('touchmove', (e) => {
             if (!isDragging) return;
-            dragCurrentY = e.touches[0].clientY;
-            const deltaY = dragCurrentY - dragStartY;
-            
+            let deltaY = e.touches[0].clientY - dragStartY;
             if (deltaY > 0) {
-                // Only allow dragging down
                 gsap.set(sheet, { y: deltaY });
-                // Dim backdrop slightly as we drag down
-                const opacity = Math.max(0, 0.7 - (deltaY / 500));
-                gsap.set(modalBackdrop, { backgroundColor: `rgba(0,0,0,${opacity})` });
+                gsap.set(modalBackdrop, { opacity: Math.max(0, 0.7 - (deltaY / 1000)) });
             }
-        }, { passive: true });
-
-        sheet.addEventListener('touchend', e => {
+        });
+        sheet.addEventListener('touchend', (e) => {
             if (!isDragging) return;
             isDragging = false;
-            const deltaY = dragCurrentY - dragStartY;
-
-            if (deltaY > 120) {
-                // Close if dragged enough
-                closeModal();
-            } else {
-                // Snap back
-                gsap.to(sheet, {
-                    y: 0,
-                    duration: 0.4,
-                    ease: "elastic.out(1, 0.75)"
-                });
-                gsap.to(modalBackdrop, {
-                    backgroundColor: "rgba(0,0,0,0.7)",
-                    duration: 0.3
-                });
+            let deltaY = e.changedTouches[0].clientY - dragStartY;
+            if (deltaY > 150) closeModal();
+            else {
+                gsap.to(sheet, { y: 0, duration: 0.3, ease: "power2.out" });
+                gsap.to(modalBackdrop, { opacity: 0.7, duration: 0.3 });
             }
         });
 
-        // Update closeModal to reset GSAP properties
-        const originalCloseModal = closeModal;
-        closeModal = function() {
-            gsap.to(sheet, {
-                y: "100%",
-                duration: 0.5,
-                ease: "expo.inOut",
-                onComplete: () => {
-                    originalCloseModal();
-                    // Limpar props para evitar que fiquem travados
-                    gsap.set(sheet, { clearProps: "transform" });
-                }
+        // ── Nav transitions ──
+        document.querySelectorAll('nav a[href]').forEach(link => {
+            link.addEventListener('click', e => {
+                const href = link.getAttribute('href');
+                if (!href || href === '#' || href === window.location.pathname.split('/').pop()) return;
+                e.preventDefault();
+                document.body.style.opacity = '0';
+                document.body.style.transform = 'scale(0.98)';
+                document.body.style.filter = 'blur(10px)';
+                document.body.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+                setTimeout(() => window.location.href = href, 300);
             });
-            gsap.to(modal, {
-                opacity: 0,
-                duration: 0.4,
-                ease: "power2.inOut"
-            });
-        };
-
-        // Remove from modal
-        modalRemove.addEventListener('click', () => {
-            if (activeMovieId) removeMovie(activeMovieId);
         });
 
     </script>
@@ -770,93 +670,20 @@
     <!-- BottomNavBar (Floating Style) -->
     <nav class="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] z-50 flex justify-around items-center px-2 py-2 bg-neutral-900/60 backdrop-blur-3xl rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/5">
         <!-- Match -->
-        <a href="descobrir.html" class="nav-item flex flex-col items-center justify-center" data-page="descobrir">
+        <a href="descobrir.html" class="nav-item flex flex-col items-center justify-center">
             <span class="material-symbols-outlined text-xl">style</span>
             <span class="font-headline text-[9px] font-bold uppercase tracking-widest mt-1">Match</span>
         </a>
-        <!-- Filmes -->
-        <a href="meusmatches.html" class="nav-item flex flex-col items-center justify-center" data-page="meusmatches">
-            <span class="material-symbols-outlined text-xl">format_list_bulleted</span>
-            <span class="font-headline text-[9px] font-bold uppercase tracking-widest mt-1">Filmes</span>
+        <!-- Likes -->
+        <a href="meusmatches.html" class="nav-item flex flex-col items-center justify-center">
+            <span class="material-symbols-outlined text-xl">favorite</span>
+            <span class="font-headline text-[9px] font-bold uppercase tracking-widest mt-1">Likes</span>
         </a>
         <!-- Collection (Active) -->
-        <a href="colecoes.html" class="nav-item active flex flex-col items-center justify-center" data-page="colecoes">
-            <span class="material-symbols-outlined text-xl">favorite</span>
-            <span class="font-headline text-[9px] font-bold uppercase tracking-widest mt-1">Coleção</span>
+        <a href="colecoes.html" class="nav-item active flex flex-col items-center justify-center">
+            <span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">video_library</span>
+            <span class="font-headline text-[9px] font-bold uppercase tracking-widest mt-1 text-primary-container">Coleção</span>
         </a>
     </nav>
-
-    <script>     // ── UI helpers ──
-        function checkEmpty() {
-            const hasMovies = grid.children.length > 0;
-            emptyState.style.display = hasMovies ? 'none' : 'flex';
-            grid.style.display = hasMovies ? 'grid' : 'none';
-        }
-
-        function updateBadge() {
-            const count = likedMovies.length;
-            if (count > 0) {
-                countBadge.textContent = count > 99 ? '99+' : count;
-                countBadge.classList.remove('hidden');
-            } else {
-                countBadge.classList.add('hidden');
-            }
-        }
-
-        // ── Render ──
-        async function render() {
-            updateBadge();
-
-            if (likedMovies.length === 0) {
-                emptyState.style.display = 'flex';
-                grid.style.display = 'none';
-                return;
-            }
-
-            emptyState.style.display = 'none';
-            grid.style.display = 'grid';
-
-            const genreMap = await getGenreMap();
-
-            // Enrich and render in parallel
-            const enriched = await Promise.all(likedMovies.map(enrichMovie));
-            // Update localStorage with enriched data
-            saveLikedMovies(enriched);
-            likedMovies = enriched;
-
-            grid.innerHTML = '';
-            enriched.forEach((movie, i) => {
-                grid.appendChild(buildCard(movie, genreMap, i));
-            });
-        }
-
-        render();
-
-        /* ── Nav page-exit transition ── */
-        document.querySelectorAll('nav a[href], header a[href]').forEach(link => {
-            const href = link.getAttribute('href');
-            if (!href || href === '#' || href === window.location.pathname.split('/').pop()) return;
-            link.addEventListener('pointerdown', e => {
-                e.preventDefault();
-                
-                // Feedback imediato no item da nav se existir
-                const navItem = link.closest('.nav-item');
-                if(navItem) {
-                    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-                    navItem.classList.add('active');
-                }
-
-                // Determina direção para o efeito de aba
-                const pages = ['descobrir.html', 'meusmatches.html', 'colecoes.html'];
-                const currentIndex = pages.indexOf(window.location.pathname.split('/').pop() || 'colecoes.html');
-                const nextIndex = pages.indexOf(href);
-                
-                if(nextIndex > currentIndex) document.body.classList.add('exiting-left');
-                else document.body.classList.add('exiting-right');
-                
-                setTimeout(() => { window.location.href = href; }, 250);
-            });
-        });
-    </script>
 </body>
 </html>
