@@ -224,6 +224,33 @@
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
             pointer-events: none;
         }
+
+        /* Streaming Providers Styles */
+        .provider-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            object-fit: cover;
+            border: 1px solid rgba(255,255,255,0.15);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.6);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .provider-icon:hover {
+            transform: scale(1.15) translateY(-2px);
+            border-color: rgba(229, 9, 20, 0.5);
+            box-shadow: 0 0 15px rgba(229, 9, 20, 0.3);
+        }
+        .providers-section {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .providers-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin-top: 12px;
+        }
     </style>
 </head>
 <body class="text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container h-[100dvh] flex flex-col">
@@ -346,7 +373,7 @@
         <div id="modal-backdrop" class="fixed inset-0 bg-black/80 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-500"></div>
         <div class="relative bg-neutral-900 rounded-t-[2.5rem] border-t border-white/10 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
             <div class="w-12 h-1.5 bg-white/20 rounded-full mx-auto mt-4 mb-2 shrink-0"></div>
-            <div class="overflow-y-auto pb-20">
+            <div id="modal-scroll-container" class="overflow-y-auto pb-20">
                 <div class="relative aspect-video w-full overflow-hidden">
                     <img id="modal-poster" class="w-full h-full object-cover" src="" alt="">
                     <div class="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent"></div>
@@ -363,7 +390,12 @@
                     </div>
                     
                     <p class="text-primary-container text-[10px] font-black tracking-widest uppercase mb-2">Sinopse</p>
-                    <p id="modal-synopsis" class="text-white/70 leading-relaxed font-body text-sm mb-8"></p>
+                    <p id="modal-synopsis" class="text-white/70 leading-relaxed font-body text-sm mb-4"></p>
+                    
+                    <div id="modal-providers-section" class="providers-section hidden mb-8">
+                        <p class="text-primary-container text-[10px] font-black tracking-widest uppercase mb-2">Onde Assistir</p>
+                        <div id="modal-providers-list" class="providers-list"></div>
+                    </div>
                     
                     <div class="grid grid-cols-2 gap-4">
                         <button id="modal-remove" class="bg-neutral-800 text-white/70 font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all hover:bg-neutral-700">
@@ -724,8 +756,12 @@
                         </div>
                     </div>
                     
-                    <div class="flex-grow overflow-y-auto synopsis-scroll pr-2 text-gray-300 font-body leading-relaxed text-sm md:text-base">
-                        <p>${overview}</p>
+                    <div class="flex-grow overflow-y-auto synopsis-scroll pr-2 text-gray-300 font-body leading-relaxed text-sm">
+                        <p class="mb-4">${overview}</p>
+                        <div class="providers-section-card hidden" id="providers-${movie.id}">
+                            <p class="text-primary-container text-[9px] font-black tracking-widest uppercase mb-2">Onde Assistir</p>
+                            <div class="providers-list flex flex-wrap gap-2"></div>
+                        </div>
                     </div>
 
                     <div class="pt-4 shrink-0 mt-4">
@@ -745,6 +781,41 @@
             if (stackIndex === 0) {
                 currentCardDOM = wrapper;
                 initDrag(currentCardDOM, movie, front, matchOverlay);
+            }
+
+            // Carregar provedores para o card
+            fetchAndRenderProviders(movie.id, wrapper.querySelector('.providers-list'), wrapper.querySelector('.providers-section-card'));
+        }
+
+        // Cache para provedores de streaming
+        const providersCache = new Map();
+
+        async function fetchAndRenderProviders(movieId, listElement, sectionElement) {
+            if (!listElement || !sectionElement) return;
+
+            try {
+                let providers = providersCache.get(movieId);
+                
+                if (!providers) {
+                    const res = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/watch/providers?api_key=${API_KEY}`);
+                    const data = await res.json();
+                    // Pegamos apenas do Brasil (BR) e do tipo 'flatrate' (streaming por assinatura)
+                    providers = data.results?.BR?.flatrate || [];
+                    providersCache.set(movieId, providers);
+                }
+
+                if (providers && providers.length > 0) {
+                    sectionElement.classList.remove('hidden');
+                    listElement.innerHTML = providers.map(p => `
+                        <img src="https://image.tmdb.org/t/p/original${p.logo_path}" 
+                             alt="${p.provider_name}" 
+                             title="${p.provider_name}"
+                             class="provider-icon"
+                             loading="lazy">
+                    `).join('');
+                }
+            } catch (err) {
+                console.error("Erro ao carregar provedores:", err);
             }
         }
 
@@ -1121,6 +1192,13 @@
             mGenres.textContent = movie.genre_names || 'Filme';
             mSynopsis.textContent = movie.overview || 'Sinopse não disponível.';
 
+            // Limpar e carregar provedores no modal
+            const mProvidersSection = document.getElementById('modal-providers-section');
+            const mProvidersList = document.getElementById('modal-providers-list');
+            mProvidersSection.classList.add('hidden');
+            mProvidersList.innerHTML = '';
+            fetchAndRenderProviders(movie.id, mProvidersList, mProvidersSection);
+
             // Show/Hide remove button based on context
             if(type === 'discover') {
                 mRemoveBtn.classList.add('hidden');
@@ -1179,52 +1257,54 @@
         let dragCurrentY = 0;
         let isDraggingModal = false;
 
-        modal.addEventListener('touchstart', e => {
-            // Only start drag if touching the handle or the top part of the modal
+        // --- Drag to Close Implementation (Ultra-Responsive Universal) ---
+        const modalScrollContainer = document.getElementById('modal-scroll-container');
+
+        const startDragModal = (e) => {
+            const touchY = e.touches ? e.touches[0].clientY : e.clientY;
+            // Only start drag if touching the handle area OR if content is at top
             const rect = modal.getBoundingClientRect();
-            const touchY = e.touches[0].clientY;
-            // Allow dragging from the top 100px of the modal (handle area)
-            if (touchY < rect.top + 100) {
+            if (touchY < rect.top + 80 || modalScrollContainer.scrollTop <= 0) {
                 dragStartY = touchY;
-                dragCurrentY = dragStartY; // Initialize
+                dragCurrentY = dragStartY;
                 isDraggingModal = true;
                 modal.style.transition = 'none';
             }
-        }, { passive: true });
+        };
 
-        modal.addEventListener('touchmove', e => {
+        const moveDragModal = (e) => {
             if (!isDraggingModal) return;
-            dragCurrentY = e.touches[0].clientY;
+            const touchY = e.touches ? e.touches[0].clientY : e.clientY;
+            dragCurrentY = touchY;
             const deltaY = dragCurrentY - dragStartY;
             
-            if (deltaY > 0) {
+            if (deltaY > 0 && modalScrollContainer.scrollTop <= 0) {
+                if (e.cancelable) e.preventDefault();
                 gsap.set(modal, { y: deltaY });
-                // Fade out backdrop slightly
-                const opacity = Math.max(0, 0.8 - (deltaY / 600));
+                const opacity = Math.max(0, 0.8 - (deltaY / 500));
                 gsap.set(modalBackdrop, { opacity: opacity });
+            } else if (deltaY < 0) {
+                isDraggingModal = false;
+                gsap.set(modal, { y: 0 });
             }
-        }, { passive: true });
+        };
 
-        modal.addEventListener('touchend', e => {
+        const endDragModal = () => {
             if (!isDraggingModal) return;
             isDraggingModal = false;
             const deltaY = dragCurrentY - dragStartY;
 
-            if (deltaY > 100) {
+            if (deltaY > 80) {
                 closeSynopsis();
             } else {
-                // Snap back
-                gsap.to(modal, {
-                    y: 0,
-                    duration: 0.5,
-                    ease: "elastic.out(1, 0.75)"
-                });
-                gsap.to(modalBackdrop, {
-                    opacity: 0.8,
-                    duration: 0.3
-                });
+                gsap.to(modal, { y: 0, duration: 0.3, ease: "power2.out" });
+                gsap.to(modalBackdrop, { opacity: 0.8, duration: 0.2 });
             }
-        });
+        };
+
+        modal.addEventListener('touchstart', startDragModal, { passive: true });
+        modal.addEventListener('touchmove', moveDragModal, { passive: false });
+        modal.addEventListener('touchend', endDragModal);
 
         function closeSynopsis() {
             gsap.to(modal, {
@@ -1235,8 +1315,8 @@
                     modal.classList.add('translate-y-full');
                     modalBackdrop.classList.add('opacity-0', 'pointer-events-none');
                     document.body.style.overflow = '';
-                    gsap.set(modal, { y: 0 }); // Reset for next open
-                    gsap.set(modalBackdrop, { opacity: "" }); // Reset for next open
+                    gsap.set(modal, { y: 0 }); 
+                    gsap.set(modalBackdrop, { opacity: "" }); 
                 }
             });
         }

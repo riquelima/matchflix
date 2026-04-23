@@ -245,6 +245,33 @@
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
             pointer-events: none;
         }
+
+        /* Streaming Providers Styles */
+        .provider-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            object-fit: cover;
+            border: 1px solid rgba(255,255,255,0.15);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.6);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .provider-icon:hover {
+            transform: scale(1.1) translateY(-2px);
+            border-color: rgba(229, 9, 20, 0.5);
+            box-shadow: 0 0 15px rgba(229, 9, 20, 0.3);
+        }
+        .providers-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .providers-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin-top: 12px;
+        }
     </style>
 </head>
 
@@ -337,6 +364,11 @@
             <div class="px-5">
                 <p class="text-[10px] tracking-[0.25em] uppercase text-primary-container/60 font-bold font-headline mb-3">Sinopse</p>
                 <p id="modal-synopsis" class="text-white/70 font-body text-sm leading-relaxed"></p>
+                
+                <div id="modal-providers-section" class="px-0 providers-section hidden">
+                    <p class="text-primary-container/60 text-[10px] font-bold tracking-[0.25em] uppercase mb-2">Onde Assistir</p>
+                    <div id="modal-providers-list" class="providers-list"></div>
+                </div>
             </div>
 
             <!-- Actions -->
@@ -491,6 +523,13 @@
             modalYear.textContent = movie.release_date ? movie.release_date.split('-')[0] : '';
             modalSynopsis.textContent = movie.overview || 'Sinopse não disponível.';
 
+            // Limpar e carregar provedores
+            const mProvidersSection = document.getElementById('modal-providers-section');
+            const mProvidersList = document.getElementById('modal-providers-list');
+            mProvidersSection.classList.add('hidden');
+            mProvidersList.innerHTML = '';
+            fetchAndRenderProviders(movie.id, mProvidersList, mProvidersSection);
+
             // Genres
             modalGenres.innerHTML = '';
             (movie.genre_ids || []).slice(0, 3).forEach(id => {
@@ -509,6 +548,30 @@
             modal.classList.remove('open');
             document.body.style.overflow = '';
             activeMovieId = null;
+        }
+
+        // Cache e busca de provedores
+        const providersCache = new Map();
+        async function fetchAndRenderProviders(movieId, listElement, sectionElement) {
+            try {
+                let providers = providersCache.get(movieId);
+                if (!providers) {
+                    const res = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/watch/providers?api_key=${API_KEY}`);
+                    const data = await res.json();
+                    providers = data.results?.BR?.flatrate || [];
+                    providersCache.set(movieId, providers);
+                }
+                if (providers && providers.length > 0) {
+                    sectionElement.classList.remove('hidden');
+                    listElement.innerHTML = providers.map(p => `
+                        <img src="https://image.tmdb.org/t/p/original${p.logo_path}" 
+                             alt="${p.provider_name}" 
+                             title="${p.provider_name}"
+                             class="provider-icon"
+                             loading="lazy">
+                    `).join('');
+                }
+            } catch (err) { console.error(err); }
         }
 
         modalBackdrop.addEventListener('click', closeModal);
