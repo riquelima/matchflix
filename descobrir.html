@@ -254,14 +254,42 @@
         </a>
     </nav>
 
-    <script>
+    <script type="module">
+        import { supabase } from './js/supabase.js';
+
         const API_KEY = "416394469462693ee5727abe4c864848";
         const IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w780";
         const BACKDROP_BASE_URL = "https://image.tmdb.org/t/p/w1280";
         
+        let currentUser = null;
         let moviesQueue = [];
         let currentCardDOM = null;
         let isAnimating = false;
+
+        // Check Auth
+        (async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+            } else {
+                currentUser = session.user;
+                fetchMovies(); // Inicia a busca só se estiver logado
+            }
+        })();
+
+        // Save Action to Supabase
+        async function saveActionToSupabase(movie, liked) {
+            if (!currentUser) return;
+            try {
+                await supabase.from('curtidas_filmes').insert({
+                    usuario_id: currentUser.id,
+                    filme_id: movie.id,
+                    curtiu: liked
+                });
+            } catch (error) {
+                console.error("Erro ao salvar ação no Supabase:", error);
+            }
+        }
 
         const stackContainer = document.getElementById("card-stack");
         const loadingIndicator = document.getElementById("loading-indicator");
@@ -488,6 +516,8 @@
                 // Apenas checa isMatched — isAnimating já foi setado antes de chamar
                 if (isMatched) return;
                 isMatched = true;
+                
+                saveActionToSupabase(movie, true);
 
                 gsap.killTweensOf(element); // garante estado limpo
                 gsap.to(element, {
@@ -530,6 +560,9 @@
             }
 
             function throwOut(direction) {
+                if (direction === -1) {
+                    saveActionToSupabase(movie, false);
+                }
                 // Throw out of screen
                 const windowWidth = window.innerWidth;
                 const endX = direction * windowWidth;
@@ -651,8 +684,7 @@
             }
         }
 
-        // Start
-        fetchMovies();
+        }
     </script>
     <script>
         /* ── Nav page-exit transition ── */

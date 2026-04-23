@@ -121,7 +121,7 @@
 <h2 class="font-headline text-3xl font-bold tracking-tight text-on-surface mb-3">Crie sua conta</h2>
 <p class="font-body text-on-surface-variant text-base leading-relaxed">Sua jornada cinematográfica começa aqui.</p>
 </div>
-<form class="space-y-6 w-full">
+<form id="register-form" class="space-y-6 w-full">
 <div class="space-y-2">
 <label class="font-label text-sm font-medium text-on-surface-variant ml-1 block" for="name">Nome Completo</label>
 <div class="relative">
@@ -174,13 +174,46 @@
 </p>
 </div>
 </main>
-<script>
+<script type="module">
+    import { supabase } from './js/supabase.js';
+
     // Animação de entrada fluida (Cyber-Noir)
     gsap.from("main", {
         y: 40,
         opacity: 0,
         duration: 1,
         ease: "power4.out"
+    });
+
+    const form = document.getElementById('register-form');
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const name = document.getElementById('name').value;
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const btn = form.querySelector('button[type="submit"]');
+        const btnText = btn.innerHTML;
+
+        btn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> Aguarde...';
+        btn.disabled = true;
+
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: { nome: name, avatar_url: '' }
+            }
+        });
+
+        if (error) {
+            alert('Erro ao criar conta: ' + error.message);
+            btn.innerHTML = btnText;
+            btn.disabled = false;
+        } else {
+            // Sucesso!
+            window.location.href = 'descobrir.html';
+        }
     });
 </script>
 </body></html>

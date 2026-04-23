@@ -158,8 +158,10 @@
 </p>
 </div>
 </main>
-<script>
-    // Animação de entrada fluida (Cyber-Noir)
+<script type="module">
+    import { supabase } from './js/supabase.js';
+
+    // Animação de entrada fluida
     gsap.from("main", {
         y: 40,
         opacity: 0,
@@ -167,28 +169,46 @@
         ease: "power4.out"
     });
 
-    document.getElementById("login-form").addEventListener("submit", (e) => {
+    const form = document.getElementById('login-form');
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        // Animação de saída Cyber-Noir
-        document.body.style.pointerEvents = "none";
-        
-        gsap.to("main", {
-            y: -40,
-            opacity: 0,
-            duration: 0.5,
-            ease: "power3.in"
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const btn = form.querySelector('button[type="submit"]');
+        const btnText = btn.innerHTML;
+
+        btn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> Entrando...';
+        btn.disabled = true;
+
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password
         });
-        
-        gsap.to("body", {
-            opacity: 0,
-            duration: 0.5,
-            delay: 0.3,
-            ease: "power2.inOut",
-            onComplete: () => {
-                window.location.href = "primeiroLogin.html";
-            }
-        });
+
+        if (error) {
+            alert('Erro ao fazer login: ' + error.message);
+            btn.innerHTML = btnText;
+            btn.disabled = false;
+        } else {
+            // Animação de saída e redirecionamento
+            document.body.style.pointerEvents = "none";
+            gsap.to("main", {
+                y: -40,
+                opacity: 0,
+                duration: 0.5,
+                ease: "power3.in"
+            });
+            gsap.to("body", {
+                opacity: 0,
+                duration: 0.5,
+                delay: 0.3,
+                ease: "power2.inOut",
+                onComplete: () => {
+                    window.location.href = "descobrir.html";
+                }
+            });
+        }
     });
 </script>
 </body>
