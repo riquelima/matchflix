@@ -216,13 +216,19 @@
 
         /* ── Page Transition ── */
         @keyframes pageEnter {
-            from { opacity: 0; transform: translateY(10px); }
-            to   { opacity: 1; transform: translateY(0); }
+            from { opacity: 0; transform: translateX(20px); }
+            to   { opacity: 1; transform: translateX(0); }
         }
         body { animation: pageEnter 0.25s cubic-bezier(.4,0,.2,1) both; }
-        body.exiting {
+        body.exiting-right {
             opacity: 0 !important;
-            transform: translateY(-8px) !important;
+            transform: translateX(-20px) !important;
+            transition: opacity 0.18s ease, transform 0.18s ease !important;
+            pointer-events: none;
+        }
+        body.exiting-left {
+            opacity: 0 !important;
+            transform: translateX(20px) !important;
             transition: opacity 0.18s ease, transform 0.18s ease !important;
             pointer-events: none;
         }
@@ -593,7 +599,10 @@
             if (!href || href === '#' || href === window.location.pathname.split('/').pop()) return;
             link.addEventListener('click', e => {
                 e.preventDefault();
-                document.body.classList.add('exiting');
+                // If returning to descobrir (left side), exit right
+                if(href.includes('descobrir')) document.body.classList.add('exiting-right');
+                else document.body.classList.add('exiting-left');
+                
                 setTimeout(() => { window.location.href = href; }, 190);
             });
         });

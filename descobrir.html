@@ -162,13 +162,19 @@
         }
         /* ── Page Transition ── */
         @keyframes pageEnter {
-            from { opacity: 0; transform: translateY(10px); }
-            to   { opacity: 1; transform: translateY(0); }
+            from { opacity: 0; transform: translateX(-20px); }
+            to   { opacity: 1; transform: translateX(0); }
         }
         body { animation: pageEnter 0.25s cubic-bezier(.4,0,.2,1) both; }
-        body.exiting {
+        body.exiting-right {
             opacity: 0 !important;
-            transform: translateY(-8px) !important;
+            transform: translateX(-20px) !important;
+            transition: opacity 0.18s ease, transform 0.18s ease !important;
+            pointer-events: none;
+        }
+        body.exiting-left {
+            opacity: 0 !important;
+            transform: translateX(20px) !important;
             transition: opacity 0.18s ease, transform 0.18s ease !important;
             pointer-events: none;
         }
@@ -265,6 +271,7 @@
         let moviesQueue = [];
         let currentCardDOM = null;
         let isAnimating = false;
+        let interactedMovieIds = new Set(); // Guarda IDs já vistos
 
         // Check Auth
         (async () => {
@@ -273,13 +280,30 @@
                 window.location.href = 'login.html';
             } else {
                 currentUser = session.user;
+                await fetchInteractedMovies(); // Carrega histórico
                 fetchMovies(); // Inicia a busca só se estiver logado
             }
         })();
 
+        // Carrega do banco tudo que o usuário já deu match ou dislike
+        async function fetchInteractedMovies() {
+            try {
+                const { data, error } = await supabase
+                    .from('curtidas_filmes')
+                    .select('filme_id')
+                    .eq('usuario_id', currentUser.id);
+                if (data) {
+                    data.forEach(item => interactedMovieIds.add(item.filme_id));
+                }
+            } catch(e) {
+                console.error("Erro ao carregar histórico", e);
+            }
+        }
+
         // Save Action to Supabase
         async function saveActionToSupabase(movie, liked) {
             if (!currentUser) return;
+            interactedMovieIds.add(movie.id); // Adiciona na memória local para não repetir
             try {
                 const { error } = await supabase.from('curtidas_filmes').upsert({
                     usuario_id: currentUser.id,
@@ -358,18 +382,22 @@
                     const genresString = favoriteGenres.join('|');
                     const nonGenresString = favoriteGenres.join(',');
                     
+                    const page1 = Math.floor(Math.random() * 20) + 1;
+                    const page2 = Math.floor(Math.random() * 20) + 1;
+
                     // 1. A Base (80%): Filmes dos gêneros favoritos
-                    const resMatches = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&with_genres=${genresString}&page=${Math.floor(Math.random() * 3) + 1}`);
+                    const resMatches = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&with_genres=${genresString}&page=${page1}`);
                     const dataMatches = await resMatches.json();
                     matches = dataMatches.results || [];
 
                     // 2. A Descoberta (20%): Filmes FORA dos gêneros favoritos para ampliar horizonte
-                    const resDiscoveries = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&without_genres=${nonGenresString}&page=${Math.floor(Math.random() * 3) + 1}`);
+                    const resDiscoveries = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&without_genres=${nonGenresString}&page=${page2}`);
                     const dataDiscoveries = await resDiscoveries.json();
                     discoveries = dataDiscoveries.results || [];
                 } else {
                     // Fallback se não houver gêneros salvos
-                    const res = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&page=1`);
+                    const page = Math.floor(Math.random() * 20) + 1;
+                    const res = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&page=${page}`);
                     const data = await res.json();
                     matches = data.results || [];
                 }
@@ -382,6 +410,9 @@
                     }
                     if(discoveries.length > 0) combined.push(discoveries.shift());
                 }
+
+                // Filtrar os que o usuário JÁ VIU (curtiu ou descartou)
+                combined = combined.filter(v => !interactedMovieIds.has(v.id));
 
                 // Filtrar os que já foram mostrados (idealmente salvar no localStorage quais já viu)
                 // Remove dupes
@@ -588,11 +619,8 @@
                 if (isMatched || isAnimating) return;
                 isAnimating = true;
                 gsap.killTweensOf(element);
-                // Dá um leve pulso visual antes de voar pra direita
-                gsap.to(element, {
-                    scale: 1.03, duration: 0.1, yoyo: true, repeat: 1, ease: "power2.out",
-                    onComplete: triggerMatch
-                });
+                // No mobile, rodar direto pra direita sem bump para fluidez instantânea
+                triggerMatch();
             };
             btnInfo.onclick = () => {
                 toggleSynopsis();
@@ -702,7 +730,10 @@
             if (!href || href === '#' || href === window.location.pathname.split('/').pop()) return;
             link.addEventListener('click', e => {
                 e.preventDefault();
-                document.body.classList.add('exiting');
+                // If navigating to meusmatches (right side of nav), exit left
+                if(href.includes('meusmatches')) document.body.classList.add('exiting-left');
+                else document.body.classList.add('exiting-right');
+                
                 setTimeout(() => { window.location.href = href; }, 190);
             });
         });
