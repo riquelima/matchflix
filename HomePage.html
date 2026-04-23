@@ -5,6 +5,7 @@
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>MatchFlix - O Match Perfeito Para Sua Noite de Cinema</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Plus+Jakarta+Sans:ital,wght@0,400;0,700;0,800;0,900;1,900&amp;display=swap" rel="stylesheet"/>
@@ -98,6 +99,51 @@
     body {
       min-height: max(884px, 100dvh);
     }
+    /* Mural de pôsteres */
+    .poster-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        grid-template-rows: repeat(2, 1fr);
+        gap: 12px;
+        padding: 0 24px;
+        height: 380px;
+    }
+    @media(min-width:768px) {
+        .poster-grid {
+            grid-template-columns: repeat(6, 1fr);
+            height: 420px;
+            gap: 14px;
+        }
+    }
+    @media(min-width:1024px) {
+        .poster-grid {
+            grid-template-columns: repeat(8, 1fr);
+            height: 440px;
+        }
+    }
+    .poster-cell {
+        position: relative;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #1a1a1a;
+    }
+    /* Células destacadas (maiores) */
+    .poster-cell.featured {
+        grid-row: span 2;
+    }
+    .poster-cell img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    .poster-cell::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to bottom, transparent 50%, rgba(14,14,14,0.7) 100%);
+        pointer-events: none;
+    }
   </style>
   </head>
 <body class="bg-surface text-on-surface font-body min-h-screen antialiased selection:bg-primary/30 selection:text-primary">
@@ -142,6 +188,26 @@
 </div>
 </div>
 </main>
+
+<!-- === MURAL DE PÔSTERES === -->
+<section class="relative z-10 overflow-hidden bg-surface py-16">
+    <!-- Título da Seção -->
+    <div class="text-center mb-10 px-6">
+        <p class="text-xs uppercase tracking-[0.25em] text-primary-container font-headline mb-2">Seu próximo match espera por você</p>
+        <h2 class="text-3xl md:text-4xl font-black font-headline text-white leading-tight">Milhares de filmes,<br><span class="text-primary-container">um pra chamar de seu.</span></h2>
+    </div>
+
+    <!-- Fade Edges -->
+    <div class="absolute inset-y-0 left-0 w-20 z-10 pointer-events-none" style="background: linear-gradient(to right, #131313, transparent);"></div>
+    <div class="absolute inset-y-0 right-0 w-20 z-10 pointer-events-none" style="background: linear-gradient(to left, #131313, transparent);"></div>
+    <div class="absolute bottom-0 left-0 right-0 h-32 z-10 pointer-events-none" style="background: linear-gradient(to top, #131313, transparent);"></div>
+
+    <!-- Grid de pôsteres -->
+    <div class="poster-grid max-w-7xl mx-auto" id="poster-mural">
+        <!-- Slots serão preenchidos via JS -->
+    </div>
+</section>
+
 <!-- Value Propositions Section (Sub-hero) -->
 <section class="relative z-10 bg-surface py-24 px-6 md:px-12 border-t-0">
 <div class="max-w-6xl mx-auto">
@@ -196,4 +262,152 @@
 </nav>
 </div>
 </footer>
+
+<script>
+(function() {
+    const API_KEY = "416394469462693ee5727abe4c864848";
+    const IMG = "https://image.tmdb.org/t/p/w500";
+    const mural = document.getElementById("poster-mural");
+    
+    let allPosters = [];
+    let cells = [];
+
+    // Calcula quantas células cabem no grid por breakpoint
+    function getSlotCount() {
+        const w = window.innerWidth;
+        if (w >= 1024) return 8 * 2; // 8 colunas x 2 linhas = 16 slots
+        if (w >= 768)  return 6 * 2; // 12 slots
+        return 4 * 2;                // 8 slots mobile
+    }
+
+    // Constrói as células do grid
+    function buildGrid() {
+        mural.innerHTML = "";
+        cells = [];
+        const total = getSlotCount();
+        // Células "featured" (span 2) nos índices 0 e metade do total
+        const featuredIdxs = new Set([0, Math.floor(total / 2)]);
+
+        for (let i = 0; i < total; i++) {
+            const cell = document.createElement("div");
+            cell.className = "poster-cell" + (featuredIdxs.has(i) ? " featured" : "");
+            const img = document.createElement("img");
+            img.alt = "";
+            img.loading = "lazy";
+            img.style.opacity = "0";
+            cell.appendChild(img);
+            mural.appendChild(cell);
+            cells.push({ el: cell, img, busy: false });
+        }
+    }
+
+    // Troca o pôster de uma célula com animação não-linear
+    function swapPoster(cellObj) {
+        if (cellObj.busy || allPosters.length < 2) return;
+        cellObj.busy = true;
+
+        const newSrc = IMG + allPosters[Math.floor(Math.random() * allPosters.length)];
+
+        // Anima saindo com efeitos variados
+        const exitEffects = [
+            { opacity: 0, scale: 0.85 },
+            { opacity: 0, y: 20 },
+            { opacity: 0, filter: "blur(8px)" },
+            { opacity: 0, rotationY: 15 }
+        ];
+        const enterEffects = [
+            { opacity: 1, scale: 1 },
+            { opacity: 1, y: 0 },
+            { opacity: 1, filter: "blur(0px)" },
+            { opacity: 1, rotationY: 0 }
+        ];
+        const pick = Math.floor(Math.random() * exitEffects.length);
+        const dur = 0.5 + Math.random() * 0.4;
+
+        gsap.to(cellObj.img, {
+            ...exitEffects[pick],
+            duration: dur,
+            ease: "power2.in",
+            onComplete: () => {
+                cellObj.img.src = newSrc;
+                cellObj.img.onload = () => {
+                    gsap.to(cellObj.img, {
+                        ...enterEffects[pick],
+                        duration: dur,
+                        ease: "power3.out",
+                        onComplete: () => { cellObj.busy = false; }
+                    });
+                };
+                cellObj.img.onerror = () => { cellObj.busy = false; };
+            }
+        });
+    }
+
+    // Preenche todos os slots com a primeira leva de imagens
+    function initialFill() {
+        const shuffled = [...allPosters].sort(() => Math.random() - 0.5);
+        cells.forEach((cell, i) => {
+            const src = IMG + (shuffled[i % shuffled.length]);
+            cell.img.src = src;
+            const delay = i * 0.06;
+            cell.img.onload = () => {
+                gsap.to(cell.img, { opacity: 1, duration: 0.6, delay, ease: "power2.out" });
+            };
+        });
+    }
+
+    // Loop de troca assíncrona (delays aleatórios diferentes por slot)
+    function startSwapLoop() {
+        cells.forEach((cell, i) => {
+            const baseDelay = 2000 + i * 400 + Math.random() * 1500;
+            setTimeout(function loop() {
+                swapPoster(cell);
+                const next = 3000 + Math.random() * 4000;
+                setTimeout(loop, next);
+            }, baseDelay);
+        });
+    }
+
+    // Busca pôsteres de 4 páginas diferentes (popular + top_rated)
+    async function fetchPosters() {
+        const pages = [1, 2, 3, 4];
+        const urls = [
+            ...pages.map(p => `https://api.themoviedb.org/3/movie/popular?language=pt-BR&page=${p}&api_key=${API_KEY}`),
+            ...pages.map(p => `https://api.themoviedb.org/3/movie/top_rated?language=pt-BR&page=${p}&api_key=${API_KEY}`)
+        ];
+        try {
+            const results = await Promise.all(urls.map(u => fetch(u).then(r => r.json())));
+            const posters = results
+                .flatMap(r => r.results || [])
+                .filter(m => m.poster_path)
+                .map(m => m.poster_path);
+            // Remove duplicatas
+            allPosters = [...new Set(posters)];
+            buildGrid();
+            initialFill();
+            startSwapLoop();
+        } catch(e) {
+            console.error("Mural: erro ao buscar pôsteres", e);
+        }
+    }
+
+    // Rebuild grid no resize
+    window.addEventListener('resize', () => {
+        clearTimeout(window._muralResize);
+        window._muralResize = setTimeout(() => {
+            buildGrid();
+            initialFill();
+            startSwapLoop();
+        }, 300);
+    });
+
+    // Inicia após DOM estar pronto
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', fetchPosters);
+    } else {
+        fetchPosters();
+    }
+})();
+</script>
+
 </body></html>
