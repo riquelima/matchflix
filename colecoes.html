@@ -303,7 +303,7 @@
         let currentUser = null;
         let likedMovies = [];
         let activeMovieId = null;
-        let watchedMovieIds = new Set(JSON.parse(localStorage.getItem('matchflix_watched_movies') || '[]'));
+        let watchedMovieIds = new Set(); // Agora virá do Supabase
 
         // Elements
         const gridPending = document.getElementById('grid-pending');
@@ -331,9 +331,25 @@
                 window.location.href = 'login.html';
             } else {
                 currentUser = session.user;
+                await fetchWatchedIds(); // Sincroniza IDs assistidos antes do primeiro render
                 render();
             }
         })();
+        
+        // Novo: Busca IDs que já foram marcados como assistidos no banco
+        async function fetchWatchedIds() {
+            if (!currentUser) return;
+            try {
+                const { data, error } = await supabase
+                    .from('curtidas_filmes')
+                    .select('filme_id')
+                    .eq('usuario_id', currentUser.id)
+                    .eq('assistido', true);
+                if (data) {
+                    watchedMovieIds = new Set(data.map(d => d.filme_id));
+                }
+            } catch (e) { console.error(e); }
+        }
 
         async function render() {
             likedMovies = await fetchLikedMoviesFromDB();
@@ -397,11 +413,18 @@
             try {
                 const { data, error } = await supabase
                     .from('curtidas_filmes')
-                    .select('filme_id')
+                    .select('filme_id, assistido') // Busca também o status assistido
                     .eq('usuario_id', currentUser.id)
                     .eq('curtiu', true);
                 if (error) throw error;
-                return data.map(item => ({ id: item.filme_id }));
+                
+                // Sincroniza o Set local com o que veio do banco
+                data.forEach(item => {
+                    if (item.assistido) watchedMovieIds.add(item.filme_id);
+                    else watchedMovieIds.delete(item.filme_id);
+                });
+
+                return data.map(item => ({ id: item.filme_id, assistido: item.assistido }));
             } catch (err) {
                 console.error("Erro ao buscar curtidas:", err);
                 return [];
@@ -510,15 +533,34 @@
         }
 
         async function toggleWatched() {
-            if(!activeMovieId) return;
-            if(watchedMovieIds.has(activeMovieId)) {
-                watchedMovieIds.delete(activeMovieId);
-            } else {
-                watchedMovieIds.add(activeMovieId);
+            if(!activeMovieId || !currentUser) return;
+            
+            const isCurrentlyWatched = watchedMovieIds.has(activeMovieId);
+            const newState = !isCurrentlyWatched;
+
+            try {
+                // Atualiza no Supabase
+                const { error } = await supabase
+                    .from('curtidas_filmes')
+                    .upsert({
+                        usuario_id: currentUser.id,
+                        filme_id: activeMovieId,
+                        curtiu: true,
+                        assistido: newState
+                    });
+
+                if (error) throw error;
+
+                // Atualiza estado local
+                if(newState) watchedMovieIds.add(activeMovieId);
+                else watchedMovieIds.delete(activeMovieId);
+
+                updateWatchedUI();
+                render(); // Refresh lists
+            } catch (err) {
+                console.error("Erro ao atualizar status assistido:", err);
+                alert("Erro ao salvar status assistido.");
             }
-            localStorage.setItem('matchflix_watched_movies', JSON.stringify([...watchedMovieIds]));
-            updateWatchedUI();
-            render(); // Refresh lists
         }
         modalWatchedBtn.onclick = toggleWatched;
 

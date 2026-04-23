@@ -465,6 +465,7 @@
         let moviesQueue = [];
         let currentCardDOM = null;
         let isAnimating = false;
+        let isFetching = false;
         let interactedMovieIds = new Set();
         
         let activeTab = 'descobrir'; // descobrir, meusmatches, colecoes
@@ -660,6 +661,9 @@
 
         // Inicializar a fila
         async function fetchMovies() {
+            if (isFetching) return;
+            isFetching = true;
+            loadingIndicator.style.display = "flex";
             try {
                 // Configurações Globais da API
                 const baseParams = `api_key=${API_KEY}&language=pt-BR&sort_by=popularity.desc&include_adult=false&vote_average.gte=7.0&vote_count.gte=100`;
@@ -715,6 +719,8 @@
             } catch (error) {
                 console.error("Erro ao buscar filmes", error);
                 loadingIndicator.innerHTML = `<p class="text-error text-center">Falha na conexão.<br>Tente novamente.</p>`;
+            } finally {
+                isFetching = false;
             }
         }
 
@@ -732,7 +738,9 @@
             
             // Remove old cards except loading
             const cards = stackContainer.querySelectorAll('.movie-card-wrapper');
-            cards.forEach(c => c.remove());
+            cards.forEach(c => {
+                if (c.parentNode) c.remove();
+            });
 
             for (let i = 0; i < maxVisible; i++) {
                 const movieIndex = moviesQueue.length - 1 - i;
@@ -1019,7 +1027,9 @@
                     force3D: true,
                     ease: "power2.inOut",
                     onComplete: () => {
-                        element.remove();
+                        if (element && element.parentNode) {
+                            element.remove();
+                        }
                         moviesQueue.pop(); // Remove from queue
                         isAnimating = false;
                         renderTopCards(); // Bring next card up

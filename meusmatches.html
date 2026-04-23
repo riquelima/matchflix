@@ -433,7 +433,7 @@
         let currentUser = null;
         let likedMovies = [];
         let activeMovieId = null;
-        let watchedMovieIds = new Set(JSON.parse(localStorage.getItem('matchflix_watched_movies') || '[]'));
+        let watchedMovieIds = new Set();
 
         // Check Auth
         (async () => {
@@ -442,9 +442,24 @@
                 window.location.href = 'login.html';
             } else {
                 currentUser = session.user;
+                await fetchWatchedIds();
                 render();
             }
         })();
+
+        async function fetchWatchedIds() {
+            if (!currentUser) return;
+            try {
+                const { data } = await supabase
+                    .from('curtidas_filmes')
+                    .select('filme_id')
+                    .eq('usuario_id', currentUser.id)
+                    .eq('assistido', true);
+                if (data) {
+                    watchedMovieIds = new Set(data.map(d => d.filme_id));
+                }
+            } catch (e) { console.error(e); }
+        }
 
         const grid = document.getElementById('film-grid');
         const emptyState = document.getElementById('empty-state');
@@ -651,15 +666,31 @@
             }
         }
 
-        function toggleWatched() {
-            if(!activeMovieId) return;
-            if(watchedMovieIds.has(activeMovieId)) {
-                watchedMovieIds.delete(activeMovieId);
-            } else {
-                watchedMovieIds.add(activeMovieId);
+        async function toggleWatched() {
+            if(!activeMovieId || !currentUser) return;
+            
+            const isCurrentlyWatched = watchedMovieIds.has(activeMovieId);
+            const newState = !isCurrentlyWatched;
+
+            try {
+                const { error } = await supabase
+                    .from('curtidas_filmes')
+                    .upsert({
+                        usuario_id: currentUser.id,
+                        filme_id: activeMovieId,
+                        curtiu: true,
+                        assistido: newState
+                    });
+
+                if (error) throw error;
+
+                if(newState) watchedMovieIds.add(activeMovieId);
+                else watchedMovieIds.delete(activeMovieId);
+
+                updateWatchedUI();
+            } catch (err) {
+                console.error("Erro ao atualizar status assistido:", err);
             }
-            localStorage.setItem('matchflix_watched_movies', JSON.stringify([...watchedMovieIds]));
-            updateWatchedUI();
         }
 
         modalWatchedBtn.addEventListener('click', toggleWatched);
