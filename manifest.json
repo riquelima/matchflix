@@ -1,0 +1,24 @@
+{
+  "name": "MatchFlix",
+  "short_name": "MatchFlix",
+  "description": "Descubra filmes que combinam com você. Swipe, like e construa sua coleção.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0e0e0e",
+  "theme_color": "#e50914",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logoApp.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logoApp.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
