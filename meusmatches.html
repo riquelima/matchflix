@@ -456,7 +456,7 @@
                     .eq('usuario_id', currentUser.id)
                     .eq('assistido', true);
                 if (data) {
-                    watchedMovieIds = new Set(data.map(d => d.filme_id));
+                    watchedMovieIds = new Set(data.map(d => Number(d.filme_id)));
                 }
             } catch (e) { console.error(e); }
         }
@@ -684,10 +684,12 @@
 
                 if (error) throw error;
 
-                if(newState) watchedMovieIds.add(activeMovieId);
-                else watchedMovieIds.delete(activeMovieId);
+                const id = Number(activeMovieId);
+                if(newState) watchedMovieIds.add(id);
+                else watchedMovieIds.delete(id);
 
                 updateWatchedUI();
+                await render(); // Opcional, para atualizar contadores se necessário
             } catch (err) {
                 console.error("Erro ao atualizar status assistido:", err);
             }

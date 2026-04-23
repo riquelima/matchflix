@@ -355,7 +355,10 @@
             likedMovies = await fetchLikedMoviesFromDB();
             const genreMap = await getGenreMap();
 
-            if (likedMovies.length === 0) {
+            console.log("Filmes curtidos do banco:", likedMovies);
+            console.log("IDs assistidos (Set):", Array.from(watchedMovieIds));
+
+            if (!likedMovies || likedMovies.length === 0) {
                 emptyState.classList.remove('hidden');
                 sectionPending.classList.add('hidden');
                 sectionWatched.classList.add('hidden');
@@ -367,8 +370,11 @@
             // Enriching movies in parallel
             const enriched = await Promise.all(likedMovies.map(m => enrichMovie(m)));
             
-            const pending = enriched.filter(m => !watchedMovieIds.has(m.id));
-            const watched = enriched.filter(m => watchedMovieIds.has(m.id));
+            const pending = enriched.filter(m => !watchedMovieIds.has(Number(m.id)));
+            const watched = enriched.filter(m => watchedMovieIds.has(Number(m.id)));
+
+            console.log("Filmes pendentes:", pending.length);
+            console.log("Filmes assistidos:", watched.length);
 
             renderSection(pending, gridPending, sectionPending, genreMap);
             renderSection(watched, gridWatched, sectionWatched, genreMap);
@@ -413,18 +419,19 @@
             try {
                 const { data, error } = await supabase
                     .from('curtidas_filmes')
-                    .select('filme_id, assistido') // Busca também o status assistido
+                    .select('filme_id, assistido')
                     .eq('usuario_id', currentUser.id)
                     .eq('curtiu', true);
                 if (error) throw error;
                 
-                // Sincroniza o Set local com o que veio do banco
+                // Sincroniza o Set local com o que veio do banco, garantindo tipo Number
                 data.forEach(item => {
-                    if (item.assistido) watchedMovieIds.add(item.filme_id);
-                    else watchedMovieIds.delete(item.filme_id);
+                    const id = Number(item.filme_id);
+                    if (item.assistido) watchedMovieIds.add(id);
+                    else watchedMovieIds.delete(id);
                 });
 
-                return data.map(item => ({ id: item.filme_id, assistido: item.assistido }));
+                return data.map(item => ({ id: Number(item.filme_id), assistido: item.assistido }));
             } catch (err) {
                 console.error("Erro ao buscar curtidas:", err);
                 return [];
@@ -552,14 +559,14 @@
                 if (error) throw error;
 
                 // Atualiza estado local
-                if(newState) watchedMovieIds.add(activeMovieId);
-                else watchedMovieIds.delete(activeMovieId);
+                const id = Number(activeMovieId);
+                if(newState) watchedMovieIds.add(id);
+                else watchedMovieIds.delete(id);
 
                 updateWatchedUI();
-                render(); // Refresh lists
+                await render(); // Recarrega tudo para garantir sincronia
             } catch (err) {
                 console.error("Erro ao atualizar status assistido:", err);
-                alert("Erro ao salvar status assistido.");
             }
         }
         modalWatchedBtn.onclick = toggleWatched;
