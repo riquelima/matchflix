@@ -425,13 +425,25 @@
                         </div>
                     </div>
 
-                    <!-- Filtros do Filme (Gênero) -->
+                    <!-- Filtros do Filme (Gênero Favorito) -->
                     <div class="space-y-4">
                         <h3 class="text-sm font-headline font-extrabold text-white uppercase tracking-widest flex items-center gap-2">
-                            <span class="material-symbols-outlined text-primary-container text-lg">movie_filter</span>
+                            <span class="material-symbols-outlined text-green-500 text-lg">favorite</span>
                             Gêneros Favoritos
                         </h3>
                         <div id="genres-grid" class="flex flex-wrap gap-2">
+                            <!-- Injetado via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Filtros Negativos (Excluir) -->
+                    <div class="space-y-4 bg-error/5 p-5 rounded-3xl border border-error/10">
+                        <h3 class="text-sm font-headline font-extrabold text-error uppercase tracking-widest flex items-center gap-2">
+                            <span class="material-symbols-outlined text-lg">block</span>
+                            Excluir do Match
+                        </h3>
+                        <p class="text-[10px] text-error/60 font-bold uppercase tracking-tight mb-2">Toque para nunca mais ver estes gêneros</p>
+                        <div id="excluded-genres-grid" class="flex flex-wrap gap-2">
                             <!-- Injetado via JS -->
                         </div>
                     </div>
@@ -454,6 +466,66 @@
                                 <span class="rating-label text-[10px] font-black text-white/40 transition-all duration-300" data-value="8">8.0+</span>
                                 <span class="rating-label text-[10px] font-black text-white/40 transition-all duration-300" data-value="9">9.0+</span>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Popcorn Moods -->
+                    <div class="space-y-4">
+                        <h3 class="text-sm font-headline font-extrabold text-white uppercase tracking-widest flex items-center gap-2">
+                            <span class="material-symbols-outlined text-amber-400">popcorn</span>
+                            Tipo de momento
+                        </h3>
+                        <div class="flex flex-wrap gap-2">
+                            <button class="mood-btn px-4 py-3 rounded-2xl bg-white/[0.03] border border-white/5 text-sm font-bold text-white/60 transition-all flex items-center gap-2 hover:bg-white/[0.07]" data-mood="relax" onclick="setMood('relax')">
+                                <span class="text-lg">🍃</span> Filme leve
+                            </button>
+                            <button class="mood-btn px-4 py-3 rounded-2xl bg-white/[0.03] border border-white/5 text-sm font-bold text-white/60 transition-all flex items-center gap-2 hover:bg-white/[0.07]" data-mood="intense" onclick="setMood('intense')">
+                                <span class="text-lg">🔥</span> Algo intenso
+                            </button>
+                            <button class="mood-btn px-4 py-3 rounded-2xl bg-white/[0.03] border border-white/5 text-sm font-bold text-white/60 transition-all flex items-center gap-2 hover:bg-white/[0.07]" data-mood="cry" onclick="setMood('cry')">
+                                <span class="text-lg">💧</span> Pra chorar
+                            </button>
+                            <button class="mood-btn px-4 py-3 rounded-2xl bg-white/[0.03] border border-white/5 text-sm font-bold text-white/60 transition-all flex items-center gap-2 hover:bg-white/[0.07]" data-mood="laugh" onclick="setMood('laugh')">
+                                <span class="text-lg">😂</span> Pra rir
+                            </button>
+                            <button class="mood-btn px-4 py-3 rounded-2xl bg-white/[0.03] border border-white/5 text-sm font-bold text-white/60 transition-all flex items-center gap-2 hover:bg-white/[0.07]" data-mood="mind" onclick="setMood('mind')">
+                                <span class="text-lg">🌀</span> Cérebro derretido
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Frequência de Recomendação -->
+                    <div class="space-y-4 bg-white/[0.03] p-5 rounded-3xl border border-white/5">
+                        <h3 class="text-sm font-headline font-extrabold text-white uppercase tracking-widest flex items-center gap-2">
+                            <span class="material-symbols-outlined text-tertiary text-lg">psychology</span>
+                            Frequência de Recomendação
+                        </h3>
+                        <div class="grid grid-cols-1 gap-3">
+                            <button class="strategy-btn w-full p-4 rounded-2xl border transition-all flex items-center justify-between group" data-strategy="new" onclick="setStrategy('new')">
+                                <div class="flex items-center gap-3">
+                                    <span class="material-symbols-outlined text-2xl opacity-40 group-[.active]:opacity-100 group-[.active]:text-primary-container">new_releases</span>
+                                    <div class="text-left">
+                                        <p class="text-sm font-bold text-white">Mostrar filmes novos sempre</p>
+                                        <p class="text-[10px] text-white/40 uppercase font-medium">Priorizar lançamentos de 2023/24</p>
+                                    </div>
+                                </div>
+                                <div class="w-5 h-5 rounded-full border-2 border-white/10 group-[.active]:border-primary-container group-[.active]:bg-primary-container flex items-center justify-center transition-all">
+                                    <span class="material-symbols-outlined text-[12px] text-white hidden group-[.active]:block">check</span>
+                                </div>
+                            </button>
+
+                            <button class="strategy-btn w-full p-4 rounded-2xl border transition-all flex items-center justify-between group" data-strategy="preferred" onclick="setStrategy('preferred')">
+                                <div class="flex items-center gap-3">
+                                    <span class="material-symbols-outlined text-2xl opacity-40 group-[.active]:opacity-100 group-[.active]:text-green-500">auto_awesome</span>
+                                    <div class="text-left">
+                                        <p class="text-sm font-bold text-white">Repetir estilos que eu gosto</p>
+                                        <p class="text-[10px] text-white/40 uppercase font-medium">Baseado nos seus matches recentes</p>
+                                    </div>
+                                </div>
+                                <div class="w-5 h-5 rounded-full border-2 border-white/10 group-[.active]:border-green-500 group-[.active]:bg-green-500 flex items-center justify-center transition-all">
+                                    <span class="material-symbols-outlined text-[12px] text-white hidden group-[.active]:block">check</span>
+                                </div>
+                            </button>
                         </div>
                     </div>
 
@@ -599,6 +671,14 @@
         const viewSlider = document.getElementById('view-slider');
         const navItems = document.querySelectorAll('.nav-item');
         const globalFilterBtn = document.getElementById('global-filter-btn');
+        
+        // Filtros Ativos
+        let selectedGenresFilters = new Set();
+        let selectedExcludedGenresFilters = new Set();
+        let selectedProvidersFilters = new Set();
+        let selectedYearFilters = 'all';
+        let recommendationStrategy = 'mixed'; // mixed, new, preferred
+        let selectedMood = 'any';
         let matchCount = 0;
 
         // Check Auth
@@ -837,11 +917,43 @@
                 // Configurações Globais da API
                 let baseParams = `api_key=${API_KEY}&language=pt-BR&sort_by=popularity.desc&include_adult=false&vote_count.gte=100`;
                 
+                // Estratégia: Filmes Novos Sempre
+                if (filters && filters.strategy === 'new') {
+                    baseParams += `&primary_release_date.gte=2023-01-01`;
+                }
+
+                // Lógica de Mood (Mapeamento Emocional)
+                if (filters && filters.mood && filters.mood !== 'any') {
+                    switch(filters.mood) {
+                        case 'relax': 
+                            baseParams += `&with_genres=35,10751&without_genres=27,53,10752`;
+                            break;
+                        case 'intense': 
+                            baseParams += `&with_genres=53,9648,27&vote_average.gte=7`;
+                            break;
+                        case 'cry': 
+                            baseParams += `&with_genres=18&with_keywords=sadness,tragedy`;
+                            break;
+                        case 'laugh': 
+                            baseParams += `&with_genres=35&without_genres=18,27`;
+                            break;
+                        case 'mind': 
+                            baseParams += `&with_genres=878,9648&vote_average.gte=7.5`;
+                            break;
+                    }
+                }
+
                 // 1. Aplica filtro de nota mínima rigoroso
                 const minVote = (filters && filters.minRating) ? filters.minRating : 7.0;
                 baseParams += `&vote_average.gte=${minVote}`;
 
-                // 2. Filtro de Streaming (Provedores) - Sempre BR e Assinatura
+                // 2. Gêneros Excluídos (Filtro Negativo)
+                let globalExcluded = [];
+                if (filters && filters.excludedGenres && filters.excludedGenres.length > 0) {
+                    globalExcluded = filters.excludedGenres;
+                }
+
+                // 3. Filtro de Streaming (Provedores) - Sempre BR e Assinatura
                 if (filters && filters.providers && filters.providers.length > 0) {
                     const providersString = filters.providers.join('|');
                     baseParams += `&watch_region=BR&with_watch_providers=${providersString}&with_watch_monetization_types=flatrate`;
@@ -866,6 +978,40 @@
                 let matches = [];
                 let discoveries = [];
 
+                // Estratégia: Repetir Estilos que eu gosto (Usando Recommendations da API)
+                if (filters && filters.strategy === 'preferred' && currentUser) {
+                    try {
+                        // Buscar os últimos 3 filmes favoritados
+                        const { data: recentLikes } = await supabase
+                            .from('curtidas_filmes')
+                            .select('filme_id')
+                            .eq('usuario_id', currentUser.id)
+                            .eq('curtiu', true)
+                            .order('criado_em', { ascending: false })
+                            .limit(3);
+
+                        if (recentLikes && recentLikes.length > 0) {
+                            for (const like of recentLikes) {
+                                // Buscar o título do filme que o usuário gostou para a badge
+                                const resMovie = await fetch(`https://api.themoviedb.org/3/movie/${like.filme_id}?api_key=${API_KEY}&language=pt-BR`);
+                                const parentMovie = await resMovie.json();
+                                
+                                const resRec = await fetch(`https://api.themoviedb.org/3/movie/${like.filme_id}/recommendations?api_key=${API_KEY}&language=pt-BR&page=1`);
+                                const dataRec = await resRec.json();
+                                
+                                if (dataRec.results) {
+                                    // Anexar o motivo da recomendação
+                                    const recommended = dataRec.results.map(m => ({
+                                        ...m,
+                                        recommendationReason: parentMovie.title || parentMovie.original_title
+                                    }));
+                                    matches = [...matches, ...recommended];
+                                }
+                            }
+                        }
+                    } catch (e) { console.error("Erro em preferred logic", e); }
+                }
+
                 // Prioridade para gêneros salvos no filtro ou gêneros favoritos padrão
                 const activeGenres = (filters && filters.genres && filters.genres.length > 0) 
                     ? filters.genres 
@@ -873,23 +1019,26 @@
 
                 if (activeGenres.length > 0) {
                     const genresString = activeGenres.join('|');
-                    const nonGenresString = activeGenres.join(',');
+                    // Mescla os excluídos globais com a lógica de descoberta (sem favoritos)
+                    const discoveryExcluded = [...new Set([...globalExcluded, ...activeGenres])].join(',');
+                    const globalExcludedStr = globalExcluded.join(',');
                     
                     const page1 = Math.floor(Math.random() * 10) + 1;
                     const page2 = Math.floor(Math.random() * 10) + 1;
 
-                    // 1. A Base (80%): Filmes dos gêneros ativos
-                    const resMatches = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&with_genres=${genresString}&page=${page1}`);
+                    // 1. A Base (80%): Filmes dos gêneros ativos, RESPEITANDO os excluídos
+                    const resMatches = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&with_genres=${genresString}&without_genres=${globalExcludedStr}&page=${page1}`);
                     const dataMatches = await resMatches.json();
                     matches = dataMatches.results || [];
 
-                    // 2. A Descoberta (20%): Filmes FORA dos gêneros favoritos para ampliar horizonte
-                    const resDiscoveries = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&without_genres=${nonGenresString}&page=${page2}`);
+                    // 2. A Descoberta (20%): Filmes FORA dos gêneros favoritos E fora dos excluídos
+                    const resDiscoveries = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&without_genres=${discoveryExcluded}&page=${page2}`);
                     const dataDiscoveries = await resDiscoveries.json();
                     discoveries = dataDiscoveries.results || [];
                 } else {
+                    const globalExcludedStr = globalExcluded.join(',');
                     const page = Math.floor(Math.random() * 20) + 1;
-                    const res = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&page=${page}`);
+                    const res = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&without_genres=${globalExcludedStr}&page=${page}`);
                     const data = await res.json();
                     matches = data.results || [];
                 }
@@ -977,7 +1126,59 @@
             // Frente (Poster)
             const front = document.createElement("div");
             front.className = "front-content bg-surface-container-highest flex flex-col justify-end";
+            
+            let badgeHTML = '';
+            if (movie.recommendationReason) {
+                badgeHTML = `
+                    <div class="absolute top-6 left-6 z-20 animate-fade-in pointer-events-none">
+                        <div class="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/80 backdrop-blur-2xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.8)] -rotate-1">
+                            <span class="material-symbols-outlined text-[16px] text-tertiary" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+                            <span class="text-[10px] font-headline font-black text-white uppercase tracking-[0.15em] leading-none">
+                                Porque você curtiu <span class="text-tertiary decoration-tertiary/30 underline underline-offset-2">${movie.recommendationReason}</span>
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Status HUD Badges (Top Right)
+            let statusBadgesHTML = '';
+            const isNew = movie.release_date && (new Date() - new Date(movie.release_date)) < (180 * 24 * 60 * 60 * 1000); // 6 meses
+            const isTrending = movie.popularity > 1500;
+            const isElite = movie.vote_average >= 8.5;
+
+            if (isNew || isTrending || isElite) {
+                statusBadgesHTML = `<div class="absolute top-6 right-6 z-20 flex flex-col gap-2 items-end animate-fade-in pointer-events-none">`;
+                if (isTrending) {
+                    statusBadgesHTML += `
+                        <div class="px-4 py-1.5 rounded-lg bg-orange-600 border border-orange-400/50 shadow-[0_0_25px_rgba(234,88,12,0.5)] flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[14px] text-white" style="font-variation-settings: 'FILL' 1;">local_fire_department</span>
+                            <span class="text-[10px] font-black text-white uppercase tracking-[0.1em]">Trending</span>
+                        </div>
+                    `;
+                }
+                if (isNew) {
+                    statusBadgesHTML += `
+                        <div class="px-4 py-1.5 rounded-lg bg-cyan-600 border border-cyan-400/50 shadow-[0_0_25px_rgba(8,145,178,0.5)] flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[14px] text-white" style="font-variation-settings: 'FILL' 1;">fiber_new</span>
+                            <span class="text-[10px] font-black text-white uppercase tracking-[0.1em]">Novo</span>
+                        </div>
+                    `;
+                }
+                if (isElite) {
+                    statusBadgesHTML += `
+                        <div class="px-4 py-1.5 rounded-lg bg-tertiary border border-amber-300/50 shadow-[0_0_25px_rgba(240,185,11,0.5)] flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[14px] text-black" style="font-variation-settings: 'FILL' 1;">workspace_premium</span>
+                            <span class="text-[10px] font-black text-black uppercase tracking-[0.1em]">Elite ${movie.vote_average.toFixed(1)}</span>
+                        </div>
+                    `;
+                }
+                statusBadgesHTML += `</div>`;
+            }
+
             front.innerHTML = `
+                ${badgeHTML}
+                ${statusBadgesHTML}
                 <img src="${posterUrl}" alt="${movie.title}" class="absolute inset-0 w-full h-full object-cover select-none pointer-events-none">
                 <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90 pointer-events-none"></div>
                 <div class="relative z-10 p-6 pt-20">
@@ -1766,9 +1967,7 @@
             if(moviesQueue.length > 0) openSynopsis(moviesQueue[0], 'discover');
         });
         // --- Filtros Inteligentes Logic (SPA) ---
-        let selectedGenresFilters = new Set();
-        let selectedProvidersFilters = new Set();
-        let selectedYearFilters = 'all';
+        // (Variáveis já declaradas no topo do script)
 
         async function initFilters() {
             try {
@@ -1792,8 +1991,11 @@
                     document.getElementById('filter-rating-slider').value = val;
                     updateRatingDisplayFilters(val);
                     selectedGenresFilters = new Set(filters.genres || []);
+                    selectedExcludedGenresFilters = new Set(filters.excludedGenres || []);
                     selectedProvidersFilters = new Set(filters.providers || []);
                     selectedYearFilters = filters.year || 'all';
+                    recommendationStrategy = filters.strategy || 'mixed';
+                    selectedMood = filters.mood || 'any';
                 } else {
                     updateRatingDisplayFilters(7);
                 }
@@ -1804,6 +2006,9 @@
 
             await fetchStreamingProvidersFilters();
             renderGenresFilters();
+            renderExcludedGenresFilters();
+            updateStrategyButtons();
+            updateMoodButtons();
             updateYearButtonsFilters();
         }
 
@@ -1878,16 +2083,86 @@
                 const isActive = selectedGenresFilters.has(genre.id);
                 const btn = document.createElement('button');
                 btn.className = `genre-btn px-4 py-2 rounded-full font-label text-sm transition-all border ${
-                    isActive ? 'active' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-variant border-outline-variant/15'
+                    isActive ? 'border-green-500 bg-green-500/20 text-green-500 shadow-[0_0_15px_rgba(34,197,94,0.2)]' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-variant border-outline-variant/15'
                 }`;
-                btn.innerText = genre.name;
+                btn.innerText = (isActive ? '❤️ ' : '') + genre.name;
                 btn.onclick = () => {
-                    if (selectedGenresFilters.has(genre.id)) selectedGenresFilters.delete(genre.id);
-                    else selectedGenresFilters.add(genre.id);
+                    if (selectedGenresFilters.has(genre.id)) {
+                        selectedGenresFilters.delete(genre.id);
+                    } else {
+                        selectedGenresFilters.add(genre.id);
+                        // Se estiver nos excluídos, remove de lá
+                        selectedExcludedGenresFilters.delete(genre.id);
+                        renderExcludedGenresFilters();
+                    }
                     renderGenresFilters();
                 };
                 grid.appendChild(btn);
             });
+        }
+        function renderExcludedGenresFilters() {
+            const grid = document.getElementById('excluded-genres-grid');
+            if(!grid) return;
+            grid.innerHTML = '';
+            genresList.forEach(genre => {
+                const isActive = selectedExcludedGenresFilters.has(genre.id);
+                const btn = document.createElement('button');
+                btn.className = `genre-btn px-4 py-2 rounded-full font-label text-sm transition-all border ${
+                    isActive ? 'border-error bg-error/20 text-error shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-variant border-outline-variant/15'
+                }`;
+                btn.innerText = (isActive ? '🚫 ' : '') + genre.name;
+                btn.onclick = () => {
+                    if (selectedExcludedGenresFilters.has(genre.id)) {
+                        selectedExcludedGenresFilters.delete(genre.id);
+                    } else {
+                        selectedExcludedGenresFilters.add(genre.id);
+                        // Se estiver nos favoritos, remove de lá
+                        selectedGenresFilters.delete(genre.id);
+                        renderGenresFilters();
+                    }
+                    renderExcludedGenresFilters();
+                };
+                grid.appendChild(btn);
+            });
+        }
+
+        function updateMoodButtons() {
+            document.querySelectorAll('.mood-btn').forEach(btn => {
+                const isActive = btn.dataset.mood === selectedMood;
+                if (isActive) {
+                    btn.classList.add('border-tertiary', 'bg-tertiary/10', 'text-tertiary', 'shadow-[0_0_15px_rgba(240,185,11,0.1)]');
+                    btn.classList.remove('text-white/60', 'bg-white/[0.03]', 'border-white/5');
+                } else {
+                    btn.classList.remove('border-tertiary', 'bg-tertiary/10', 'text-tertiary', 'shadow-[0_0_15px_rgba(240,185,11,0.1)]');
+                    btn.classList.add('text-white/60', 'bg-white/[0.03]', 'border-white/5');
+                }
+            });
+        }
+
+        window.setMood = function(m) {
+            if (selectedMood === m) selectedMood = 'any';
+            else selectedMood = m;
+            updateMoodButtons();
+        }
+
+        function updateStrategyButtons() {
+            document.querySelectorAll('.strategy-btn').forEach(btn => {
+                const isActive = btn.dataset.strategy === recommendationStrategy;
+                btn.classList.toggle('active', isActive);
+                if (isActive) {
+                    btn.classList.add('bg-white/5', 'border-primary-container/30', 'shadow-[0_0_20px_rgba(229,9,20,0.05)]');
+                    btn.classList.remove('bg-transparent', 'border-white/5');
+                } else {
+                    btn.classList.remove('bg-white/5', 'border-primary-container/30', 'shadow-[0_0_20px_rgba(229,9,20,0.05)]');
+                    btn.classList.add('bg-transparent', 'border-white/5');
+                }
+            });
+        }
+
+        window.setStrategy = function(s) {
+            if (recommendationStrategy === s) recommendationStrategy = 'mixed';
+            else recommendationStrategy = s;
+            updateStrategyButtons();
         }
 
         function updateYearButtonsFilters() {
@@ -1913,8 +2188,11 @@
             const filters = {
                 minRating: parseInt(document.getElementById('filter-rating-slider').value),
                 genres: Array.from(selectedGenresFilters),
+                excludedGenres: Array.from(selectedExcludedGenresFilters),
                 providers: Array.from(selectedProvidersFilters),
                 year: selectedYearFilters,
+                strategy: recommendationStrategy,
+                mood: selectedMood,
                 highRating: parseInt(document.getElementById('filter-rating-slider').value) >= 8
             };
 
@@ -1952,8 +2230,11 @@
 
         document.getElementById('reset-filters-btn').onclick = async () => {
             selectedGenresFilters.clear();
+            selectedExcludedGenresFilters.clear();
             selectedProvidersFilters.clear();
             selectedYearFilters = 'all';
+            recommendationStrategy = 'mixed';
+            selectedMood = 'any';
             document.getElementById('filter-rating-slider').value = 7;
             updateRatingDisplayFilters(7);
             
@@ -1964,6 +2245,7 @@
 
             await fetchStreamingProvidersFilters();
             renderGenresFilters();
+            renderExcludedGenresFilters();
             updateYearButtonsFilters();
         };
     </script>
