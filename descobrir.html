@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="pt-br" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MatchFlix - Descobrir</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-container": "#e50914",
+                        "on-primary-container": "#fff7f6",
+                        "secondary-container": "#921512",
+                        "surface": "#131313",
+                        "surface-container-lowest": "#0e0e0e",
+                        "surface-container-high": "#2a2a2a",
+                        "surface-variant": "#353534",
+                        "on-surface-variant": "#e9bcb6",
+                        "on-surface": "#e5e2e1",
+                        "error": "#ffb4ab"
+                    },
+                    "fontFamily": {
+                        "headline": ["Plus Jakarta Sans"],
+                        "body": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            overscroll-behavior-y: none;
+            overflow: hidden;
+            background-color: #0e0e0e;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .cinematic-shadow {
+            box-shadow: 0 32px 64px -12px rgba(0, 0, 0, 0.8), 0 0 40px 0 rgba(229, 9, 20, 0.06);
+        }
+        .glass-panel {
+            background: rgba(42, 42, 42, 0.4);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+        }
+        .card-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 1rem;
+            overflow: hidden;
+            background-color: #1a1a1a;
+        }
+        .front-content {
+            position: absolute;
+            inset: 0;
+            transition: opacity 0.4s ease;
+        }
+        .match-overlay {
+            position: absolute;
+            inset: 0;
+            background-color: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(20px);
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 20;
+        }
+        .match-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+        /* Custom scrollbar for synopsis */
+        .synopsis-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .synopsis-scroll::-webkit-scrollbar-thumb {
+            background: #e50914;
+            border-radius: 4px;
+        }
+
+        /* Match Toast */
+        #match-toast {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.6);
+            z-index: 100;
+            pointer-events: none;
+            opacity: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            text-align: center;
+        }
+        #match-toast .toast-ring {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(229,9,20,0.3) 0%, rgba(229,9,20,0) 70%);
+            border: 2px solid rgba(229, 9, 20, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 40px rgba(229, 9, 20, 0.6), inset 0 0 20px rgba(229, 9, 20, 0.2);
+        }
+        #match-toast .toast-text {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 800;
+            font-size: 1.1rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #ffffff;
+            text-shadow: 0 0 30px rgba(229, 9, 20, 0.8);
+        }
+        #match-toast .toast-sub {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.5);
+            letter-spacing: 0.05em;
+            margin-top: -10px;
+        }
+        /* Screen flash on match */
+        #match-flash {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(ellipse at center, rgba(229,9,20,0.25) 0%, transparent 70%);
+            z-index: 99;
+            pointer-events: none;
+            opacity: 0;
+        }
+    </style>
+</head>
+<body class="text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container h-[100dvh] flex flex-col">
+
+    <!-- TopAppBar -->
+    <header class="w-full z-50 flex justify-between items-center px-6 h-16 bg-neutral-950/80 backdrop-blur-2xl shrink-0 absolute top-0">
+        <button class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
+            <span class="material-symbols-outlined" data-icon="menu">menu</span>
+        </button>
+        <h1 class="font-headline font-extrabold tracking-tighter text-2xl text-on-surface">Match<span class="text-primary-container">Flix</span></h1>
+        <button class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
+            <span class="material-symbols-outlined" data-icon="filter_list">filter_list</span>
+        </button>
+    </header>
+
+    <!-- Main Discovery Canvas -->
+    <main class="relative flex-grow w-full flex flex-col items-center justify-center pt-16 pb-20 px-4 overflow-hidden">
+        
+        <!-- Subtle Background Glow -->
+        <div class="absolute inset-0 pointer-events-none overflow-hidden z-0">
+            <div class="absolute top-0 left-0 w-full h-[60%] rounded-b-full bg-primary-container/5 blur-[120px]"></div>
+        </div>
+
+        <!-- Movie Stack Container -->
+        <div class="relative w-full max-w-[360px] md:max-w-[400px] aspect-[2/3] z-10 card-container" id="card-stack">
+            <!-- Loading indicator -->
+            <div id="loading-indicator" class="absolute inset-0 flex flex-col items-center justify-center">
+                <span class="material-symbols-outlined text-primary-container text-5xl animate-spin">sync</span>
+                <p class="text-gray-400 mt-4 font-medium tracking-wider animate-pulse">Procurando matches...</p>
+            </div>
+            <!-- Cards will be injected here via JS -->
+        </div>
+
+        <!-- Swiping FABs -->
+        <div class="absolute bottom-24 left-0 w-full flex justify-center items-center gap-6 z-30" id="controls">
+            <!-- Dislike -->
+            <button id="btn-dislike" class="w-16 h-16 rounded-full glass-panel border border-error/20 flex items-center justify-center text-error shadow-lg active:scale-90 transition-transform duration-200">
+                <span class="material-symbols-outlined text-3xl font-bold" data-icon="close">close</span>
+            </button>
+            
+            <!-- Info / Flip -->
+            <button id="btn-info" class="w-14 h-14 rounded-full glass-panel border border-on-surface/10 flex items-center justify-center text-white active:scale-90 transition-transform duration-200">
+                <span class="material-symbols-outlined text-2xl" data-icon="info">info</span>
+            </button>
+            
+            <!-- Like -->
+            <button id="btn-like" class="w-16 h-16 rounded-full bg-gradient-to-br from-primary-container to-secondary-container shadow-[0_0_25px_rgba(229,9,20,0.5)] flex items-center justify-center text-white active:scale-90 transition-transform duration-200">
+                <span class="material-symbols-outlined text-3xl" data-icon="favorite" style="font-variation-settings: 'FILL' 1;">favorite</span>
+            </button>
+        </div>
+
+    </main>
+
+    <!-- Match Toast (global overlay, triggered on like) -->
+    <div id="match-flash"></div>
+    <div id="match-toast">
+        <div class="toast-ring">
+            <span class="material-symbols-outlined text-5xl text-primary-container" style="font-variation-settings: 'FILL' 1;">favorite</span>
+        </div>
+        <div class="toast-text">Adicionado!</div>
+        <div class="toast-sub">Filme salvo na sua coleção 🎬</div>
+    </div>
+
+    <!-- BottomNavBar -->
+    <nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-4 pt-3 bg-neutral-900/60 backdrop-blur-3xl rounded-t-2xl shadow-[0_-10px_40px_rgba(229,9,20,0.1)]">
+        <!-- Discover (Active) -->
+        <a class="flex flex-col items-center justify-center bg-red-600/15 text-primary-container rounded-full px-5 py-1.5 shadow-[0_0_15px_rgba(229,9,20,0.2)] transform active:scale-90 transition-all" href="descobrir.html">
+            <span class="material-symbols-outlined mb-0.5 text-xl" data-icon="style">style</span>
+            <span class="font-headline text-[9px] font-bold uppercase tracking-widest">Match</span>
+        </a>
+        <!-- Movies List -->
+        <a class="flex flex-col items-center justify-center text-neutral-500 hover:text-red-400 transition-colors transform active:scale-90" href="#">
+            <span class="material-symbols-outlined mb-0.5 text-xl" data-icon="format_list_bulleted">format_list_bulleted</span>
+            <span class="font-headline text-[9px] font-semibold uppercase tracking-widest">Filmes</span>
+        </a>
+        <!-- Profile -->
+        <a class="flex flex-col items-center justify-center text-neutral-500 hover:text-red-400 transition-colors transform active:scale-90" href="#">
+            <span class="material-symbols-outlined mb-0.5 text-xl" data-icon="person">person</span>
+            <span class="font-headline text-[9px] font-semibold uppercase tracking-widest">Perfil</span>
+        </a>
+    </nav>
+
+    <script>
+        const API_KEY = "416394469462693ee5727abe4c864848";
+        const IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w780";
+        const BACKDROP_BASE_URL = "https://image.tmdb.org/t/p/w1280";
+        
+        let moviesQueue = [];
+        let currentCardDOM = null;
+        let isAnimating = false;
+
+        const stackContainer = document.getElementById("card-stack");
+        const loadingIndicator = document.getElementById("loading-indicator");
+        
+        const btnDislike = document.getElementById("btn-dislike");
+        const btnLike = document.getElementById("btn-like");
+        const btnInfo = document.getElementById("btn-info");
+        const matchToast = document.getElementById("match-toast");
+        const matchFlash = document.getElementById("match-flash");
+
+        // Animação elegante de Match (sem abrir a sinopse)
+        function showMatchToast(movieTitle, onComplete) {
+            const tl = gsap.timeline();
+
+            // 1. Flash vermelho na tela
+            tl.to(matchFlash, {
+                opacity: 1, duration: 0.15, ease: "power2.in"
+            })
+            .to(matchFlash, {
+                opacity: 0, duration: 0.5, ease: "power2.out"
+            }, ">-0.05")
+
+            // 2. Toast sobe com escala e opacidade
+            .to(matchToast, {
+                opacity: 1,
+                scale: 1,
+                duration: 0.4,
+                ease: "back.out(1.7)"
+            }, "<")
+
+            // 3. Fica visível por um momento
+            .to(matchToast, {
+                opacity: 0,
+                scale: 0.8,
+                y: -20,
+                duration: 0.35,
+                ease: "power2.in",
+                delay: 0.9,
+                onComplete: () => {
+                    gsap.set(matchToast, { y: 0, scale: 0.6 }); // reset
+                    if (onComplete) onComplete();
+                }
+            });
+        }
+
+        // Obter preferências salvas
+        const favGenresRaw = localStorage.getItem("user_favorite_genres");
+        const favoriteGenres = favGenresRaw ? JSON.parse(favGenresRaw) : [];
+
+        // Inicializar a fila
+        async function fetchMovies() {
+            try {
+                // Configurações Globais da API
+                const baseParams = `api_key=${API_KEY}&language=pt-BR&sort_by=popularity.desc&include_adult=false&vote_average.gte=7.0&vote_count.gte=100`;
+                
+                let matches = [];
+                let discoveries = [];
+
+                if (favoriteGenres.length > 0) {
+                    const genresString = favoriteGenres.join('|');
+                    const nonGenresString = favoriteGenres.join(',');
+                    
+                    // 1. A Base (80%): Filmes dos gêneros favoritos
+                    const resMatches = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&with_genres=${genresString}&page=${Math.floor(Math.random() * 3) + 1}`);
+                    const dataMatches = await resMatches.json();
+                    matches = dataMatches.results || [];
+
+                    // 2. A Descoberta (20%): Filmes FORA dos gêneros favoritos para ampliar horizonte
+                    const resDiscoveries = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&without_genres=${nonGenresString}&page=${Math.floor(Math.random() * 3) + 1}`);
+                    const dataDiscoveries = await resDiscoveries.json();
+                    discoveries = dataDiscoveries.results || [];
+                } else {
+                    // Fallback se não houver gêneros salvos
+                    const res = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&page=1`);
+                    const data = await res.json();
+                    matches = data.results || [];
+                }
+
+                // Mesclar algoritmo (4 para 1)
+                let combined = [];
+                while(matches.length > 0 || discoveries.length > 0) {
+                    for(let i=0; i<4; i++) {
+                        if(matches.length > 0) combined.push(matches.shift());
+                    }
+                    if(discoveries.length > 0) combined.push(discoveries.shift());
+                }
+
+                // Filtrar os que já foram mostrados (idealmente salvar no localStorage quais já viu)
+                // Remove dupes
+                combined = combined.filter((v,i,a)=>a.findIndex(t=>(t.id === v.id))===i);
+                
+                moviesQueue = combined.reverse(); // Reserve so we can pop() from the end (top of stack)
+                
+                loadingIndicator.style.display = "none";
+                renderTopCards();
+
+            } catch (error) {
+                console.error("Erro ao buscar filmes", error);
+                loadingIndicator.innerHTML = `<p class="text-error text-center">Falha na conexão.<br>Tente novamente.</p>`;
+            }
+        }
+
+        // Renderizar a fila
+        function renderTopCards() {
+            if (moviesQueue.length === 0) {
+                // Fetch more if empty
+                loadingIndicator.style.display = "flex";
+                fetchMovies();
+                return;
+            }
+
+            // Apenas renderizamos os 2 do topo para performance
+            const maxVisible = Math.min(2, moviesQueue.length);
+            
+            // Remove old cards except loading
+            const cards = stackContainer.querySelectorAll('.movie-card-wrapper');
+            cards.forEach(c => c.remove());
+
+            for (let i = 0; i < maxVisible; i++) {
+                const movieIndex = moviesQueue.length - 1 - i;
+                const movie = moviesQueue[movieIndex];
+                createCardDOM(movie, i);
+            }
+        }
+
+        // Cria o elemento do card
+        function createCardDOM(movie, stackIndex) {
+            const wrapper = document.createElement("div");
+            wrapper.className = "absolute inset-0 movie-card-wrapper z-" + (20 - stackIndex);
+            
+            // Posição visual inicial na pilha
+            const scale = 1 - (stackIndex * 0.05);
+            const yOffset = stackIndex * 20;
+            const opacity = 1 - (stackIndex * 0.4);
+            
+            gsap.set(wrapper, {
+                scale: scale,
+                y: yOffset,
+                opacity: opacity
+            });
+
+            const innerCard = document.createElement("div");
+            innerCard.className = "card-wrapper cinematic-shadow relative";
+            wrapper.appendChild(innerCard);
+
+            const posterUrl = movie.poster_path ? `${IMAGE_BASE_URL}${movie.poster_path}` : "https://via.placeholder.com/500x750/2a2a2a/ffffff?text=Sem+Poster";
+            const backdropUrl = movie.backdrop_path ? `${BACKDROP_BASE_URL}${movie.backdrop_path}` : posterUrl;
+            
+            const releaseYear = movie.release_date ? movie.release_date.split('-')[0] : '';
+            const overview = movie.overview ? movie.overview : "Sinopse não disponível em português.";
+
+            // Frente (Poster)
+            const front = document.createElement("div");
+            front.className = "front-content bg-surface-container-highest flex flex-col justify-end";
+            front.innerHTML = `
+                <img src="${posterUrl}" alt="${movie.title}" class="absolute inset-0 w-full h-full object-cover select-none pointer-events-none">
+                <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90 pointer-events-none"></div>
+                <div class="relative z-10 p-6 pt-20">
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="bg-black/50 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 flex items-center gap-1">
+                            <span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+                            <span class="text-white font-bold font-headline text-sm tracking-wide">${movie.vote_average.toFixed(1)}</span>
+                        </span>
+                        <span class="text-on-surface-variant font-medium text-sm tracking-wider uppercase">${releaseYear}</span>
+                    </div>
+                    <h2 class="text-3xl font-headline font-extrabold tracking-tighter leading-none text-white drop-shadow-lg pointer-events-none">${movie.title}</h2>
+                </div>
+            `;
+            
+            // Verso (Sinopse Animada do Match overlay)
+            const matchOverlay = document.createElement("div");
+            matchOverlay.className = "match-overlay p-6 border-2 border-primary-container/50 shadow-[inset_0_0_50px_rgba(229,9,20,0.15)] rounded-2xl";
+            matchOverlay.innerHTML = `
+                <div class="absolute inset-0 opacity-20 bg-cover bg-center" style="background-image: url('${backdropUrl}')"></div>
+                <div class="absolute inset-0 bg-gradient-to-b from-black/90 via-black/80 to-black"></div>
+                
+                <div class="relative z-10 flex flex-col h-full">
+                    <div class="flex items-center justify-between border-b border-white/10 pb-4 mb-4 shrink-0">
+                        <h2 class="text-xl font-headline font-extrabold text-white">${movie.title}</h2>
+                        <div class="bg-primary-container text-white p-1 rounded-full flex shadow-[0_0_15px_rgba(229,9,20,0.8)]">
+                            <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">favorite</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-grow overflow-y-auto synopsis-scroll pr-2 text-gray-300 font-body leading-relaxed text-sm md:text-base">
+                        <p>${overview}</p>
+                    </div>
+
+                    <div class="pt-4 shrink-0 mt-4">
+                        <button class="btn-acao-overlay w-full py-4 bg-white text-black font-bold font-headline rounded-full uppercase tracking-wider active:scale-95 transition-transform shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+                            Finalizar Match
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            innerCard.appendChild(front);
+            innerCard.appendChild(matchOverlay);
+            
+            // Insert at the beginning so visually it stacks right
+            stackContainer.insertBefore(wrapper, stackContainer.firstChild);
+
+            if (stackIndex === 0) {
+                currentCardDOM = wrapper;
+                initDrag(currentCardDOM, movie, front, matchOverlay);
+            }
+        }
+
+        // Lógica de Arrasto e Swipe
+        function initDrag(element, movie, frontEl, overlayEl) {
+            let isDragging = false;
+            let startX = 0;
+            let startY = 0;
+            let currentX = 0;
+            let currentY = 0;
+            let isMatched = false; // Flag for match
+            let isInfoOpen = false; // Flag for info toggle
+
+            const btnAcaoOverlay = element.querySelector('.btn-acao-overlay');
+            const heartIcon = overlayEl.querySelector('.bg-primary-container'); // O coração no canto superior da sinopse
+
+            // Quando der like (Match) - Exibe toast e auto-avança
+            function triggerMatch() {
+                if (isAnimating || isMatched) return;
+                isAnimating = true;
+                isMatched = true;
+
+                // Pulsa o card levemente antes de jogar fora
+                gsap.to(element, {
+                    scale: 1.06,
+                    duration: 0.15,
+                    ease: "power1.out",
+                    onComplete: () => {
+                        // Mostra o toast e ao terminar, joga o card fora
+                        showMatchToast(movie.title, () => {
+                            throwOut(1);
+                        });
+                    }
+                });
+            }
+
+            // Alternar a Sinopse (Modo Leitura)
+            function toggleSynopsis() {
+                if (isAnimating || isMatched) return;
+                
+                if (isInfoOpen) {
+                    // Fechar Sinopse
+                    isInfoOpen = false;
+                    overlayEl.classList.remove('active');
+                    frontEl.style.opacity = '1';
+                } else {
+                    // Abrir Sinopse (Apenas Leitura - sem botão)
+                    isInfoOpen = true;
+                    btnAcaoOverlay.style.display = 'none'; // Esconde o botão
+                    heartIcon.style.opacity = '0'; // Esconde o ícone de like
+                    
+                    frontEl.style.opacity = '0';
+                    overlayEl.classList.add('active');
+                }
+            }
+
+            // Quando for dispensado
+            function triggerDislike() {
+                if (isAnimating) return;
+                isAnimating = true;
+                throwOut(-1);
+            }
+
+            function throwOut(direction) {
+                // Throw out of screen
+                const windowWidth = window.innerWidth;
+                const endX = direction * windowWidth;
+                const rotation = direction * 25;
+
+                gsap.to(element, {
+                    x: endX,
+                    rotation: rotation,
+                    opacity: 0,
+                    duration: 0.4,
+                    ease: "power2.in",
+                    onComplete: () => {
+                        element.remove();
+                        moviesQueue.pop(); // Remove from queue
+                        isAnimating = false;
+                        renderTopCards(); // Bring next card up
+                    }
+                });
+            }
+
+            // Mapeando botões do layout
+            btnLike.onclick = () => {
+                if (!isMatched && !isAnimating) {
+                    gsap.to(element, {
+                        x: 0, rotation: 0, scale: 1.05, duration: 0.2, ease: "power1.out",
+                        onComplete: triggerMatch
+                    });
+                }
+            };
+            btnInfo.onclick = () => {
+                toggleSynopsis();
+            };
+            btnDislike.onclick = () => {
+                if (!isMatched) triggerDislike();
+            };
+
+            // Botão interno do Overlay ("Finalizar Match" ou "Fechar Sinopse")
+            btnAcaoOverlay.onclick = (e) => {
+                e.stopPropagation();
+                if (isMatched) {
+                    throwOut(1); // Swipe to the right automatically to proceed
+                } else {
+                    toggleSynopsis(); // Apenas fecha a leitura
+                }
+            };
+
+            // Touch / Mouse Events
+            element.addEventListener('touchstart', dragStart, { passive: false });
+            element.addEventListener('mousedown', dragStart);
+
+            function dragStart(e) {
+                if (isAnimating || isMatched || isInfoOpen) return;
+                isDragging = true;
+                
+                const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+                const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+                
+                startX = clientX - currentX;
+                startY = clientY - currentY;
+                
+                element.style.transition = 'none';
+            }
+
+            window.addEventListener('touchmove', dragMove, { passive: false });
+            window.addEventListener('mousemove', dragMove);
+
+            function dragMove(e) {
+                if (!isDragging) return;
+                e.preventDefault(); // Prevent scroll
+                
+                const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+                const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+                
+                currentX = clientX - startX;
+                currentY = clientY - startY;
+
+                const rotation = currentX * 0.05;
+                
+                gsap.set(element, {
+                    x: currentX,
+                    y: currentY,
+                    rotation: rotation
+                });
+            }
+
+            window.addEventListener('touchend', dragEnd);
+            window.addEventListener('mouseup', dragEnd);
+
+            function dragEnd(e) {
+                if (!isDragging) return;
+                isDragging = false;
+                
+                const threshold = window.innerWidth * 0.25;
+
+                if (currentX > threshold) {
+                    // Like (Swipe Right)
+                    gsap.to(element, {
+                        x: 0, y: 0, rotation: 0, duration: 0.3, ease: "power2.out",
+                        onComplete: triggerMatch // Ao invés de throw, ele VIRA A CARTA!
+                    });
+                } else if (currentX < -threshold) {
+                    // Dislike (Swipe Left)
+                    throwOut(-1);
+                } else {
+                    // Snap back
+                    gsap.to(element, {
+                        x: 0,
+                        y: 0,
+                        rotation: 0,
+                        duration: 0.5,
+                        ease: "elastic.out(1, 0.5)"
+                    });
+                    currentX = 0;
+                    currentY = 0;
+                }
+            }
+        }
+
+        // Start
+        fetchMovies();
+    </script>
+</body>
+</html>

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "error-container": "#93000a",
+                        "secondary": "#ffb4aa",
+                        "on-primary-container": "#fff7f6",
+                        "primary-fixed-dim": "#ffb4aa",
+                        "inverse-surface": "#e5e2e1",
+                        "on-surface": "#e5e2e1",
+                        "tertiary-container": "#926d00",
+                        "surface-bright": "#3a3939",
+                        "surface-tint": "#ffb4aa",
+                        "on-secondary-fixed-variant": "#8e1210",
+                        "outline-variant": "#5e3f3b",
+                        "surface-container-highest": "#353534",
+                        "on-primary-fixed": "#410001",
+                        "surface": "#131313",
+                        "outline": "#af8782",
+                        "on-secondary-container": "#ff9f93",
+                        "on-secondary-fixed": "#410001",
+                        "secondary-fixed": "#ffdad5",
+                        "on-background": "#e5e2e1",
+                        "secondary-container": "#921512",
+                        "error": "#ffb4ab",
+                        "on-tertiary-container": "#fff8f2",
+                        "on-primary": "#690003",
+                        "surface-container-lowest": "#0e0e0e",
+                        "secondary-fixed-dim": "#ffb4aa",
+                        "on-error": "#690005",
+                        "tertiary-fixed": "#ffdf9e",
+                        "tertiary": "#fabd00",
+                        "inverse-primary": "#c0000c",
+                        "surface-container": "#201f1f",
+                        "on-tertiary-fixed-variant": "#5b4300",
+                        "on-surface-variant": "#e9bcb6",
+                        "inverse-on-surface": "#313030",
+                        "primary-container": "#e50914",
+                        "tertiary-fixed-dim": "#fabd00",
+                        "background": "#131313",
+                        "primary-fixed": "#ffdad5",
+                        "on-primary-fixed-variant": "#930007",
+                        "surface-dim": "#131313",
+                        "on-error-container": "#ffdad6",
+                        "on-secondary": "#690003",
+                        "surface-container-high": "#2a2a2a",
+                        "on-tertiary": "#3f2e00",
+                        "primary": "#ffb4aa",
+                        "on-tertiary-fixed": "#261a00",
+                        "surface-container-low": "#1c1b1b",
+                        "surface-variant": "#353534"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Plus Jakarta Sans"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .cinematic-gradient-overlay {
+            background: linear-gradient(to bottom, rgba(14, 14, 14, 0) 0%, rgba(14, 14, 14, 0.8) 70%, rgba(14, 14, 14, 1) 100%);
+        }
+        .glow-hover:hover {
+            box-shadow: 0 0 20px rgba(229, 9, 20, 0.3);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container min-h-screen">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-neutral-950/80 backdrop-blur-2xl">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface" data-icon="menu">menu</span>
+</div>
+<h1 class="text-2xl font-black tracking-tighter text-red-600 dark:text-red-500 font-headline">MatchFlix</h1>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface" data-icon="filter_list">filter_list</span>
+</div>
+</header>
+<main class="pt-24 pb-32 px-6 max-w-5xl mx-auto">
+<!-- Editorial Header -->
+<section class="mb-12">
+<h2 class="text-5xl md:text-7xl font-extrabold font-headline tracking-tighter leading-tight mb-4">O que você <br/>
+<span class="text-primary-container">ama assistir?</span></h2>
+<p class="text-on-surface-variant text-lg max-w-md font-medium">Escolha seus gêneros favoritos para nos ajudar a encontrar o match perfeito.</p>
+</section>
+<!-- Movies Grid Container -->
+<div id="movies-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+    <!-- Loading skeleton or populated via JS -->
+    <div class="col-span-full flex justify-center items-center h-64">
+        <div class="animate-pulse flex flex-col items-center">
+            <span class="material-symbols-outlined text-primary-container text-4xl mb-4 animate-spin">sync</span>
+            <p class="text-on-surface-variant font-headline tracking-widest uppercase text-sm">Analisando base de dados...</p>
+        </div>
+    </div>
+</div>
+</main>
+<!-- Bottom Navigation Shell / CTA Area -->
+<div class="fixed bottom-0 left-0 w-full z-50 flex flex-col items-center px-6 pb-8 pt-6 bg-neutral-900/40 backdrop-blur-3xl rounded-t-3xl shadow-[0_-10px_40px_rgba(229,9,20,0.08)]">
+<!-- Floating Action Button Styled CTA -->
+<button id="btn-continuar" class="w-full max-w-sm py-5 px-8 bg-gradient-to-br from-primary-container to-secondary-container rounded-full text-on-primary-container font-bold text-lg uppercase tracking-widest shadow-[0_15px_30px_rgba(229,9,20,0.4)] transform transition-transform hover:scale-105 active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
+            CONTINUAR (0)
+            <span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+<script>
+    // Configurações TMDB
+    // Configurações TMDB
+    const API_KEY = "416394469462693ee5727abe4c864848";
+    const API_URL = `https://api.themoviedb.org/3/movie/popular?language=pt-BR&page=1&api_key=${API_KEY}`;
+    const IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500";
+    
+    const selectedMovies = new Set();
+    const btnContinuar = document.getElementById("btn-continuar");
+    const moviesGrid = document.getElementById("movies-grid");
+
+    let currentPage = 1;
+    let isFetching = false;
+    
+    // Buscando filmes populares
+    async function fetchMovies(page = 1) {
+        if (isFetching) return;
+        isFetching = true;
+        
+        try {
+            const url = `https://api.themoviedb.org/3/movie/popular?language=pt-BR&page=${page}&api_key=${API_KEY}`;
+            const response = await fetch(url, {
+                headers: {
+                    "Accept": "application/json"
+                }
+            });
+            const data = await response.json();
+            
+            // Remove skeleton message only on first load
+            if (page === 1) {
+                moviesGrid.innerHTML = "";
+            }
+            
+            renderMovies(data.results);
+        } catch (error) {
+            console.error("Erro ao buscar filmes:", error);
+            if (page === 1) {
+                moviesGrid.innerHTML = `<p class="col-span-full text-center text-error">Falha ao carregar filmes. Tente novamente.</p>`;
+            }
+        } finally {
+            isFetching = false;
+        }
+    }
+
+    function renderMovies(movies) {
+        
+        const cards = movies.map((movie, index) => {
+            const card = document.createElement("div");
+            card.className = "group relative overflow-hidden rounded-lg aspect-[2/3] cursor-pointer bg-surface-container-high active:scale-95";
+            card.dataset.id = movie.id;
+            
+            const posterUrl = movie.poster_path ? `${IMAGE_BASE_URL}${movie.poster_path}` : "https://via.placeholder.com/500x750?text=Sem+Poster";
+            
+            card.innerHTML = `
+                <!-- Imagem do poster sempre acesa (full color, full opacity) por padrão -->
+                <img alt="${movie.title}" src="${posterUrl}" class="absolute inset-0 w-full h-full object-cover transition-all duration-700 scale-100 group-hover:scale-105 movie-img" />
+                
+                <!-- Overlay escuro suave que aparece ao selecionar para dar destaque ao check -->
+                <div class="absolute inset-0 bg-black/60 opacity-0 transition-opacity duration-300 selection-overlay pointer-events-none z-0"></div>
+                
+                <!-- Gradiente original mantido no rodapé para leitura do título -->
+                <div class="absolute inset-0 cinematic-gradient-overlay pointer-events-none transition-opacity duration-300 opacity-60 group-hover:opacity-100 z-0"></div>
+                
+                <!-- Check Indicator Red Button in the Center -->
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                    <div class="w-16 h-16 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center opacity-0 scale-50 transition-all duration-300 check-indicator shadow-[0_0_30px_rgba(229,9,20,0.8)]">
+                        <span class="material-symbols-outlined text-4xl font-bold" style="font-variation-settings: 'FILL' 1;">check</span>
+                    </div>
+                </div>
+                
+                <div class="absolute bottom-4 left-4 right-4 pointer-events-none z-10">
+                    <h3 class="text-sm md:text-base font-bold font-headline leading-tight line-clamp-2 text-white drop-shadow-md">${movie.title}</h3>
+                </div>
+                
+                <!-- Selection Border Overlay -->
+                <div class="absolute inset-0 border-[3px] border-primary-container opacity-0 transition-opacity duration-300 rounded-lg selection-border pointer-events-none z-20"></div>
+            `;
+            
+            // Lógica de interação
+            card.addEventListener("click", () => {
+                const img = card.querySelector(".movie-img");
+                const check = card.querySelector(".check-indicator");
+                const overlay = card.querySelector(".selection-overlay");
+                const border = card.querySelector(".selection-border");
+                
+                if (selectedMovies.has(movie.id)) {
+                    // Deselect
+                    selectedMovies.delete(movie.id);
+                    overlay.classList.replace("opacity-100", "opacity-0");
+                    check.classList.replace("opacity-100", "opacity-0");
+                    check.classList.replace("scale-100", "scale-50");
+                    border.classList.replace("opacity-100", "opacity-0");
+                } else {
+                    // Select
+                    selectedMovies.add(movie.id);
+                    overlay.classList.replace("opacity-0", "opacity-100");
+                    check.classList.replace("opacity-0", "opacity-100");
+                    check.classList.replace("scale-50", "scale-100");
+                    border.classList.replace("opacity-0", "opacity-100");
+                    
+                    // Small pulse animation
+                    gsap.fromTo(card, { scale: 0.95 }, { scale: 1, duration: 0.4, ease: "back.out(1.7)" });
+                }
+                
+                updateButtonState();
+            });
+            
+            moviesGrid.appendChild(card);
+            return card;
+        });
+        
+        // Animating all cards simultaneously with stagger
+        requestAnimationFrame(() => {
+            gsap.fromTo(cards, 
+                { y: 50, opacity: 0 },
+                {
+                    y: 0,
+                    opacity: 1,
+                    duration: 0.6,
+                    stagger: 0.05,
+                    ease: "power3.out",
+                    clearProps: "all" // Remove estilos inline após a animação, devolvendo controle ao CSS
+                }
+            );
+        });
+        
+        updateButtonState();
+    }
+
+    function updateButtonState() {
+        const count = selectedMovies.size;
+        
+        if (count < 5) {
+            const faltam = 5 - count;
+            btnContinuar.innerHTML = `
+                ESCOLHA MAIS ${faltam}
+            `;
+            btnContinuar.classList.add("opacity-50", "cursor-not-allowed");
+        } else {
+            btnContinuar.innerHTML = `
+                CONTINUAR (${count})
+                <span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+            `;
+            btnContinuar.classList.remove("opacity-50", "cursor-not-allowed");
+        }
+    }
+    
+    // Ação do Botão
+    btnContinuar.addEventListener("click", () => {
+        if (selectedMovies.size < 5) return;
+        
+        // Simulação de salvar o estado do usuário
+        localStorage.setItem("user_watched_movies", JSON.stringify(Array.from(selectedMovies)));
+        
+        // Transition Out and Navigate to selecaoGeneros.html
+        gsap.to("body", {
+            opacity: 0,
+            duration: 0.5,
+            ease: "power2.inOut",
+            onComplete: () => {
+                window.location.href = "selecaoGeneros.html";
+            }
+        });
+    });
+
+    // Start loading first page
+    fetchMovies();
+
+    // Infinite Scroll Implementation
+    const observerSentinel = document.createElement("div");
+    observerSentinel.className = "w-full h-24 col-span-full flex justify-center items-center mt-4";
+    observerSentinel.innerHTML = `<span class="material-symbols-outlined text-primary-container text-4xl animate-spin">sync</span>`;
+    moviesGrid.parentNode.appendChild(observerSentinel);
+
+    const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && !isFetching) {
+            currentPage++;
+            fetchMovies(currentPage);
+        }
+    }, {
+        rootMargin: "300px" // Load before hitting bottom
+    });
+
+    observer.observe(observerSentinel);
+
+</script>
+</body></html>

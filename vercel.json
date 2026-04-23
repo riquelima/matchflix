@@ -1,0 +1,12 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": null,
+  "rewrites": [
+    { "source": "/login", "destination": "/login.html" },
+    { "source": "/cadastro", "destination": "/cadastro.html" },
+    { "source": "/primeiro-login", "destination": "/primeiroLogin.html" },
+    { "source": "/selecao-generos", "destination": "/selecaoGeneros.html" },
+    { "source": "/descobrir", "destination": "/descobrir.html" }
+  ]
+}

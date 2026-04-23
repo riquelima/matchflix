@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="pt-br" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MatchFlix - Gêneros Favoritos</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-container": "#e50914",
+                        "on-primary-container": "#fff7f6",
+                        "secondary-container": "#921512",
+                        "surface": "#131313",
+                        "surface-container-lowest": "#0e0e0e",
+                        "surface-container-high": "#2a2a2a",
+                        "on-surface": "#e5e2e1",
+                        "error": "#ffb4ab"
+                    },
+                    "fontFamily": {
+                        "headline": ["Plus Jakarta Sans"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .cinematic-gradient-overlay {
+            background: linear-gradient(to bottom, rgba(14, 14, 14, 0) 0%, rgba(14, 14, 14, 0.6) 50%, rgba(14, 14, 14, 1) 100%);
+        }
+        body {
+            min-height: max(884px, 100dvh);
+        }
+        /* Custom scrollbar to match the dark theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0e0e0e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2a2a2a; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #e50914; 
+        }
+    </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container min-h-screen">
+    
+    <!-- TopAppBar -->
+    <header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-neutral-950/80 backdrop-blur-2xl">
+        <div class="flex items-center gap-4">
+            <span class="material-symbols-outlined text-on-surface" data-icon="menu">menu</span>
+        </div>
+        <div class="flex-grow flex justify-center items-center">
+            <span class="font-headline font-extrabold text-2xl tracking-tighter text-on-surface">Match<span class="text-primary-container">Flix</span></span>
+        </div>
+        <div class="flex items-center gap-4">
+            <span class="material-symbols-outlined text-on-surface" data-icon="filter_list">filter_list</span>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="pt-24 pb-32 px-6 max-w-5xl mx-auto">
+        <div class="mb-8 intro-text opacity-0 translate-y-4">
+            <h1 class="text-4xl md:text-5xl font-extrabold font-headline leading-tight tracking-tight text-white mb-3">
+                O que você <br/>
+                <span class="text-primary-container">ama assistir?</span>
+            </h1>
+            <p class="text-base text-gray-400 font-body max-w-md">
+                Escolha seus gêneros favoritos para nos ajudar a encontrar o match perfeito.
+            </p>
+        </div>
+
+        <!-- Genres Grid -->
+        <div id="genres-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            <!-- Loading Skeleton -->
+            <div class="col-span-full flex flex-col items-center justify-center py-20 gap-4">
+                <span class="material-symbols-outlined text-primary-container text-5xl animate-spin">sync</span>
+                <p class="text-gray-400 font-medium">Buscando os melhores gêneros...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Bottom Navigation Shell / CTA Area -->
+    <div class="fixed bottom-0 left-0 w-full z-50 flex flex-col items-center px-6 pb-8 pt-6 bg-neutral-900/40 backdrop-blur-3xl rounded-t-3xl shadow-[0_-10px_40px_rgba(229,9,20,0.08)]">
+        <button id="btn-comecar" class="w-full max-w-sm py-5 px-8 bg-gradient-to-br from-primary-container to-secondary-container rounded-full text-on-primary-container font-bold text-lg uppercase tracking-widest shadow-[0_15px_30px_rgba(229,9,20,0.4)] transform transition-transform hover:scale-105 active:scale-95 flex items-center justify-center gap-3 opacity-50 cursor-not-allowed">
+            ESCOLHA MAIS 3
+        </button>
+    </div>
+
+    <script>
+        const API_KEY = "416394469462693ee5727abe4c864848";
+        const IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500";
+        
+        const selectedGenres = new Set();
+        const btnComecar = document.getElementById("btn-comecar");
+        const genresGrid = document.getElementById("genres-grid");
+
+        // Intro GSAP Animation
+        gsap.to(".intro-text", { y: 0, opacity: 1, duration: 0.8, ease: "power3.out", delay: 0.2 });
+
+        async function init() {
+            try {
+                // 1. Fetch Genres List
+                const genresResponse = await fetch(`https://api.themoviedb.org/3/genre/movie/list?language=pt-BR&api_key=${API_KEY}`, { headers: { "Accept": "application/json" } });
+                const genresData = await genresResponse.json();
+                const genres = genresData.genres;
+
+                // 2. Fetch Top Rated Movies (buscando mais páginas para garantir diversidade e filmes nota > 8)
+                const moviePromises = [1, 2, 3, 4, 5].map(page => 
+                    fetch(`https://api.themoviedb.org/3/movie/top_rated?language=pt-BR&page=${page}&api_key=${API_KEY}`, { headers: { "Accept": "application/json" } })
+                    .then(res => res.json())
+                );
+                
+                const movieResults = await Promise.all(moviePromises);
+                let allMovies = [];
+                movieResults.forEach(res => {
+                    if(res.results) allMovies.push(...res.results);
+                });
+
+                // Filtra preferencialmente filmes com nota > 8
+                const topMovies = allMovies.filter(m => m.vote_average >= 8);
+                const usedMovieIds = new Set();
+
+                // 3. Map Genres to Movies
+                const mappedGenres = genres.map(genre => {
+                    // Tenta achar um filme > 8 que ainda não foi usado
+                    let movie = topMovies.find(m => m.genre_ids.includes(genre.id) && !usedMovieIds.has(m.id));
+                    
+                    // Se não achar, tenta qualquer filme (mesmo < 8) que ainda não foi usado
+                    if (!movie) {
+                        movie = allMovies.find(m => m.genre_ids.includes(genre.id) && !usedMovieIds.has(m.id));
+                    }
+                    
+                    // Fallback extremo: permite repetir se realmente não tiver opção
+                    if (!movie) {
+                        movie = allMovies.find(m => m.genre_ids.includes(genre.id));
+                    }
+                    
+                    if (movie) {
+                        usedMovieIds.add(movie.id);
+                    }
+
+                    return {
+                        id: genre.id,
+                        name: genre.name,
+                        image: movie && movie.poster_path ? `${IMAGE_BASE_URL}${movie.poster_path}` : null
+                    };
+                });
+
+                // 4. Busca direta para gêneros "órfãos" (ex: Documentário que não costuma aparecer no top 100 geral)
+                const genresWithoutImage = mappedGenres.filter(g => !g.image);
+                if (genresWithoutImage.length > 0) {
+                    const fallbackPromises = genresWithoutImage.map(g => 
+                        fetch(`https://api.themoviedb.org/3/discover/movie?language=pt-BR&with_genres=${g.id}&sort_by=vote_average.desc&vote_count.gte=300&api_key=${API_KEY}`, { headers: { "Accept": "application/json" } })
+                        .then(res => res.json())
+                        .then(data => {
+                            const fallbackMovie = data.results && data.results.length > 0 ? data.results[0] : null;
+                            if (fallbackMovie && fallbackMovie.poster_path) {
+                                g.image = `${IMAGE_BASE_URL}${fallbackMovie.poster_path}`;
+                            } else {
+                                // Fallback absoluto se a API não retornar NADA para o gênero
+                                g.image = `https://placehold.co/500x750/2a2a2a/ffffff?text=${encodeURIComponent(g.name)}`;
+                            }
+                        })
+                        .catch(() => {
+                            g.image = `https://placehold.co/500x750/2a2a2a/ffffff?text=${encodeURIComponent(g.name)}`;
+                        })
+                    );
+                    await Promise.all(fallbackPromises);
+                }
+
+                renderGenres(mappedGenres);
+            } catch (error) {
+                console.error("Erro ao carregar gêneros:", error);
+                genresGrid.innerHTML = `<p class="col-span-full text-center text-error">Falha ao carregar gêneros. Tente novamente.</p>`;
+            }
+        }
+
+        function renderGenres(genres) {
+            genresGrid.innerHTML = "";
+            
+            const cards = genres.map((genre) => {
+                const card = document.createElement("div");
+                // Using aspect-[3/4] to make them look like robust genre cards
+                card.className = "group relative overflow-hidden rounded-[1.5rem] aspect-[3/4] cursor-pointer bg-surface-container-high active:scale-95";
+                card.dataset.id = genre.id;
+                
+                card.innerHTML = `
+                    <img alt="${genre.name}" src="${genre.image}" class="absolute inset-0 w-full h-full object-cover transition-all duration-700 scale-100 group-hover:scale-105 movie-img" />
+                    
+                    <!-- Overlay escuro que aparece APENAS ao selecionar -->
+                    <div class="absolute inset-0 bg-black/60 opacity-0 transition-opacity duration-300 pointer-events-none z-0 selection-overlay"></div>
+                    
+                    <!-- Gradiente original mantido no rodapé para leitura do título -->
+                    <div class="absolute inset-0 cinematic-gradient-overlay pointer-events-none transition-opacity duration-300 opacity-80 group-hover:opacity-100 z-0"></div>
+                    
+                    <!-- Check Indicator Red Button in the Center (Idêntico ao primeiroLogin) -->
+                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                        <div class="w-16 h-16 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center opacity-0 scale-50 transition-all duration-300 check-indicator shadow-[0_0_30px_rgba(229,9,20,0.8)]">
+                            <span class="material-symbols-outlined text-4xl font-bold" style="font-variation-settings: 'FILL' 1;">check</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Genre Name -->
+                    <div class="absolute bottom-6 left-0 right-0 pointer-events-none z-10 flex flex-col items-center justify-center">
+                        <h3 class="text-base md:text-lg font-extrabold font-headline uppercase tracking-wider text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-center px-2 genre-title">
+                            ${genre.name}
+                        </h3>
+                    </div>
+                    
+                    <!-- Selection Border Overlay -->
+                    <div class="absolute inset-0 border-[3px] border-primary-container opacity-0 transition-opacity duration-300 rounded-[1.5rem] selection-border pointer-events-none z-20"></div>
+                `;
+                
+                // Interaction Logic
+                card.addEventListener("click", () => {
+                    const check = card.querySelector(".check-indicator");
+                    const border = card.querySelector(".selection-border");
+                    const overlay = card.querySelector(".selection-overlay");
+                    
+                    if (selectedGenres.has(genre.id)) {
+                        selectedGenres.delete(genre.id);
+                        check.classList.replace("opacity-100", "opacity-0");
+                        check.classList.replace("scale-100", "scale-50");
+                        border.classList.replace("opacity-100", "opacity-0");
+                        overlay.classList.replace("opacity-100", "opacity-0");
+                    } else {
+                        selectedGenres.add(genre.id);
+                        check.classList.replace("opacity-0", "opacity-100");
+                        check.classList.replace("scale-50", "scale-100");
+                        border.classList.replace("opacity-0", "opacity-100");
+                        overlay.classList.replace("opacity-0", "opacity-100");
+                    }
+                    
+                    updateButtonState();
+                });
+                
+                genresGrid.appendChild(card);
+                return card;
+            });
+            
+            // GSAP Staggered Entrance
+            requestAnimationFrame(() => {
+                gsap.fromTo(cards, 
+                    { y: 40, opacity: 0 },
+                    {
+                        y: 0,
+                        opacity: 1,
+                        duration: 0.6,
+                        stagger: 0.05,
+                        ease: "power3.out",
+                        clearProps: "all"
+                    }
+                );
+            });
+            
+            updateButtonState();
+        }
+
+        function updateButtonState() {
+            const count = selectedGenres.size;
+            // Let's require at least 3 genres
+            if (count < 3) {
+                const faltam = 3 - count;
+                btnComecar.innerHTML = `ESCOLHA MAIS ${faltam}`;
+                btnComecar.classList.add("opacity-50", "cursor-not-allowed");
+            } else {
+                btnComecar.innerHTML = `
+                    COMEÇAR
+                    <span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+                `;
+                btnComecar.classList.remove("opacity-50", "cursor-not-allowed");
+            }
+        }
+        
+        // Final Action
+        btnComecar.addEventListener("click", () => {
+            if (selectedGenres.size < 3) return;
+            
+            // Save to localStorage
+            localStorage.setItem("user_favorite_genres", JSON.stringify(Array.from(selectedGenres)));
+            
+            // Transition Out and Navigate to Home
+            gsap.to("body", {
+                opacity: 0,
+                duration: 0.5,
+                ease: "power2.inOut",
+                onComplete: () => {
+                    window.location.href = "index.html";
+                }
+            });
+        });
+
+        // Start fetching data
+        init();
+    </script>
+</body>
+</html>
