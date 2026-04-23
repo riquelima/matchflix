@@ -484,7 +484,6 @@
                     <div class="pt-4">
                         <button id="apply-filters-btn" class="w-full py-5 bg-gradient-to-r from-primary-container to-secondary-container text-white font-black rounded-3xl shadow-[0_20px_40px_rgba(229,9,20,0.3)] active:scale-95 transition-all flex items-center justify-center gap-3">
                             APLICAR CONFIGURAÇÕES
-                            <span class="material-symbols-outlined">auto_awesome</span>
                         </button>
                         <p class="text-center text-white/30 text-[10px] mt-4 font-medium uppercase tracking-widest italic">As preferências serão salvas no seu perfil</p>
                         <button id="reset-filters-btn" class="w-full mt-4 py-3 text-white/40 text-[10px] font-bold uppercase tracking-widest hover:text-white transition-colors underline underline-offset-4">
@@ -660,15 +659,16 @@
                 headerBackBtn.classList.remove('hidden');
                 headerMenuBtn.classList.add('hidden');
                 globalFilterBtn.classList.add('hidden');
-                navbar.classList.add('opacity-0', 'pointer-events-none', 'translate-y-10');
                 initFilters(); // Load filter data
             } else {
                 headerTitle.innerHTML = 'Match<span class="text-primary-container">Flix</span>';
                 headerBackBtn.classList.add('hidden');
                 headerMenuBtn.classList.remove('hidden');
                 globalFilterBtn.classList.remove('hidden');
-                navbar.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-10');
             }
+
+            // Navbar always visible
+            navbar.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-10');
 
             // Refresh content if needed
             if(tabName === 'meusmatches') {
