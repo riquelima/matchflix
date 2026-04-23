@@ -298,21 +298,24 @@
         </div>
 
         <!-- Universal TopAppBar -->
-        <header class="w-full z-[100] flex justify-between items-center px-6 h-16 bg-neutral-950/80 backdrop-blur-2xl shrink-0 fixed top-0 transition-transform duration-300">
-            <button class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
+        <header id="main-header" class="w-full z-[100] flex justify-between items-center px-6 h-16 bg-neutral-950/80 backdrop-blur-2xl shrink-0 fixed top-0 transition-all duration-300">
+            <button id="header-back-btn" class="hidden text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150" onclick="goToTab('descobrir')">
+                <span class="material-symbols-outlined">arrow_back</span>
+            </button>
+            <button id="header-menu-btn" class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
                 <span class="material-symbols-outlined" data-icon="menu">menu</span>
             </button>
-            <h1 class="font-headline font-extrabold tracking-tighter text-2xl text-on-surface">Match<span class="text-primary-container">Flix</span></h1>
+            <h1 id="header-title" class="font-headline font-extrabold tracking-tighter text-2xl text-on-surface">Match<span class="text-primary-container">Flix</span></h1>
             <div class="flex items-center gap-4">
                 <span id="global-count-badge" class="hidden bg-primary-container text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(229,9,20,0.5)]">0</span>
-                <button id="global-filter-btn" onclick="window.location.href='filtro.html'" class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
+                <button id="global-filter-btn" onclick="goToTab('filtro')" class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
                     <span class="material-symbols-outlined" data-icon="filter_list">filter_list</span>
                 </button>
             </div>
         </header>
 
         <!-- View Slider (O coração da SPA) -->
-        <div id="view-slider" class="flex h-full w-[300vw] will-change-transform">
+        <div id="view-slider" class="flex h-full w-[400vw] will-change-transform">
             
             <!-- ABRA 1: DESCOBRIR (Match) -->
             <section id="view-discover" class="w-[100vw] h-full relative flex flex-col pt-16">
@@ -358,14 +361,15 @@
                 </main>
             </section>
 
-            <!-- ABA 3: COLEÇÃO (Grid) -->
+            <!-- ABA 3: COLEÇÃO (Grid Categorizada) -->
             <section id="view-collection" class="w-[100vw] h-full relative flex flex-col pt-16">
                 <div class="px-6 pt-5 pb-3 shrink-0">
-                    <p class="text-[10px] tracking-[0.3em] uppercase text-primary-container/70 font-bold font-headline mb-1">Sua Coleção</p>
-                    <h2 class="font-headline font-black text-3xl tracking-tighter text-white leading-none">Minha <span class="text-white/30">Playlist</span></h2>
+                    <p class="text-[10px] tracking-[0.3em] uppercase text-primary-container/70 font-bold font-headline mb-1">Biblioteca</p>
+                    <h2 class="font-headline font-black text-3xl tracking-tighter text-white leading-none">Sua <span class="text-white/30">Coleção</span></h2>
                 </div>
                 <main class="flex-grow overflow-y-auto px-4 pb-32" id="collection-scroll">
-                    <!-- Empty State -->
+                    <!-- Categorias e Listas -->
+                    <div id="collection-content" class="space-y-6"></div>
                     <div id="collection-empty" class="hidden flex-col items-center justify-center h-full py-20 text-center">
                         <div class="w-20 h-20 rounded-full bg-primary-container/10 flex items-center justify-center mb-6 mx-auto border border-primary-container/20">
                             <span class="material-symbols-outlined text-primary-container text-4xl" style="font-variation-settings: 'FILL' 1;">library_add</span>
@@ -393,6 +397,101 @@
                         <!-- Horizontal Grid: 2 Rows -->
                         <div id="grid-pending" class="grid grid-rows-2 grid-flow-col overflow-x-auto snap-x no-scrollbar gap-3 pb-4 px-2 auto-cols-[130px] h-[420px]"></div>
                     </section>
+                </main>
+            </section>
+            
+            <!-- ABA 4: FILTROS (Configurações) -->
+            <section id="view-filters" class="w-[100vw] h-full relative flex flex-col pt-16 bg-neutral-950">
+                <div class="px-6 pt-5 pb-3 shrink-0 flex items-center justify-between">
+                    <div>
+                        <p class="text-[10px] tracking-[0.3em] uppercase text-tertiary font-bold font-headline mb-1">Configurações</p>
+                        <h2 class="font-headline font-black text-3xl tracking-tighter text-white leading-none">Filtros <span class="text-white/30">Inteligentes</span></h2>
+                    </div>
+                </div>
+
+                <main class="flex-grow overflow-y-auto px-6 pb-40 space-y-8 no-scrollbar">
+                    
+                    <!-- Filtros de Streaming -->
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-headline font-extrabold text-white uppercase tracking-widest flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary-container text-lg">play_circle</span>
+                                Streaming
+                            </h3>
+                            <span class="text-[10px] text-white/40 font-bold bg-white/5 px-2 py-0.5 rounded-full uppercase">Assinatura BR</span>
+                        </div>
+                        <div id="streaming-grid" class="grid grid-cols-4 gap-3">
+                            <!-- Injetado via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Filtros do Filme (Gênero) -->
+                    <div class="space-y-4">
+                        <h3 class="text-sm font-headline font-extrabold text-white uppercase tracking-widest flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary-container text-lg">movie_filter</span>
+                            Gêneros Favoritos
+                        </h3>
+                        <div id="genres-grid" class="flex flex-wrap gap-2">
+                            <!-- Injetado via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Nota Mínima -->
+                    <div class="space-y-4 bg-white/5 p-6 rounded-3xl border border-white/10">
+                        <div class="flex justify-between items-end">
+                            <h3 class="text-sm font-headline font-extrabold text-white uppercase tracking-widest">Nota Mínima</h3>
+                            <div class="text-right">
+                                <span id="rating-display" class="text-3xl font-headline font-black text-primary-container leading-none">7.0+</span>
+                                <p class="text-[10px] text-white/40 uppercase font-bold">TMDB Score</p>
+                            </div>
+                        </div>
+                        <div class="relative pt-4">
+                            <input type="range" id="filter-rating-slider" min="6" max="9" step="1" value="7" 
+                                class="w-full h-2 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary-container">
+                            <div class="flex justify-between mt-3 px-1">
+                                <span class="rating-label text-[10px] font-black text-white/40 transition-all duration-300" data-value="6">6.0+</span>
+                                <span class="rating-label text-[10px] font-black text-white/40 transition-all duration-300" data-value="7">7.0+</span>
+                                <span class="rating-label text-[10px] font-black text-white/40 transition-all duration-300" data-value="8">8.0+</span>
+                                <span class="rating-label text-[10px] font-black text-white/40 transition-all duration-300" data-value="9">9.0+</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Época / Lançamento -->
+                    <div class="space-y-4">
+                        <h3 class="text-sm font-headline font-extrabold text-white uppercase tracking-widest">Época</h3>
+                        <div class="grid grid-cols-2 gap-3" id="year-filters">
+                            <button class="year-btn px-4 py-4 rounded-2xl bg-surface-container-high border border-white/5 text-white font-bold text-sm flex flex-col items-center gap-1 transition-all" data-year="all" onclick="selectedYearFilters='all';updateYearButtonsFilters()">
+                                <span>Tudo</span>
+                                <span class="text-[10px] opacity-40">Qualquer ano</span>
+                            </button>
+                            <button class="year-btn px-4 py-4 rounded-2xl bg-surface-container-high border border-white/5 text-white font-bold text-sm flex flex-col items-center gap-1 transition-all" data-year="2024" onclick="selectedYearFilters='2024';updateYearButtonsFilters()">
+                                <span>Lançamentos</span>
+                                <span class="text-[10px] opacity-40">2024 / 2025</span>
+                            </button>
+                            <button class="year-btn px-4 py-4 rounded-2xl bg-surface-container-high border border-white/5 text-white font-bold text-sm flex flex-col items-center gap-1 transition-all" data-year="2020" onclick="selectedYearFilters='2020';updateYearButtonsFilters()">
+                                <span>Anos 2020</span>
+                                <span class="text-[10px] opacity-40">2020 - 2023</span>
+                            </button>
+                            <button class="year-btn px-4 py-4 rounded-2xl bg-surface-container-high border border-white/5 text-white font-bold text-sm flex flex-col items-center gap-1 transition-all" data-year="classic" onclick="selectedYearFilters='classic';updateYearButtonsFilters()">
+                                <span>Clássicos</span>
+                                <span class="text-[10px] opacity-40">Até 1995</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Ação -->
+                    <div class="pt-4">
+                        <button id="apply-filters-btn" class="w-full py-5 bg-gradient-to-r from-primary-container to-secondary-container text-white font-black rounded-3xl shadow-[0_20px_40px_rgba(229,9,20,0.3)] active:scale-95 transition-all flex items-center justify-center gap-3">
+                            APLICAR CONFIGURAÇÕES
+                            <span class="material-symbols-outlined">auto_awesome</span>
+                        </button>
+                        <p class="text-center text-white/30 text-[10px] mt-4 font-medium uppercase tracking-widest italic">As preferências serão salvas no seu perfil</p>
+                        <button id="reset-filters-btn" class="w-full mt-4 py-3 text-white/40 text-[10px] font-bold uppercase tracking-widest hover:text-white transition-colors underline underline-offset-4">
+                            Limpar todas as preferências
+                        </button>
+                    </div>
+
                 </main>
             </section>
         </div>
@@ -514,12 +613,19 @@
                 fetchMovies(); 
                 initMatches(); // Inicializa aba de matches
                 initCollection(); // Inicializa aba de coleção
+                
+                // Suporte a Deep Linking (SPA)
+                const urlParams = new URLSearchParams(window.location.search);
+                const pageParam = urlParams.get('page');
+                if (pageParam === 'filtro') {
+                    setTimeout(() => goToTab('filtro', false), 100);
+                }
             }
         })();
 
         // --- SPA Navigation & Swipe ---
-        function goToTab(tabName, animate = true) {
-            const tabs = ['descobrir', 'meusmatches', 'colecoes'];
+        window.goToTab = function(tabName, animate = true) {
+            const tabs = ['descobrir', 'meusmatches', 'colecoes', 'filtro'];
             const index = tabs.indexOf(tabName);
             if(index === -1) return;
 
@@ -530,7 +636,7 @@
                 item.classList.toggle('active', item.dataset.page === tabName);
             });
 
-            const xPercent = -(index * (100/3));
+            const xPercent = -(index * 25); // 25% because 4 tabs
             if(animate) {
                 gsap.to(viewSlider, {
                     xPercent: xPercent,
@@ -542,11 +648,33 @@
                 gsap.set(viewSlider, { xPercent: xPercent });
             }
 
+            // Header UI logic
+            const headerTitle = document.getElementById('header-title');
+            const headerBackBtn = document.getElementById('header-back-btn');
+            const headerMenuBtn = document.getElementById('header-menu-btn');
+            const globalFilterBtn = document.getElementById('global-filter-btn');
+            const navbar = document.querySelector('nav');
+
+            if (tabName === 'filtro') {
+                headerTitle.innerHTML = 'Filtros <span class="text-tertiary">Inteligentes</span>';
+                headerBackBtn.classList.remove('hidden');
+                headerMenuBtn.classList.add('hidden');
+                globalFilterBtn.classList.add('hidden');
+                navbar.classList.add('opacity-0', 'pointer-events-none', 'translate-y-10');
+                initFilters(); // Load filter data
+            } else {
+                headerTitle.innerHTML = 'Match<span class="text-primary-container">Flix</span>';
+                headerBackBtn.classList.add('hidden');
+                headerMenuBtn.classList.remove('hidden');
+                globalFilterBtn.classList.remove('hidden');
+                navbar.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-10');
+            }
+
             // Refresh content if needed
             if(tabName === 'meusmatches') {
                 fetchMatches();
                 globalFilterBtn.classList.add('hidden');
-            } else {
+            } else if (tabName !== 'filtro') {
                 globalCountBadge.classList.add('hidden');
                 globalFilterBtn.classList.remove('hidden');
             }
@@ -591,10 +719,12 @@
                 const tabs = ['descobrir', 'meusmatches', 'colecoes'];
                 const currentIndex = tabs.indexOf(activeTab);
                 
-                if(diffX > 0 && currentIndex > 0) {
-                    goToTab(tabs[currentIndex - 1]);
-                } else if(diffX < 0 && currentIndex < tabs.length - 1) {
-                    goToTab(tabs[currentIndex + 1]);
+                if (currentIndex !== -1) {
+                    if(diffX > 0 && currentIndex > 0) {
+                        goToTab(tabs[currentIndex - 1]);
+                    } else if(diffX < 0 && currentIndex < tabs.length - 1) {
+                        goToTab(tabs[currentIndex + 1]);
+                    }
                 }
             }
             isSwipingTabs = false;
@@ -1635,6 +1765,207 @@
         document.getElementById('btn-info').addEventListener('click', () => {
             if(moviesQueue.length > 0) openSynopsis(moviesQueue[0], 'discover');
         });
+        // --- Filtros Inteligentes Logic (SPA) ---
+        let selectedGenresFilters = new Set();
+        let selectedProvidersFilters = new Set();
+        let selectedYearFilters = 'all';
+
+        async function initFilters() {
+            try {
+                let filters = null;
+                if (currentUser) {
+                    const { data } = await supabase
+                        .from('user_filters')
+                        .select('filters')
+                        .eq('user_id', currentUser.id)
+                        .maybeSingle();
+                    if (data) filters = data.filters;
+                }
+
+                if (!filters) {
+                    const saved = localStorage.getItem('mf_filters');
+                    if (saved) filters = JSON.parse(saved);
+                }
+
+                if (filters) {
+                    const val = filters.minRating || 7;
+                    document.getElementById('filter-rating-slider').value = val;
+                    updateRatingDisplayFilters(val);
+                    selectedGenresFilters = new Set(filters.genres || []);
+                    selectedProvidersFilters = new Set(filters.providers || []);
+                    selectedYearFilters = filters.year || 'all';
+                } else {
+                    updateRatingDisplayFilters(7);
+                }
+            } catch (err) {
+                console.error("Erro no initFilters:", err);
+                updateRatingDisplayFilters(7);
+            }
+
+            await fetchStreamingProvidersFilters();
+            renderGenresFilters();
+            updateYearButtonsFilters();
+        }
+
+        async function fetchStreamingProvidersFilters() {
+            try {
+                const res = await fetch(`https://api.themoviedb.org/3/watch/providers/movie?api_key=${API_KEY}&language=pt-BR&watch_region=BR`);
+                const data = await res.json();
+                
+                const topProvidersIds = [8, 119, 337, 1899, 307, 350, 531, 619, 47, 2]; 
+                const providers = data.results.filter(p => topProvidersIds.includes(p.provider_id));
+                
+                const grid = document.getElementById('streaming-grid');
+                grid.innerHTML = '';
+                
+                providers.sort((a, b) => topProvidersIds.indexOf(a.provider_id) - topProvidersIds.indexOf(b.provider_id));
+
+                providers.forEach(provider => {
+                    const isActive = selectedProvidersFilters.has(provider.provider_id);
+                    const container = document.createElement('div');
+                    container.className = `provider-card relative cursor-pointer transition-all duration-300 active:scale-90 ${isActive ? 'scale-110' : 'opacity-40 grayscale'}`;
+                    container.innerHTML = `
+                        <div class="aspect-square rounded-2xl overflow-hidden border-2 ${isActive ? 'border-primary-container shadow-[0_0_15px_rgba(229,9,20,0.5)]' : 'border-white/10'}">
+                            <img src="https://image.tmdb.org/t/p/original${provider.logo_path}" alt="${provider.provider_name}" class="w-full h-full object-cover">
+                        </div>
+                        ${isActive ? '<div class="absolute -top-1 -right-1 bg-primary-container text-white rounded-full p-0.5 shadow-lg"><span class="material-symbols-outlined text-[14px] font-bold">check</span></div>' : ''}
+                    `;
+                    container.onclick = () => {
+                        if (selectedProvidersFilters.has(provider.provider_id)) {
+                            selectedProvidersFilters.delete(provider.provider_id);
+                        } else {
+                            selectedProvidersFilters.add(provider.provider_id);
+                        }
+                        fetchStreamingProvidersFilters();
+                    };
+                    grid.appendChild(container);
+                });
+            } catch (err) {
+                console.error("Erro ao buscar providers:", err);
+            }
+        }
+
+        function updateRatingDisplayFilters(val) {
+            const display = document.getElementById('rating-display');
+            if(display) display.innerText = val + '+';
+            
+            document.querySelectorAll('.rating-label').forEach(label => {
+                if (label.dataset.value == val) {
+                    label.classList.add('text-tertiary', 'scale-110');
+                    label.classList.remove('text-on-surface-variant');
+                } else {
+                    label.classList.remove('text-tertiary', 'scale-110');
+                    label.classList.add('text-on-surface-variant');
+                }
+            });
+        }
+
+        document.getElementById('filter-rating-slider').oninput = (e) => {
+            updateRatingDisplayFilters(e.target.value);
+        };
+
+        const genresList = [
+            { id: 28, name: 'Ação' }, { id: 35, name: 'Comédia' },
+            { id: 27, name: 'Terror' }, { id: 10749, name: 'Romance' },
+            { id: 878, name: 'Ficção' }, { id: 18, name: 'Drama' },
+            { id: 16, name: 'Animação' }
+        ];
+
+        function renderGenresFilters() {
+            const grid = document.getElementById('genres-grid');
+            grid.innerHTML = '';
+            genresList.forEach(genre => {
+                const isActive = selectedGenresFilters.has(genre.id);
+                const btn = document.createElement('button');
+                btn.className = `genre-btn px-4 py-2 rounded-full font-label text-sm transition-all border ${
+                    isActive ? 'active' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-variant border-outline-variant/15'
+                }`;
+                btn.innerText = genre.name;
+                btn.onclick = () => {
+                    if (selectedGenresFilters.has(genre.id)) selectedGenresFilters.delete(genre.id);
+                    else selectedGenresFilters.add(genre.id);
+                    renderGenresFilters();
+                };
+                grid.appendChild(btn);
+            });
+        }
+
+        function updateYearButtonsFilters() {
+            document.querySelectorAll('.year-btn').forEach(btn => {
+                if (btn.dataset.year === selectedYearFilters) {
+                    btn.classList.add('bg-primary-container', 'text-white', 'border-transparent');
+                    btn.classList.remove('bg-surface-container-high', 'text-on-surface-variant');
+                } else {
+                    btn.classList.remove('bg-primary-container', 'text-white', 'border-transparent');
+                    btn.classList.add('bg-surface-container-high', 'text-on-surface-variant');
+                }
+            });
+        }
+
+        document.querySelectorAll('.year-btn').forEach(btn => {
+            btn.onclick = () => {
+                selectedYearFilters = btn.dataset.year;
+                updateYearButtonsFilters();
+            };
+        });
+
+        document.getElementById('apply-filters-btn').onclick = async () => {
+            const filters = {
+                minRating: parseInt(document.getElementById('filter-rating-slider').value),
+                genres: Array.from(selectedGenresFilters),
+                providers: Array.from(selectedProvidersFilters),
+                year: selectedYearFilters,
+                highRating: parseInt(document.getElementById('filter-rating-slider').value) >= 8
+            };
+
+            localStorage.setItem('mf_filters', JSON.stringify(filters));
+
+            if (currentUser) {
+                try {
+                    await supabase.from('user_filters').upsert({
+                        user_id: currentUser.id,
+                        filters: filters,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'user_id' });
+                } catch (err) {
+                    console.error("Erro no Supabase:", err);
+                }
+            }
+            
+            const btn = document.getElementById('apply-filters-btn');
+            const originalText = btn.innerText;
+            btn.innerText = 'Preferências Salvas! ✨';
+            btn.classList.replace('from-primary-container', 'from-green-600');
+            
+            setTimeout(() => { 
+                btn.innerText = originalText;
+                btn.classList.replace('from-green-600', 'from-primary-container');
+                goToTab('descobrir');
+                
+                // Recarrega filmes com novos filtros
+                gsap.killTweensOf(stackContainer.querySelectorAll('*'));
+                moviesQueue = [];
+                stackContainer.innerHTML = '';
+                fetchMovies();
+            }, 800);
+        };
+
+        document.getElementById('reset-filters-btn').onclick = async () => {
+            selectedGenresFilters.clear();
+            selectedProvidersFilters.clear();
+            selectedYearFilters = 'all';
+            document.getElementById('filter-rating-slider').value = 7;
+            updateRatingDisplayFilters(7);
+            
+            if (currentUser) {
+                await supabase.from('user_filters').delete().eq('user_id', currentUser.id);
+            }
+            localStorage.removeItem('mf_filters');
+
+            await fetchStreamingProvidersFilters();
+            renderGenresFilters();
+            updateYearButtonsFilters();
+        };
     </script>
 </body>
 </html>
