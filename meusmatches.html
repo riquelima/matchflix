@@ -462,9 +462,6 @@
                         ${year ? `<span class="text-white/30 text-[10px]">${year}</span>` : ''}
                     </div>
                 </div>
-                <button class="btn-remove" data-remove="${movie.id}" title="Remover">
-                    <span class="material-symbols-outlined" style="font-size:16px;">close</span>
-                </button>
             `;
 
             // Stagger entrance
@@ -472,14 +469,7 @@
 
             // Click → open modal
             card.addEventListener('click', (e) => {
-                if (e.target.closest('.btn-remove')) return;
                 openModal(movie, genreMap);
-            });
-
-            // Remove btn
-            card.querySelector('.btn-remove').addEventListener('click', (e) => {
-                e.stopPropagation();
-                removeMovie(movie.id);
             });
 
             return card;
@@ -557,13 +547,68 @@
 
         modalBackdrop.addEventListener('click', closeModal);
 
-        // Swipe down to close
-        let touchStartY = 0;
+        // --- Drag to Close Implementation (Premium Feel) ---
+        let dragStartY = 0;
+        let dragCurrentY = 0;
+        let isDragging = false;
         const sheet = document.getElementById('modal-sheet');
-        sheet.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; }, { passive: true });
-        sheet.addEventListener('touchend', e => {
-            if (e.changedTouches[0].clientY - touchStartY > 80) closeModal();
+
+        sheet.addEventListener('touchstart', e => {
+            dragStartY = e.touches[0].clientY;
+            isDragging = true;
+            sheet.style.transition = 'none'; // Disable CSS transition during drag
         }, { passive: true });
+
+        sheet.addEventListener('touchmove', e => {
+            if (!isDragging) return;
+            dragCurrentY = e.touches[0].clientY;
+            const deltaY = dragCurrentY - dragStartY;
+            
+            if (deltaY > 0) {
+                // Only allow dragging down
+                gsap.set(sheet, { y: deltaY });
+                // Dim backdrop slightly as we drag down
+                const opacity = Math.max(0, 0.7 - (deltaY / 500));
+                gsap.set(modalBackdrop, { backgroundColor: `rgba(0,0,0,${opacity})` });
+            }
+        }, { passive: true });
+
+        sheet.addEventListener('touchend', e => {
+            if (!isDragging) return;
+            isDragging = false;
+            const deltaY = dragCurrentY - dragStartY;
+
+            if (deltaY > 120) {
+                // Close if dragged enough
+                closeModal();
+            } else {
+                // Snap back
+                gsap.to(sheet, {
+                    y: 0,
+                    duration: 0.4,
+                    ease: "elastic.out(1, 0.75)"
+                });
+                gsap.to(modalBackdrop, {
+                    backgroundColor: "rgba(0,0,0,0.7)",
+                    duration: 0.3
+                });
+            }
+        });
+
+        // Update closeModal to reset GSAP properties
+        const originalCloseModal = closeModal;
+        closeModal = function() {
+            gsap.to(sheet, {
+                y: "100%",
+                duration: 0.4,
+                ease: "power2.inOut",
+                onComplete: () => {
+                    originalCloseModal();
+                    gsap.set(sheet, { y: 0 }); // Reset for next open
+                    gsap.set(modalBackdrop, { backgroundColor: "" }); // Reset for next open
+                }
+            });
+        };
 
         // Remove from modal
         modalRemove.addEventListener('click', () => {
