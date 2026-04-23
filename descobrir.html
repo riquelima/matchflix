@@ -159,6 +159,7 @@
             z-index: 99;
             pointer-events: none;
             opacity: 0;
+            will-change: opacity;
         }
         /* ── Page Transition ── */
         @keyframes pageEnter {
@@ -332,7 +333,7 @@
 
         // Animação elegante de Match (sem abrir a sinopse)
         function showMatchToast(movieTitle, onComplete) {
-            const tl = gsap.timeline();
+            const tl = gsap.timeline({ defaults: { force3D: true } });
 
             // 1. Flash vermelho na tela
             tl.to(matchFlash, {
@@ -602,9 +603,11 @@
                 gsap.to(element, {
                     x: endX,
                     rotation: rotation,
+                    scale: 0.85,
                     opacity: 0,
-                    duration: 0.4,
-                    ease: "power2.in",
+                    duration: 0.5,
+                    force3D: true,
+                    ease: "power2.inOut",
                     onComplete: () => {
                         element.remove();
                         moviesQueue.pop(); // Remove from queue
@@ -614,23 +617,26 @@
                 });
             }
 
-            // Mapeando botões do layout
-            btnLike.onclick = () => {
+            // Mapeando botões do layout com pointerdown para resposta instantânea (0ms de atraso) no mobile
+            btnLike.addEventListener('pointerdown', (e) => {
+                e.preventDefault(); // Evita double-firing ou delays nativos
                 if (isMatched || isAnimating) return;
                 isAnimating = true;
                 gsap.killTweensOf(element);
-                // No mobile, rodar direto pra direita sem bump para fluidez instantânea
                 triggerMatch();
-            };
-            btnInfo.onclick = () => {
+            });
+            btnInfo.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
                 toggleSynopsis();
-            };
-            btnDislike.onclick = () => {
+            });
+            btnDislike.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
                 if (!isMatched) triggerDislike();
-            };
+            });
 
             // Botão interno do Overlay ("Finalizar Match" ou "Fechar Sinopse")
-            btnAcaoOverlay.onclick = (e) => {
+            btnAcaoOverlay.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 if (isMatched) {
                     throwOut(1); // Swipe to the right automatically to proceed
@@ -728,7 +734,7 @@
         document.querySelectorAll('nav a[href]').forEach(link => {
             const href = link.getAttribute('href');
             if (!href || href === '#' || href === window.location.pathname.split('/').pop()) return;
-            link.addEventListener('click', e => {
+            link.addEventListener('pointerdown', e => {
                 e.preventDefault();
                 // If navigating to meusmatches (right side of nav), exit left
                 if(href.includes('meusmatches')) document.body.classList.add('exiting-left');

@@ -491,10 +491,18 @@
             // Remove from DOM with animation
             const card = grid.querySelector(`[data-id="${id}"]`);
             if (card) {
-                card.style.transition = 'opacity 0.2s, transform 0.2s';
-                card.style.opacity = '0';
-                card.style.transform = 'scale(0.9)';
-                setTimeout(() => { card.remove(); checkEmpty(); updateBadge(); }, 220);
+                gsap.to(card, {
+                    opacity: 0,
+                    scale: 0.8,
+                    duration: 0.3,
+                    force3D: true,
+                    ease: "power2.in",
+                    onComplete: () => {
+                        card.remove();
+                        checkEmpty();
+                        updateBadge();
+                    }
+                });
             }
             // Close modal if open for this movie
             if (activeMovieId === id) closeModal();
@@ -597,7 +605,7 @@
         document.querySelectorAll('nav a[href], header a[href]').forEach(link => {
             const href = link.getAttribute('href');
             if (!href || href === '#' || href === window.location.pathname.split('/').pop()) return;
-            link.addEventListener('click', e => {
+            link.addEventListener('pointerdown', e => {
                 e.preventDefault();
                 // If returning to descobrir (left side), exit right
                 if(href.includes('descobrir')) document.body.classList.add('exiting-right');
