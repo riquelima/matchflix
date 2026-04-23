@@ -205,15 +205,6 @@
             </a>
         </div>
 
-        <!-- Section: Quero Assistir -->
-        <section id="section-pending" class="mb-10 hidden">
-            <div class="flex items-center gap-2 mb-4 px-2">
-                <div class="w-1.5 h-6 bg-primary-container rounded-full shadow-[0_0_10px_rgba(229,9,20,0.5)]"></div>
-                <h3 class="font-headline font-black text-xl tracking-tighter text-white uppercase italic">Quero Assistir</h3>
-            </div>
-            <div id="grid-pending" class="grid grid-cols-2 gap-3 pb-4"></div>
-        </section>
-
         <!-- Section: Assistidos -->
         <section id="section-watched" class="mb-10 hidden">
             <div class="flex items-center gap-2 mb-4 px-2">
@@ -221,6 +212,15 @@
                 <h3 class="font-headline font-black text-xl tracking-tighter text-white uppercase italic">Assistidos</h3>
             </div>
             <div id="grid-watched" class="grid grid-cols-2 gap-3 pb-4"></div>
+        </section>
+
+        <!-- Section: Quero Assistir -->
+        <section id="section-pending" class="mb-10 hidden">
+            <div class="flex items-center gap-2 mb-4 px-2">
+                <div class="w-1.5 h-6 bg-primary-container rounded-full shadow-[0_0_10px_rgba(229,9,20,0.5)]"></div>
+                <h3 class="font-headline font-black text-xl tracking-tighter text-white uppercase italic">Quero Assistir</h3>
+            </div>
+            <div id="grid-pending" class="grid grid-cols-2 gap-3 pb-4"></div>
         </section>
     </main>
 
@@ -554,7 +554,7 @@
                         filme_id: activeMovieId,
                         curtiu: true,
                         assistido: newState
-                    });
+                    }, { onConflict: 'usuario_id,filme_id' });
 
                 if (error) throw error;
 
@@ -730,7 +730,7 @@
         </a>
         <!-- Collection (Active) -->
         <a href="colecoes.html" class="nav-item active flex flex-col items-center justify-center">
-            <span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">video_library</span>
+            <span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">movie</span>
             <span class="font-headline text-[9px] font-bold uppercase tracking-widest mt-1 text-primary-container">Coleção</span>
         </a>
     </nav>

@@ -355,7 +355,7 @@
         </a>
         <!-- Perfil / Coleção -->
         <a href="colecoes.html" class="nav-item flex flex-col items-center justify-center" data-page="colecoes">
-            <span class="material-symbols-outlined text-xl">video_library</span>
+            <span class="material-symbols-outlined text-xl">movie</span>
             <span class="font-headline text-[9px] font-bold uppercase tracking-widest mt-1">Coleção</span>
         </a>
     </nav>
@@ -483,7 +483,8 @@
                     .from('curtidas_filmes')
                     .select('filme_id')
                     .eq('usuario_id', currentUser.id)
-                    .eq('curtiu', true);
+                    .eq('curtiu', true)
+                    .eq('assistido', false);
                 
                 
                 if (error) throw error;
@@ -680,7 +681,7 @@
                         filme_id: activeMovieId,
                         curtiu: true,
                         assistido: newState
-                    });
+                    }, { onConflict: 'usuario_id,filme_id' });
 
                 if (error) throw error;
 

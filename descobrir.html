@@ -68,6 +68,13 @@
             backdrop-filter: blur(24px);
             -webkit-backdrop-filter: blur(24px);
         }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
         .card-wrapper {
             position: absolute;
             top: 0;
@@ -358,13 +365,34 @@
                     <h2 class="font-headline font-black text-3xl tracking-tighter text-white leading-none">Minha <span class="text-white/30">Playlist</span></h2>
                 </div>
                 <main class="flex-grow overflow-y-auto px-4 pb-32" id="collection-scroll">
+                    <!-- Empty State -->
                     <div id="collection-empty" class="hidden flex-col items-center justify-center h-full py-20 text-center">
                         <div class="w-20 h-20 rounded-full bg-primary-container/10 flex items-center justify-center mb-6 mx-auto border border-primary-container/20">
                             <span class="material-symbols-outlined text-primary-container text-4xl" style="font-variation-settings: 'FILL' 1;">library_add</span>
                         </div>
                         <p class="font-headline font-black text-2xl tracking-tight text-white mb-2">Coleção vazia</p>
+                        <p class="text-white/40 text-sm font-body max-w-[240px] mx-auto leading-relaxed">Sua lista está esperando por filmes incríveis.</p>
                     </div>
-                    <div id="collection-grid" class="grid grid-cols-2 gap-3 pt-2 pb-4"></div>
+
+                    <!-- Section: Assistidos -->
+                    <section id="section-watched" class="mb-10 hidden">
+                        <div class="flex items-center gap-2 mb-4 px-2">
+                            <div class="w-1.5 h-6 bg-green-500 rounded-full shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+                            <h3 class="font-headline font-black text-xl tracking-tighter text-white uppercase italic">Assistidos</h3>
+                        </div>
+                        <!-- Horizontal Grid: 3 Rows -->
+                        <div id="grid-watched" class="grid grid-rows-3 grid-flow-col overflow-x-auto snap-x no-scrollbar gap-3 pb-4 px-2 auto-cols-[130px] h-[620px]"></div>
+                    </section>
+
+                    <!-- Section: Quero Assistir -->
+                    <section id="section-pending" class="mb-10 hidden">
+                        <div class="flex items-center gap-2 mb-4 px-2">
+                            <div class="w-1.5 h-6 bg-primary-container rounded-full shadow-[0_0_10px_rgba(229,9,20,0.5)]"></div>
+                            <h3 class="font-headline font-black text-xl tracking-tighter text-white uppercase italic">Quero Assistir</h3>
+                        </div>
+                        <!-- Horizontal Grid: 3 Rows -->
+                        <div id="grid-pending" class="grid grid-rows-3 grid-flow-col overflow-x-auto snap-x no-scrollbar gap-3 pb-4 px-2 auto-cols-[130px] h-[620px]"></div>
+                    </section>
                 </main>
             </section>
         </div>
@@ -384,7 +412,7 @@
         </button>
         <!-- Perfil / Coleção -->
         <button class="nav-item flex flex-col items-center justify-center" data-page="colecoes">
-            <span class="material-symbols-outlined text-xl">video_library</span>
+            <span class="material-symbols-outlined text-xl">movie</span>
             <span class="font-headline text-[9px] font-bold uppercase tracking-widest mt-1">Coleção</span>
         </button>
     </nav>
@@ -467,6 +495,7 @@
         let isAnimating = false;
         let isFetching = false;
         let interactedMovieIds = new Set();
+        let watchedMovieIds = new Set();
         
         let activeTab = 'descobrir'; // descobrir, meusmatches, colecoes
         const viewSlider = document.getElementById('view-slider');
@@ -582,10 +611,14 @@
             try {
                 const { data, error } = await supabase
                     .from('curtidas_filmes')
-                    .select('filme_id')
+                    .select('filme_id, assistido')
                     .eq('usuario_id', currentUser.id);
                 if (data) {
-                    data.forEach(item => interactedMovieIds.add(item.filme_id));
+                    data.forEach(item => {
+                        const id = Number(item.filme_id);
+                        interactedMovieIds.add(id);
+                        if (item.assistido) watchedMovieIds.add(id);
+                    });
                 }
             } catch(e) {
                 console.error("Erro ao carregar histórico", e);
@@ -1160,6 +1193,7 @@
                     .select('filme_id')
                     .eq('usuario_id', currentUser.id)
                     .eq('curtiu', true)
+                    .eq('assistido', false)
                     .order('criado_em', { ascending: false });
 
                 if (error) throw error;
@@ -1244,7 +1278,10 @@
         }
 
         // --- ABA 3: COLEÇÃO LOGIC ---
-        const collectionGrid = document.getElementById('collection-grid');
+        const gridPending = document.getElementById('grid-pending');
+        const gridWatched = document.getElementById('grid-watched');
+        const sectionPending = document.getElementById('section-pending');
+        const sectionWatched = document.getElementById('section-watched');
         const collectionEmpty = document.getElementById('collection-empty');
 
         function initCollection() {
@@ -1252,49 +1289,104 @@
         }
 
         async function fetchCollection() {
-            const raw = localStorage.getItem('matchflix_liked_movies');
-            const collection = raw ? JSON.parse(raw) : [];
-            
-            if(collection.length === 0) {
-                collectionEmpty.classList.remove('hidden');
-                collectionGrid.innerHTML = '';
+            if (!currentUser) return;
+            try {
+                // Busca filmes curtidos do banco
+                const { data, error } = await supabase
+                    .from('curtidas_filmes')
+                    .select('filme_id, assistido')
+                    .eq('usuario_id', currentUser.id)
+                    .eq('curtiu', true)
+                    .eq('assistido', false);
+                
+                if (error) throw error;
+
+                if(!data || data.length === 0) {
+                    collectionEmpty.classList.remove('hidden');
+                    sectionPending.classList.add('hidden');
+                    sectionWatched.classList.add('hidden');
+                    return;
+                }
+
+                collectionEmpty.classList.add('hidden');
+                
+                // Processar e enriquecer os filmes
+                const enriched = await Promise.all(data.map(async (item) => {
+                    const id = Number(item.filme_id);
+                    // Sincroniza o Set de assistidos
+                    if (item.assistido) watchedMovieIds.add(id);
+                    else watchedMovieIds.delete(id);
+
+                    // Busca detalhes no TMDB
+                    try {
+                        const res = await fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${API_KEY}&language=pt-BR`);
+                        return await res.json();
+                    } catch { return { id }; }
+                }));
+
+                const pending = enriched.filter(m => !watchedMovieIds.has(Number(m.id)));
+                const watched = enriched.filter(m => watchedMovieIds.has(Number(m.id)));
+
+                renderCollectionGrid(pending, gridPending, sectionPending);
+                renderCollectionGrid(watched, gridWatched, sectionWatched);
+
+                if (pending.length === 0 && watched.length === 0) {
+                    collectionEmpty.classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error("Erro ao carregar coleção:", err);
+            }
+        }
+
+        function renderCollectionGrid(movies, gridElement, sectionElement) {
+            if (movies.length === 0) {
+                sectionElement.classList.add('hidden');
                 return;
             }
-
-            collectionEmpty.classList.add('hidden');
-            collectionGrid.innerHTML = '';
+            sectionElement.classList.remove('hidden');
+            gridElement.innerHTML = '';
             
-            collection.forEach((movie, i) => {
+            movies.forEach((movie, i) => {
                 const card = document.createElement('div');
-                card.className = 'film-card aspect-[2/3] relative group';
+                card.className = 'film-card aspect-[2/3] w-full relative group snap-start';
                 card.innerHTML = `
-                    <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title}" loading="lazy">
-                    <div class="card-overlay"></div>
-                    <div class="card-info">
-                        <h3 class="text-white font-bold text-[10px] line-clamp-1 uppercase tracking-tight">${movie.title}</h3>
+                    <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title}" loading="lazy" class="rounded-xl overflow-hidden shadow-lg">
+                    <div class="card-overlay rounded-xl"></div>
+                    <div class="card-info p-2">
+                        <h3 class="text-white font-bold text-[8px] line-clamp-1 uppercase tracking-tight">${movie.title || 'Sem Título'}</h3>
                     </div>
                 `;
                 card.addEventListener('click', () => openSynopsis(movie, 'collection', card));
-                collectionGrid.appendChild(card);
+                gridElement.appendChild(card);
                 setTimeout(() => card.classList.add('visible'), 50 * i);
             });
         }
 
-        function removeCollection(movieId, element) {
-            let raw = localStorage.getItem('matchflix_liked_movies');
-            let collection = raw ? JSON.parse(raw) : [];
-            collection = collection.filter(m => String(m.id) !== String(movieId));
-            localStorage.setItem('matchflix_liked_movies', JSON.stringify(collection));
-            
-            gsap.to(element, {
-                scale: 0.8,
-                opacity: 0,
-                duration: 0.3,
-                onComplete: () => {
-                    element.remove();
-                    fetchCollection();
-                }
-            });
+        async function removeCollection(movieId, element) {
+            if (!currentUser) return;
+            if (!confirm('Remover este filme da sua coleção?')) return;
+
+            try {
+                const { error } = await supabase
+                    .from('curtidas_filmes')
+                    .delete()
+                    .eq('usuario_id', currentUser.id)
+                    .eq('filme_id', movieId);
+                
+                if (error) throw error;
+
+                gsap.to(element, {
+                    scale: 0.8,
+                    opacity: 0,
+                    duration: 0.3,
+                    onComplete: () => {
+                        element.remove();
+                        fetchCollection();
+                    }
+                });
+            } catch (err) {
+                console.error("Erro ao remover da coleção:", err);
+            }
             closeSynopsis();
         }
 
@@ -1315,7 +1407,6 @@
         let currentActiveElement = null;
 
         // Persistência de filmes assistidos
-        let watchedMovieIds = new Set(JSON.parse(localStorage.getItem('matchflix_watched_movies') || '[]'));
 
         function openSynopsis(movie, type = 'discover', element = null) {
             currentActiveMovie = movie;
@@ -1372,7 +1463,7 @@
 
         function updateWatchedUI() {
             if(!currentActiveMovie) return;
-            const isWatched = watchedMovieIds.has(currentActiveMovie.id);
+            const isWatched = watchedMovieIds.has(Number(currentActiveMovie.id));
             if(isWatched) {
                 mWatchedBtn.innerHTML = '<span class="material-symbols-outlined">check_circle</span> ASSISTIDO';
                 mWatchedBtn.classList.replace('bg-primary-container', 'bg-green-600');
@@ -1384,16 +1475,33 @@
             }
         }
 
-        function toggleWatched() {
-            if(!currentActiveMovie) return;
-            const id = currentActiveMovie.id;
-            if(watchedMovieIds.has(id)) {
-                watchedMovieIds.delete(id);
-            } else {
-                watchedMovieIds.add(id);
+        async function toggleWatched() {
+            if(!currentActiveMovie || !currentUser) return;
+            
+            const id = Number(currentActiveMovie.id);
+            const isCurrentlyWatched = watchedMovieIds.has(id);
+            const newState = !isCurrentlyWatched;
+
+            try {
+                const { error } = await supabase
+                    .from('curtidas_filmes')
+                    .upsert({
+                        usuario_id: currentUser.id,
+                        filme_id: id,
+                        curtiu: true,
+                        assistido: newState
+                    }, { onConflict: 'usuario_id,filme_id' });
+
+                if (error) throw error;
+
+                if(newState) watchedMovieIds.add(id);
+                else watchedMovieIds.delete(id);
+
+                updateWatchedUI();
+                if (activeTab === 'colecoes') fetchCollection();
+            } catch (err) {
+                console.error("Erro ao atualizar status assistido:", err);
             }
-            localStorage.setItem('matchflix_watched_movies', JSON.stringify([...watchedMovieIds]));
-            updateWatchedUI();
         }
 
         mWatchedBtn.addEventListener('click', toggleWatched);
