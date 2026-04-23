@@ -242,7 +242,7 @@
             <h1 class="font-headline font-extrabold tracking-tighter text-2xl text-on-surface">Match<span class="text-primary-container">Flix</span></h1>
             <div class="flex items-center gap-4">
                 <span id="global-count-badge" class="hidden bg-primary-container text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(229,9,20,0.5)]">0</span>
-                <button class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
+                <button id="global-filter-btn" class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
                     <span class="material-symbols-outlined" data-icon="filter_list">filter_list</span>
                 </button>
             </div>
@@ -394,6 +394,7 @@
         let activeTab = 'descobrir'; // descobrir, meusmatches, colecoes
         const viewSlider = document.getElementById('view-slider');
         const navItems = document.querySelectorAll('.nav-item');
+        const globalFilterBtn = document.getElementById('global-filter-btn');
         let matchCount = 0;
 
         // Check Auth
@@ -438,8 +439,10 @@
             // Refresh content if needed
             if(tabName === 'meusmatches') {
                 fetchMatches();
+                globalFilterBtn.classList.add('hidden');
             } else {
                 globalCountBadge.classList.add('hidden');
+                globalFilterBtn.classList.remove('hidden');
             }
             if(tabName === 'colecoes') fetchCollection();
         }
@@ -1183,6 +1186,7 @@
             // Allow dragging from the top 100px of the modal (handle area)
             if (touchY < rect.top + 100) {
                 dragStartY = touchY;
+                dragCurrentY = dragStartY; // Initialize
                 isDraggingModal = true;
                 modal.style.transition = 'none';
             }
@@ -1206,7 +1210,7 @@
             isDraggingModal = false;
             const deltaY = dragCurrentY - dragStartY;
 
-            if (deltaY > 150) {
+            if (deltaY > 100) {
                 closeSynopsis();
             } else {
                 // Snap back

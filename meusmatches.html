@@ -345,9 +345,9 @@
                 <button id="modal-remove" class="flex-1 py-3 rounded-full border border-white/10 text-white/60 font-headline font-bold text-sm tracking-wider uppercase active:scale-95 transition-transform">
                     Remover
                 </button>
-                <a href="descobrir.html" class="flex-1 py-3 rounded-full bg-primary-container text-white font-headline font-bold text-sm tracking-wider uppercase active:scale-95 transition-transform text-center shadow-[0_0_20px_rgba(229,9,20,0.4)]">
-                    + Filmes
-                </a>
+                <button id="modal-watched" class="flex-1 py-3 rounded-full bg-primary-container text-white font-headline font-bold text-sm tracking-wider uppercase active:scale-95 transition-transform text-center shadow-[0_0_20px_rgba(229,9,20,0.4)]">
+                    Assistido
+                </button>
             </div>
         </div>
     </div>
@@ -361,6 +361,7 @@
         let currentUser = null;
         let likedMovies = [];
         let activeMovieId = null;
+        let watchedMovieIds = new Set(JSON.parse(localStorage.getItem('matchflix_watched_movies') || '[]'));
 
         // Check Auth
         (async () => {
@@ -385,6 +386,7 @@
         const modalGenres = document.getElementById('modal-genres');
         const modalSynopsis = document.getElementById('modal-synopsis');
         const modalRemove = document.getElementById('modal-remove');
+        const modalWatchedBtn = document.getElementById('modal-watched');
 
         // ── Load liked movies from Supabase ──
         async function fetchLikedMoviesFromDB() {
@@ -537,7 +539,33 @@
 
             modal.classList.add('open');
             document.body.style.overflow = 'hidden';
+            updateWatchedUI();
         }
+
+        function updateWatchedUI() {
+            if(!activeMovieId) return;
+            const isWatched = watchedMovieIds.has(activeMovieId);
+            if(isWatched) {
+                modalWatchedBtn.innerHTML = '<span class="material-symbols-outlined">check_circle</span> ASSISTIDO';
+                modalWatchedBtn.classList.replace('bg-primary-container', 'bg-green-600');
+            } else {
+                modalWatchedBtn.innerHTML = 'ASSISTIDO';
+                modalWatchedBtn.classList.replace('bg-green-600', 'bg-primary-container');
+            }
+        }
+
+        function toggleWatched() {
+            if(!activeMovieId) return;
+            if(watchedMovieIds.has(activeMovieId)) {
+                watchedMovieIds.delete(activeMovieId);
+            } else {
+                watchedMovieIds.add(activeMovieId);
+            }
+            localStorage.setItem('matchflix_watched_movies', JSON.stringify([...watchedMovieIds]));
+            updateWatchedUI();
+        }
+
+        modalWatchedBtn.addEventListener('click', toggleWatched);
 
         function closeModal() {
             modal.classList.remove('open');
@@ -555,6 +583,7 @@
 
         sheet.addEventListener('touchstart', e => {
             dragStartY = e.touches[0].clientY;
+            dragCurrentY = dragStartY; // Initialize to avoid jumps
             isDragging = true;
             sheet.style.transition = 'none'; // Disable CSS transition during drag
         }, { passive: true });
@@ -569,7 +598,7 @@
                 gsap.set(sheet, { y: deltaY });
                 // Dim backdrop slightly as we drag down
                 const opacity = Math.max(0, 0.7 - (deltaY / 500));
-                gsap.set(modalBackdrop, { backgroundColor: `rgba(0,0,0,${opacity})` });
+                gsap.set(modalBackdrop, { opacity: opacity / 0.7 });
             }
         }, { passive: true });
 
@@ -578,7 +607,7 @@
             isDragging = false;
             const deltaY = dragCurrentY - dragStartY;
 
-            if (deltaY > 120) {
+            if (deltaY > 100) {
                 // Close if dragged enough
                 closeModal();
             } else {
@@ -586,10 +615,10 @@
                 gsap.to(sheet, {
                     y: 0,
                     duration: 0.4,
-                    ease: "elastic.out(1, 0.75)"
+                    ease: "power2.out"
                 });
                 gsap.to(modalBackdrop, {
-                    backgroundColor: "rgba(0,0,0,0.7)",
+                    opacity: 1,
                     duration: 0.3
                 });
             }
