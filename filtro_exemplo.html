@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MatchFlix - Filtros</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-container": "#e50914",
+                    "surface-tint": "#ffb4aa",
+                    "inverse-on-surface": "#313030",
+                    "surface": "#131313",
+                    "on-secondary-fixed": "#410001",
+                    "surface-container-highest": "#353534",
+                    "on-primary": "#690003",
+                    "on-secondary-fixed-variant": "#8e1210",
+                    "surface-variant": "#353534",
+                    "secondary-fixed-dim": "#ffb4aa",
+                    "on-tertiary": "#3f2e00",
+                    "on-surface": "#e5e2e1",
+                    "on-surface-variant": "#e9bcb6",
+                    "tertiary-fixed-dim": "#fabd00",
+                    "surface-container": "#201f1f",
+                    "on-error-container": "#ffdad6",
+                    "surface-dim": "#131313",
+                    "secondary-fixed": "#ffdad5",
+                    "on-tertiary-fixed": "#261a00",
+                    "on-tertiary-container": "#fff8f2",
+                    "on-secondary-container": "#ff9f93",
+                    "error-container": "#93000a",
+                    "inverse-primary": "#c0000c",
+                    "tertiary-fixed": "#ffdf9e",
+                    "tertiary": "#fabd00",
+                    "outline-variant": "#5e3f3b",
+                    "tertiary-container": "#926d00",
+                    "secondary": "#ffb4aa",
+                    "inverse-surface": "#e5e2e1",
+                    "surface-container-low": "#1c1b1b",
+                    "on-background": "#e5e2e1",
+                    "on-primary-fixed": "#410001",
+                    "primary": "#ffb4aa",
+                    "surface-bright": "#3a3939",
+                    "secondary-container": "#921512",
+                    "primary-fixed-dim": "#ffb4aa",
+                    "error": "#ffb4ab",
+                    "outline": "#af8782",
+                    "on-error": "#690005",
+                    "on-primary-fixed-variant": "#930007",
+                    "surface-container-high": "#2a2a2a",
+                    "primary-fixed": "#ffdad5",
+                    "on-secondary": "#690003",
+                    "surface-container-lowest": "#0e0e0e",
+                    "on-primary-container": "#fff7f6",
+                    "background": "#131313",
+                    "on-tertiary-fixed-variant": "#5b4300"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "spacing": {},
+            "fontFamily": {
+                    "headline": [
+                            "Plus Jakarta Sans"
+                    ],
+                    "display": [
+                            "Plus Jakarta Sans"
+                    ],
+                    "body": [
+                            "Inter"
+                    ],
+                    "label": [
+                            "Inter"
+                    ]
+            },
+            "fontSize": {}
+    },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface-container-lowest text-on-surface font-body min-h-screen pb-32">
+<!-- TopAppBar from JSON -->
+<header class="fixed top-0 w-full z-50 shadow-none scale-95 duration-200">
+<div class="bg-gradient-to-b from-black/80 to-transparent absolute inset-0 -z-10 pointer-events-none h-32"></div>
+<div class="flex items-center justify-between px-6 py-4 w-full bg-transparent backdrop-blur-xl">
+<button class="text-zinc-400 hover:bg-white/5 transition-colors p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-['Plus_Jakarta_Sans'] font-bold tracking-tight text-2xl text-on-surface">Filtros Inteligentes</h1>
+<button class="text-zinc-400 hover:bg-white/5 transition-colors p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="tune">tune</span>
+</button>
+</div>
+</header>
+<main class="pt-24 px-6 max-w-md mx-auto space-y-12">
+<!-- Filtros Inteligentes -->
+<section class="space-y-6 relative">
+<div class="absolute -inset-4 bg-surface-container-low rounded-xl -z-10"></div>
+<h2 class="font-headline text-xl font-bold text-primary tracking-tight">Filtros Inteligentes</h2>
+<div class="space-y-4">
+<label class="flex items-center justify-between group cursor-pointer">
+<span class="font-label text-on-surface-variant group-hover:text-on-surface transition-colors">Só mostrar filmes disponíveis no Brasil</span>
+<div class="relative inline-flex items-center">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container-highest rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-br peer-checked:from-primary peer-checked:to-primary-container shadow-[0_0_15px_rgba(229,9,20,0.3)] peer-checked:shadow-[0_0_20px_rgba(229,9,20,0.6)]"></div>
+</div>
+</label>
+<label class="flex items-center justify-between group cursor-pointer">
+<span class="font-label text-on-surface-variant group-hover:text-on-surface transition-colors">Só Netflix / Prime</span>
+<div class="relative inline-flex items-center">
+<input class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container-highest rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-on-surface-variant after:border-transparent after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-br peer-checked:from-primary peer-checked:to-primary-container"></div>
+</div>
+</label>
+<label class="flex items-center justify-between group cursor-pointer">
+<span class="font-label text-on-surface-variant group-hover:text-on-surface transition-colors">Só acima de nota 7</span>
+<div class="relative inline-flex items-center">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container-highest rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-br peer-checked:from-tertiary peer-checked:to-tertiary-container shadow-[0_0_15px_rgba(250,189,0,0.3)] peer-checked:shadow-[0_0_20px_rgba(250,189,0,0.6)]"></div>
+</div>
+</label>
+</div>
+</section>
+<!-- Filtros do Filme -->
+<section class="space-y-6">
+<h2 class="font-headline text-xl font-bold text-on-surface tracking-tight">Filtros do Filme</h2>
+<div class="space-y-4">
+<div>
+<h3 class="font-label text-sm text-on-surface-variant mb-3">Gênero</h3>
+<div class="flex flex-wrap gap-2">
+<button class="px-4 py-2 rounded-full bg-gradient-to-br from-primary to-primary-container text-on-primary font-label text-sm font-medium shadow-[0_0_15px_rgba(229,9,20,0.4)]">Ação</button>
+<button class="px-4 py-2 rounded-full bg-surface-container-high text-on-surface-variant font-label text-sm hover:bg-surface-variant transition-colors border border-outline-variant/15">Comédia</button>
+<button class="px-4 py-2 rounded-full bg-surface-container-high text-on-surface-variant font-label text-sm hover:bg-surface-variant transition-colors border border-outline-variant/15">Terror</button>
+<button class="px-4 py-2 rounded-full bg-gradient-to-br from-primary to-primary-container text-on-primary font-label text-sm font-medium shadow-[0_0_15px_rgba(229,9,20,0.4)]">Ficção</button>
+<button class="px-4 py-2 rounded-full bg-surface-container-high text-on-surface-variant font-label text-sm hover:bg-surface-variant transition-colors border border-outline-variant/15">Drama</button>
+</div>
+</div>
+<div>
+<h3 class="font-label text-sm text-on-surface-variant mb-3">Ano/Época</h3>
+<div class="flex gap-2">
+<button class="flex-1 py-3 rounded-xl bg-surface-container-high text-on-surface-variant font-label text-sm hover:bg-surface-variant transition-colors border border-outline-variant/15 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]" data-icon="new_releases">new_releases</span>
+                            Recentes
+                        </button>
+<button class="flex-1 py-3 rounded-xl bg-surface-container-high text-on-surface-variant font-label text-sm hover:bg-surface-variant transition-colors border border-outline-variant/15 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]" data-icon="movie">movie</span>
+                            Clássicos
+                        </button>
+</div>
+</div>
+<div>
+<h3 class="font-label text-sm text-on-surface-variant mb-3">Duração</h3>
+<div class="flex gap-2 bg-surface-container-highest p-1 rounded-full">
+<button class="flex-1 py-2 rounded-full text-on-surface-variant font-label text-sm">Curtos</button>
+<button class="flex-1 py-2 rounded-full bg-surface-container text-on-surface font-label text-sm shadow-md">Médio</button>
+<button class="flex-1 py-2 rounded-full text-on-surface-variant font-label text-sm">Longos</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Filtros do Usuário -->
+<section class="space-y-6">
+<h2 class="font-headline text-xl font-bold text-on-surface tracking-tight">Filtros do Usuário</h2>
+<div class="space-y-6">
+<label class="flex items-center justify-between group cursor-pointer bg-surface-container-high p-4 rounded-xl border border-outline-variant/15">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined filled" data-icon="thumb_up">thumb_up</span>
+</div>
+<span class="font-label text-on-surface">Baseado nos seus likes</span>
+</div>
+<div class="relative inline-flex items-center">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container-highest rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-br peer-checked:from-primary peer-checked:to-primary-container shadow-[0_0_15px_rgba(229,9,20,0.3)]"></div>
+</div>
+</label>
+<div>
+<h3 class="font-label text-sm text-on-surface-variant mb-3">Nota mínima</h3>
+<div class="px-2">
+<input class="w-full h-2 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-tertiary" max="10" min="6" type="range" value="7"/>
+<div class="flex justify-between text-xs font-label text-on-surface-variant mt-2">
+<span>6+</span>
+<span class="text-tertiary font-bold">7+</span>
+<span>8+</span>
+<span>9+</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<div class="pt-8">
+<button class="w-full py-4 rounded-full bg-gradient-to-br from-primary to-primary-container text-on-primary font-headline font-bold text-lg shadow-[0_0_30px_rgba(229,9,20,0.3)] hover:shadow-[0_0_40px_rgba(229,9,20,0.5)] transition-shadow">
+                Aplicar Filtros
+            </button>
+</div>
+</main>
+<!-- BottomNavBar from JSON (Suppressed per Nav Shell Logic: Transactional/Task-focused screen) -->
+<!-- Not rendering bottom nav as this is a filter screen which implies a temporary departure -->
+</body></html>

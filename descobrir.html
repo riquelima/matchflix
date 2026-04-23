@@ -305,7 +305,7 @@
             <h1 class="font-headline font-extrabold tracking-tighter text-2xl text-on-surface">Match<span class="text-primary-container">Flix</span></h1>
             <div class="flex items-center gap-4">
                 <span id="global-count-badge" class="hidden bg-primary-container text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(229,9,20,0.5)]">0</span>
-                <button id="global-filter-btn" class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
+                <button id="global-filter-btn" onclick="window.location.href='filtro.html'" class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
                     <span class="material-symbols-outlined" data-icon="filter_list">filter_list</span>
                 </button>
             </div>
@@ -700,20 +700,55 @@
             isFetching = true;
             loadingIndicator.style.display = "flex";
             try {
+                // Recupera filtros do localStorage
+                const savedFilters = localStorage.getItem('mf_filters');
+                const filters = savedFilters ? JSON.parse(savedFilters) : null;
+
                 // Configurações Globais da API
-                const baseParams = `api_key=${API_KEY}&language=pt-BR&sort_by=popularity.desc&include_adult=false&vote_average.gte=7.0&vote_count.gte=100`;
+                let baseParams = `api_key=${API_KEY}&language=pt-BR&sort_by=popularity.desc&include_adult=false&vote_count.gte=100`;
                 
+                // 1. Aplica filtro de nota mínima rigoroso
+                const minVote = (filters && filters.minRating) ? filters.minRating : 7.0;
+                baseParams += `&vote_average.gte=${minVote}`;
+
+                // 2. Filtro de Streaming (Provedores) - Sempre BR e Assinatura
+                if (filters && filters.providers && filters.providers.length > 0) {
+                    const providersString = filters.providers.join('|');
+                    baseParams += `&watch_region=BR&with_watch_providers=${providersString}&with_watch_monetization_types=flatrate`;
+                } else {
+                    // Mesmo sem provedor específico, se o usuário quer BR apenas (fallback)
+                    if (filters && filters.brOnly) {
+                        baseParams += `&watch_region=BR&with_watch_monetization_types=flatrate`;
+                    }
+                }
+
+                // 3. Filtro de Ano/Época usando release_date
+                if (filters && filters.year && filters.year !== 'all') {
+                    if (filters.year === '2024') {
+                        baseParams += `&primary_release_date.gte=2024-01-01`;
+                    } else if (filters.year === 'classic') {
+                        baseParams += `&primary_release_date.lte=1995-12-31`;
+                    } else {
+                        baseParams += `&primary_release_year=${filters.year}`;
+                    }
+                }
+
                 let matches = [];
                 let discoveries = [];
 
-                if (favoriteGenres.length > 0) {
-                    const genresString = favoriteGenres.join('|');
-                    const nonGenresString = favoriteGenres.join(',');
-                    
-                    const page1 = Math.floor(Math.random() * 20) + 1;
-                    const page2 = Math.floor(Math.random() * 20) + 1;
+                // Prioridade para gêneros salvos no filtro ou gêneros favoritos padrão
+                const activeGenres = (filters && filters.genres && filters.genres.length > 0) 
+                    ? filters.genres 
+                    : (favoriteGenres.length > 0 ? favoriteGenres : []);
 
-                    // 1. A Base (80%): Filmes dos gêneros favoritos
+                if (activeGenres.length > 0) {
+                    const genresString = activeGenres.join('|');
+                    const nonGenresString = activeGenres.join(',');
+                    
+                    const page1 = Math.floor(Math.random() * 10) + 1;
+                    const page2 = Math.floor(Math.random() * 10) + 1;
+
+                    // 1. A Base (80%): Filmes dos gêneros ativos
                     const resMatches = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&with_genres=${genresString}&page=${page1}`);
                     const dataMatches = await resMatches.json();
                     matches = dataMatches.results || [];
@@ -723,7 +758,6 @@
                     const dataDiscoveries = await resDiscoveries.json();
                     discoveries = dataDiscoveries.results || [];
                 } else {
-                    // Fallback se não houver gêneros salvos
                     const page = Math.floor(Math.random() * 20) + 1;
                     const res = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&page=${page}`);
                     const data = await res.json();
