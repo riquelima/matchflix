@@ -100,12 +100,45 @@
             pointer-events: auto;
             transform: translateY(0);
         }
+        /* Grids and Cards */
+        .film-card {
+            position: relative;
+            border-radius: 1rem;
+            overflow: hidden;
+            background: #1a1a1a;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+        .film-card.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .film-card img {
+            width: 100%;
+            height: 100%;
+            object-cover: cover;
+        }
+        .card-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 40%, transparent 100%);
+        }
+        .card-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 12px;
+            z-index: 5;
+        }
         /* Custom scrollbar for synopsis */
-        .synopsis-scroll::-webkit-scrollbar {
+        .synopsis-scroll::-webkit-scrollbar, .overflow-y-auto::-webkit-scrollbar {
             width: 4px;
         }
-        .synopsis-scroll::-webkit-scrollbar-thumb {
-            background: #e50914;
+        .synopsis-scroll::-webkit-scrollbar-thumb, .overflow-y-auto::-webkit-scrollbar-thumb {
+            background: rgba(229, 9, 20, 0.3);
             border-radius: 4px;
         }
 
@@ -195,54 +228,110 @@
 </head>
 <body class="text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container h-[100dvh] flex flex-col">
 
-    <!-- TopAppBar -->
-    <header class="w-full z-50 flex justify-between items-center px-6 h-16 bg-neutral-950/80 backdrop-blur-2xl shrink-0 absolute top-0">
-        <button class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
-            <span class="material-symbols-outlined" data-icon="menu">menu</span>
-        </button>
-        <h1 class="font-headline font-extrabold tracking-tighter text-2xl text-on-surface">Match<span class="text-primary-container">Flix</span></h1>
-        <button class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
-            <span class="material-symbols-outlined" data-icon="filter_list">filter_list</span>
-        </button>
-    </header>
-
-    <!-- Main Discovery Canvas -->
-    <main class="relative flex-grow w-full flex flex-col items-center justify-start pt-[66px] pb-32 px-4 overflow-hidden">
-        
-        <!-- Subtle Background Glow -->
-        <div class="absolute inset-0 pointer-events-none overflow-hidden z-0">
+    <div id="app-shell" class="h-[100dvh] w-full overflow-hidden relative">
+        <!-- Universal Background -->
+        <div class="fixed inset-0 pointer-events-none overflow-hidden z-0 bg-[#0e0e0e]">
             <div class="absolute top-0 left-0 w-full h-[60%] rounded-b-full bg-primary-container/5 blur-[120px]"></div>
         </div>
 
-        <!-- Movie Stack Container -->
-        <div class="relative w-full aspect-[2/3] z-10 card-container" style="max-width: min(90vw, 380px);" id="card-stack">
-            <!-- Loading indicator -->
-            <div id="loading-indicator" class="absolute inset-0 flex flex-col items-center justify-center">
-                <span class="material-symbols-outlined text-primary-container text-5xl animate-spin">sync</span>
-                <p class="text-gray-400 mt-4 font-medium tracking-wider animate-pulse">Procurando matches...</p>
+        <!-- Universal TopAppBar -->
+        <header class="w-full z-[100] flex justify-between items-center px-6 h-16 bg-neutral-950/80 backdrop-blur-2xl shrink-0 fixed top-0 transition-transform duration-300">
+            <button class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
+                <span class="material-symbols-outlined" data-icon="menu">menu</span>
+            </button>
+            <h1 class="font-headline font-extrabold tracking-tighter text-2xl text-on-surface">Match<span class="text-primary-container">Flix</span></h1>
+            <div class="flex items-center gap-4">
+                <span id="global-count-badge" class="hidden bg-primary-container text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(229,9,20,0.5)]">0</span>
+                <button class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
+                    <span class="material-symbols-outlined" data-icon="filter_list">filter_list</span>
+                </button>
             </div>
-            <!-- Cards will be injected here via JS -->
+        </header>
+
+        <!-- View Slider (O coração da SPA) -->
+        <div id="view-slider" class="flex h-full w-[300vw] will-change-transform">
+            
+            <!-- ABRA 1: DESCOBRIR (Match) -->
+            <section id="view-discover" class="w-[100vw] h-full relative flex flex-col pt-16">
+                <main class="relative flex-grow w-full flex flex-col items-center justify-start pb-32 px-4 overflow-hidden pt-4">
+                    <!-- Movie Stack Container -->
+                    <div class="relative w-full aspect-[2/3] z-10 card-container" style="max-width: min(90vw, 380px);" id="card-stack">
+                        <div id="loading-indicator" class="absolute inset-0 flex flex-col items-center justify-center">
+                            <span class="material-symbols-outlined text-primary-container text-5xl animate-spin">sync</span>
+                            <p class="text-gray-400 mt-4 font-medium tracking-wider animate-pulse">Procurando matches...</p>
+                        </div>
+                    </div>
+
+                    <!-- Swiping FABs -->
+                    <div class="relative w-full flex justify-center items-center gap-6 z-30 mt-4" id="controls">
+                        <button id="btn-dislike" class="w-16 h-16 rounded-full glass-panel border border-error/20 flex items-center justify-center text-error shadow-lg active:scale-90 transition-transform duration-200">
+                            <span class="material-symbols-outlined text-3xl font-bold" data-icon="close">close</span>
+                        </button>
+                        <button id="btn-info" class="w-14 h-14 rounded-full glass-panel border border-on-surface/10 flex items-center justify-center text-white active:scale-90 transition-transform duration-200">
+                            <span class="material-symbols-outlined text-2xl" data-icon="info">info</span>
+                        </button>
+                        <button id="btn-like" class="w-16 h-16 rounded-full bg-gradient-to-br from-primary-container to-secondary-container shadow-[0_0_25px_rgba(229,9,20,0.5)] flex items-center justify-center text-white active:scale-90 transition-transform duration-200">
+                            <span class="material-symbols-outlined text-3xl" data-icon="favorite" style="font-variation-settings: 'FILL' 1;">favorite</span>
+                        </button>
+                    </div>
+                </main>
+            </section>
+
+            <!-- ABA 2: MEUS MATCHES (Grid) -->
+            <section id="view-matches" class="w-[100vw] h-full relative flex flex-col pt-16">
+                <div class="px-6 pt-5 pb-3 shrink-0">
+                    <p class="text-[10px] tracking-[0.3em] uppercase text-primary-container/70 font-bold font-headline mb-1">Seus Matches</p>
+                    <h2 class="font-headline font-black text-3xl tracking-tighter text-white leading-none">Novos <span class="text-white/30">Matches</span></h2>
+                </div>
+                <main class="flex-grow overflow-y-auto px-4 pb-32" id="matches-scroll">
+                    <div id="matches-empty" class="hidden flex-col items-center justify-center h-full py-20 text-center">
+                        <div class="w-20 h-20 rounded-full bg-primary-container/10 flex items-center justify-center mb-6 mx-auto border border-primary-container/20">
+                            <span class="material-symbols-outlined text-primary-container text-4xl" style="font-variation-settings: 'FILL' 1;">favorite</span>
+                        </div>
+                        <p class="font-headline font-black text-2xl tracking-tight text-white mb-2">Nada por aqui ainda</p>
+                        <p class="text-white/40 text-sm font-body max-w-[240px] mx-auto leading-relaxed">Curta filmes na aba Match para vê-los aqui.</p>
+                    </div>
+                    <div id="matches-grid" class="grid grid-cols-2 gap-3 pt-2 pb-4"></div>
+                </main>
+            </section>
+
+            <!-- ABA 3: COLEÇÃO (Grid) -->
+            <section id="view-collection" class="w-[100vw] h-full relative flex flex-col pt-16">
+                <div class="px-6 pt-5 pb-3 shrink-0">
+                    <p class="text-[10px] tracking-[0.3em] uppercase text-primary-container/70 font-bold font-headline mb-1">Sua Coleção</p>
+                    <h2 class="font-headline font-black text-3xl tracking-tighter text-white leading-none">Minha <span class="text-white/30">Playlist</span></h2>
+                </div>
+                <main class="flex-grow overflow-y-auto px-4 pb-32" id="collection-scroll">
+                    <div id="collection-empty" class="hidden flex-col items-center justify-center h-full py-20 text-center">
+                        <div class="w-20 h-20 rounded-full bg-primary-container/10 flex items-center justify-center mb-6 mx-auto border border-primary-container/20">
+                            <span class="material-symbols-outlined text-primary-container text-4xl" style="font-variation-settings: 'FILL' 1;">library_add</span>
+                        </div>
+                        <p class="font-headline font-black text-2xl tracking-tight text-white mb-2">Coleção vazia</p>
+                    </div>
+                    <div id="collection-grid" class="grid grid-cols-2 gap-3 pt-2 pb-4"></div>
+                </main>
+            </section>
         </div>
 
-        <!-- Swiping FABs -->
-        <div class="relative w-full flex justify-center items-center gap-6 z-30 mt-4" id="controls">
-            <!-- Dislike -->
-            <button id="btn-dislike" class="w-16 h-16 rounded-full glass-panel border border-error/20 flex items-center justify-center text-error shadow-lg active:scale-90 transition-transform duration-200">
-                <span class="material-symbols-outlined text-3xl font-bold" data-icon="close">close</span>
+        <!-- BottomNavBar (Floating Style) -->
+        <nav class="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] z-[110] flex justify-around items-center px-2 py-2 bg-neutral-900/60 backdrop-blur-3xl rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/5">
+            <!-- Match -->
+            <button class="nav-item active flex flex-col items-center justify-center" data-page="descobrir">
+                <span class="material-symbols-outlined text-xl">style</span>
+                <span class="font-headline text-[9px] font-bold uppercase tracking-widest mt-1">Match</span>
             </button>
-            
-            <!-- Info / Flip -->
-            <button id="btn-info" class="w-14 h-14 rounded-full glass-panel border border-on-surface/10 flex items-center justify-center text-white active:scale-90 transition-transform duration-200">
-                <span class="material-symbols-outlined text-2xl" data-icon="info">info</span>
+            <!-- Filmes -->
+            <button class="nav-item flex flex-col items-center justify-center" data-page="meusmatches">
+                <span class="material-symbols-outlined text-xl">format_list_bulleted</span>
+                <span class="font-headline text-[9px] font-bold uppercase tracking-widest mt-1">Matches</span>
             </button>
-            
-            <!-- Like -->
-            <button id="btn-like" class="w-16 h-16 rounded-full bg-gradient-to-br from-primary-container to-secondary-container shadow-[0_0_25px_rgba(229,9,20,0.5)] flex items-center justify-center text-white active:scale-90 transition-transform duration-200">
-                <span class="material-symbols-outlined text-3xl" data-icon="favorite" style="font-variation-settings: 'FILL' 1;">favorite</span>
+            <!-- Perfil / Coleção -->
+            <button class="nav-item flex flex-col items-center justify-center" data-page="colecoes">
+                <span class="material-symbols-outlined text-xl">favorite</span>
+                <span class="font-headline text-[9px] font-bold uppercase tracking-widest mt-1">Coleção</span>
             </button>
-        </div>
-
-    </main>
+        </nav>
+    </div>
 
     <!-- Match Toast (global overlay, triggered on like) -->
     <div id="match-flash"></div>
@@ -284,7 +373,11 @@
         let moviesQueue = [];
         let currentCardDOM = null;
         let isAnimating = false;
-        let interactedMovieIds = new Set(); // Guarda IDs já vistos
+        let interactedMovieIds = new Set();
+        
+        let activeTab = 'descobrir'; // descobrir, meusmatches, colecoes
+        const viewSlider = document.getElementById('view-slider');
+        const navItems = document.querySelectorAll('.nav-item');
 
         // Check Auth
         (async () => {
@@ -293,10 +386,95 @@
                 window.location.href = 'login.html';
             } else {
                 currentUser = session.user;
-                await fetchInteractedMovies(); // Carrega histórico
-                fetchMovies(); // Inicia a busca só se estiver logado
+                await fetchInteractedMovies(); 
+                fetchMovies(); 
+                initMatches(); // Inicializa aba de matches
+                initCollection(); // Inicializa aba de coleção
             }
         })();
+
+        // --- SPA Navigation & Swipe ---
+        function goToTab(tabName, animate = true) {
+            const tabs = ['descobrir', 'meusmatches', 'colecoes'];
+            const index = tabs.indexOf(tabName);
+            if(index === -1) return;
+
+            activeTab = tabName;
+            
+            // Update UI
+            navItems.forEach(item => {
+                item.classList.toggle('active', item.dataset.page === tabName);
+            });
+
+            const xPercent = -(index * (100/3));
+            if(animate) {
+                gsap.to(viewSlider, {
+                    xPercent: xPercent,
+                    duration: 0.5,
+                    ease: "power3.out",
+                    force3D: true
+                });
+            } else {
+                gsap.set(viewSlider, { xPercent: xPercent });
+            }
+
+            // Refresh content if needed
+            if(tabName === 'meusmatches') fetchMatches();
+            if(tabName === 'colecoes') fetchCollection();
+        }
+
+        // Swipe Gestures
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let isSwipingTabs = false;
+
+        window.addEventListener('touchstart', (e) => {
+            // Não disparar swipe se estiver arrastando o card de filme (seção descobrir)
+            if(activeTab === 'descobrir' && e.target.closest('#card-stack')) return;
+            
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            isSwipingTabs = false;
+        }, { passive: true });
+
+        window.addEventListener('touchmove', (e) => {
+            if(activeTab === 'descobrir' && e.target.closest('#card-stack')) return;
+            
+            const diffX = e.touches[0].clientX - touchStartX;
+            const diffY = e.touches[0].clientY - touchStartY;
+            
+            // Se o movimento for mais horizontal que vertical
+            if(!isSwipingTabs && Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 10) {
+                isSwipingTabs = true;
+            }
+        }, { passive: true });
+
+        window.addEventListener('touchend', (e) => {
+            if(!isSwipingTabs) return;
+            
+            const diffX = e.changedTouches[0].clientX - touchStartX;
+            const threshold = window.innerWidth * 0.2;
+            
+            if(Math.abs(diffX) > threshold) {
+                const tabs = ['descobrir', 'meusmatches', 'colecoes'];
+                const currentIndex = tabs.indexOf(activeTab);
+                
+                if(diffX > 0 && currentIndex > 0) {
+                    goToTab(tabs[currentIndex - 1]);
+                } else if(diffX < 0 && currentIndex < tabs.length - 1) {
+                    goToTab(tabs[currentIndex + 1]);
+                }
+            }
+            isSwipingTabs = false;
+        }, { passive: true });
+
+        // Navbar Clicks
+        navItems.forEach(item => {
+            item.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                goToTab(item.dataset.page);
+            });
+        });
 
         // Carrega do banco tudo que o usuário já deu match ou dislike
         async function fetchInteractedMovies() {
@@ -324,10 +502,8 @@
                     curtiu: liked
                 }, { onConflict: 'usuario_id, filme_id' });
                 
-                if (error) {
-                    console.error("Supabase Error ao salvar ação:", error.message, error);
-                    // Fallback para debug visual
-                    if (error.code === '42703') console.error("Parece que as colunas da tabela não conferem.");
+                if (!error && liked) {
+                    fetchMatches(); // Atualiza aba de matches em tempo real
                 }
             } catch (err) {
                 console.error("Erro inesperado no Supabase:", err);
@@ -741,29 +917,228 @@
             }
         }
     </script>
-    <script>
-        /* ── Nav page-exit transition ── */
-        document.querySelectorAll('nav a[href]').forEach(link => {
-            const href = link.getAttribute('href');
-            if (!href || href === '#' || href === window.location.pathname.split('/').pop()) return;
-            link.addEventListener('pointerdown', e => {
-                e.preventDefault();
-                
-                // Animamos o item clicado para feedback imediato
-                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-                link.classList.add('active');
+        // --- ABA 2: MATCHES LOGIC ---
+        const matchesGrid = document.getElementById('matches-grid');
+        const matchesEmpty = document.getElementById('matches-empty');
+        const globalCountBadge = document.getElementById('global-count-badge');
 
-                // Determina direção para o efeito de aba
-                const pages = ['descobrir.html', 'meusmatches.html', 'colecoes.html'];
-                const currentIndex = pages.indexOf(window.location.pathname.split('/').pop() || 'descobrir.html');
-                const nextIndex = pages.indexOf(href);
+        async function fetchMatches() {
+            try {
+                const { data, error } = await supabase
+                    .from('curtidas_filmes')
+                    .select('filme_id')
+                    .eq('usuario_id', currentUser.id)
+                    .eq('curtiu', true)
+                    .order('criado_em', { ascending: false });
+
+                if (error) throw error;
+
+                if (!data || data.length === 0) {
+                    matchesEmpty.classList.remove('hidden');
+                    matchesGrid.innerHTML = '';
+                    updateBadge(0);
+                    return;
+                }
+
+                matchesEmpty.classList.add('hidden');
+                updateBadge(data.length);
                 
-                if(nextIndex > currentIndex) document.body.classList.add('exiting-left');
-                else document.body.classList.add('exiting-right');
+                // Buscar detalhes do TMDB (apenas IDs)
+                matchesGrid.innerHTML = '';
+                data.forEach((item, i) => {
+                    renderMatchItem(item.filme_id, i);
+                });
+            } catch (e) {
+                console.error("Erro ao buscar matches", e);
+            }
+        }
+
+        async function renderMatchItem(movieId, index) {
+            const res = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${API_KEY}&language=pt-BR`);
+            const movie = await res.json();
+            
+            const card = document.createElement('div');
+            card.className = 'film-card aspect-[2/3] relative group';
+            card.innerHTML = `
+                <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title}" loading="lazy">
+                <div class="card-overlay"></div>
+                <div class="card-info">
+                    <h3 class="text-white font-bold text-[10px] line-clamp-1 uppercase tracking-tight">${movie.title}</h3>
+                </div>
+                <button class="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white/50 hover:text-white transition-colors" onclick="event.stopPropagation(); removeMatch('${movieId}', this.parentElement)">
+                    <span class="material-symbols-outlined text-sm">close</span>
+                </button>
+            `;
+            card.addEventListener('click', () => openSynopsis(movie));
+            matchesGrid.appendChild(card);
+            setTimeout(() => card.classList.add('visible'), 50 * index);
+        }
+
+        async function removeMatch(movieId, element) {
+            try {
+                const { error } = await supabase
+                    .from('curtidas_filmes')
+                    .delete()
+                    .eq('usuario_id', currentUser.id)
+                    .eq('filme_id', movieId);
                 
-                setTimeout(() => { window.location.href = href; }, 250);
+                if(!error) {
+                    gsap.to(element, {
+                        scale: 0.8,
+                        opacity: 0,
+                        duration: 0.3,
+                        onComplete: () => {
+                            element.remove();
+                            fetchMatches();
+                        }
+                    });
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        function updateBadge(count) {
+            if(count > 0) {
+                globalCountBadge.textContent = count;
+                globalCountBadge.classList.remove('hidden');
+            } else {
+                globalCountBadge.classList.add('hidden');
+            }
+        }
+
+        function initMatches() {
+            fetchMatches();
+        }
+
+        // --- ABA 3: COLEÇÃO LOGIC ---
+        const collectionGrid = document.getElementById('collection-grid');
+        const collectionEmpty = document.getElementById('collection-empty');
+
+        function initCollection() {
+            fetchCollection();
+        }
+
+        async function fetchCollection() {
+            const raw = localStorage.getItem('matchflix_liked_movies');
+            const collection = raw ? JSON.parse(raw) : [];
+            
+            if(collection.length === 0) {
+                collectionEmpty.classList.remove('hidden');
+                collectionGrid.innerHTML = '';
+                return;
+            }
+
+            collectionEmpty.classList.add('hidden');
+            collectionGrid.innerHTML = '';
+            
+            collection.forEach((movie, i) => {
+                const card = document.createElement('div');
+                card.className = 'film-card aspect-[2/3] relative group';
+                card.innerHTML = `
+                    <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title}" loading="lazy">
+                    <div class="card-overlay"></div>
+                    <div class="card-info">
+                        <h3 class="text-white font-bold text-[10px] line-clamp-1 uppercase tracking-tight">${movie.title}</h3>
+                    </div>
+                    <button class="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white/50 hover:text-white transition-colors" onclick="event.stopPropagation(); removeCollection('${movie.id}', this.parentElement)">
+                        <span class="material-symbols-outlined text-sm">close</span>
+                    </button>
+                `;
+                card.addEventListener('click', () => openSynopsis(movie));
+                collectionGrid.appendChild(card);
+                setTimeout(() => card.classList.add('visible'), 50 * i);
             });
+        }
+
+        function removeCollection(movieId, element) {
+            let raw = localStorage.getItem('matchflix_liked_movies');
+            let collection = raw ? JSON.parse(raw) : [];
+            collection = collection.filter(m => String(m.id) !== String(movieId));
+            localStorage.setItem('matchflix_liked_movies', JSON.stringify(collection));
+            
+            gsap.to(element, {
+                scale: 0.8,
+                opacity: 0,
+                duration: 0.3,
+                onComplete: () => {
+                    element.remove();
+                    fetchCollection();
+                }
+            });
+        }
+
+        // --- UNIVERSAL MODAL LOGIC ---
+        const modal = document.getElementById('synopsis-modal');
+        const modalBackdrop = document.getElementById('modal-backdrop');
+        const mTitle = document.getElementById('modal-title');
+        const mPoster = document.getElementById('modal-poster');
+        const mRating = document.getElementById('modal-rating');
+        const mYear = document.getElementById('modal-year');
+        const mGenres = document.getElementById('modal-genres');
+        const mSynopsis = document.getElementById('modal-synopsis');
+
+        function openSynopsis(movie) {
+            mTitle.textContent = movie.title;
+            mPoster.src = `${IMAGE_BASE_URL}${movie.backdrop_path || movie.poster_path}`;
+            mRating.textContent = movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A';
+            mYear.textContent = movie.release_date ? movie.release_date.split('-')[0] : '';
+            mGenres.textContent = movie.genre_names || 'Filme';
+            mSynopsis.textContent = movie.overview || 'Sinopse não disponível.';
+
+            modal.classList.remove('translate-y-full');
+            modalBackdrop.classList.remove('opacity-0', 'pointer-events-none');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeSynopsis() {
+            modal.classList.add('translate-y-full');
+            modalBackdrop.classList.add('opacity-0', 'pointer-events-none');
+            document.body.style.overflow = '';
+        }
+
+        modalBackdrop.addEventListener('click', closeSynopsis);
+        
+        // Connect existing btn-info to open current movie
+        document.getElementById('btn-info').addEventListener('click', () => {
+            if(moviesQueue.length > 0) openSynopsis(moviesQueue[0]);
         });
     </script>
+
+    <!-- Match Toast (global overlay) -->
+    <div id="match-flash" class="fixed inset-0 bg-primary-container pointer-events-none opacity-0 z-[200]"></div>
+    <div id="match-toast" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[210] opacity-0 scale-50 pointer-events-none flex flex-col items-center">
+        <div class="w-32 h-32 rounded-full bg-primary-container flex items-center justify-center shadow-[0_0_50px_rgba(229,9,20,0.8)] mb-6">
+            <span class="material-symbols-outlined text-white text-6xl" style="font-variation-settings: 'FILL' 1;">favorite</span>
+        </div>
+        <h2 class="font-headline font-black text-4xl text-white tracking-tighter text-center leading-none">É UM<br><span class="text-primary-container">MATCH!</span></h2>
+    </div>
+
+    <!-- Universal Modal (Synopsis) -->
+    <div id="synopsis-modal" class="fixed inset-x-0 bottom-0 z-[300] translate-y-full transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]">
+        <div id="modal-backdrop" class="fixed inset-0 bg-black/80 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-500"></div>
+        <div class="relative bg-neutral-900 rounded-t-[2.5rem] border-t border-white/10 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="w-12 h-1.5 bg-white/20 rounded-full mx-auto mt-4 mb-2 shrink-0"></div>
+            <div class="overflow-y-auto pb-20">
+                <div class="relative aspect-video w-full overflow-hidden">
+                    <img id="modal-poster" class="w-full h-full object-cover" src="" alt="">
+                    <div class="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent"></div>
+                </div>
+                <div class="px-8 -mt-12 relative z-10">
+                    <h2 id="modal-title" class="font-headline font-black text-3xl tracking-tighter text-white mb-2"></h2>
+                    <div class="flex items-center gap-4 mb-6">
+                        <div class="flex items-center gap-1">
+                            <span class="material-symbols-outlined text-yellow-500 text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+                            <span id="modal-rating" class="text-yellow-500 font-bold"></span>
+                        </div>
+                        <span id="modal-year" class="text-white/40 font-medium"></span>
+                        <span id="modal-genres" class="text-primary-container font-bold text-xs uppercase tracking-widest"></span>
+                    </div>
+                    <p id="modal-synopsis" class="text-white/70 leading-relaxed font-body text-sm mb-8"></p>
+                    <button class="w-full bg-white text-black font-black py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform" onclick="closeSynopsis()">
+                        FECHAR
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
