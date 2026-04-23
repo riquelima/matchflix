@@ -559,8 +559,9 @@
         let isSwipingTabs = false;
 
         window.addEventListener('touchstart', (e) => {
-            // Não disparar swipe se estiver arrastando o card de filme (seção descobrir)
+            // Não disparar swipe se estiver arrastando o card de filme (seção descobrir) ou rolando as grids da coleção
             if(activeTab === 'descobrir' && e.target.closest('#card-stack')) return;
+            if(activeTab === 'colecoes' && e.target.closest('#grid-pending, #grid-watched')) return;
             
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
@@ -569,6 +570,7 @@
 
         window.addEventListener('touchmove', (e) => {
             if(activeTab === 'descobrir' && e.target.closest('#card-stack')) return;
+            if(activeTab === 'colecoes' && e.target.closest('#grid-pending, #grid-watched')) return;
             
             const diffX = e.touches[0].clientX - touchStartX;
             const diffY = e.touches[0].clientY - touchStartY;
