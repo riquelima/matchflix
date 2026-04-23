@@ -272,6 +272,34 @@
             gap: 14px;
             margin-top: 12px;
         }
+
+        /* Trailer Section Styles */
+        .trailer-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .trailer-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 14px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .trailer-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #e50914;
+            transform: translateY(-1px);
+        }
+        .trailer-icon-img {
+            width: 22px;
+            height: 22px;
+            object-fit: contain;
+        }
     </style>
 </head>
 
@@ -363,7 +391,12 @@
             <!-- Synopsis -->
             <div class="px-5">
                 <p class="text-[10px] tracking-[0.25em] uppercase text-primary-container/60 font-bold font-headline mb-3">Sinopse</p>
-                <p id="modal-synopsis" class="text-white/70 font-body text-sm leading-relaxed"></p>
+                <p id="modal-synopsis" class="text-white/70 font-body text-sm leading-relaxed mb-4"></p>
+
+                <div id="modal-trailer-section" class="px-0 trailer-section hidden mb-4">
+                    <p class="text-primary-container/60 text-[10px] font-bold tracking-[0.25em] uppercase mb-2">Trailer</p>
+                    <div id="modal-trailer-container"></div>
+                </div>
                 
                 <div id="modal-providers-section" class="px-0 providers-section hidden">
                     <p class="text-primary-container/60 text-[10px] font-bold tracking-[0.25em] uppercase mb-2">Onde Assistir</p>
@@ -380,6 +413,16 @@
                     + Filmes
                 </a>
             </div>
+        </div>
+    </div>
+
+    <!-- Video Overlay -->
+    <div id="video-overlay" class="fixed inset-0 z-[500] bg-black/95 flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300 backdrop-blur-xl">
+        <div class="relative w-full max-w-4xl aspect-video bg-black rounded-2xl overflow-hidden shadow-[0_0_100px_rgba(229,9,20,0.4)] mx-4 scale-90 transition-transform duration-300" id="video-content">
+            <button id="close-video" class="absolute top-4 right-4 z-[510] bg-black/50 hover:bg-white/20 text-white w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-md transition-all active:scale-90 border border-white/10">
+                <span class="material-symbols-outlined text-2xl">close</span>
+            </button>
+            <div id="video-container" class="w-full h-full"></div>
         </div>
     </div>
 
@@ -523,6 +566,13 @@
             modalYear.textContent = movie.release_date ? movie.release_date.split('-')[0] : '';
             modalSynopsis.textContent = movie.overview || 'Sinopse não disponível.';
 
+            // Limpar e carregar trailer
+            const mTrailerSection = document.getElementById('modal-trailer-section');
+            const mTrailerContainer = document.getElementById('modal-trailer-container');
+            mTrailerSection.classList.add('hidden');
+            mTrailerContainer.innerHTML = '';
+            fetchAndRenderTrailer(movie.id, mTrailerContainer, mTrailerSection);
+
             // Limpar e carregar provedores
             const mProvidersSection = document.getElementById('modal-providers-section');
             const mProvidersList = document.getElementById('modal-providers-list');
@@ -549,6 +599,65 @@
             document.body.style.overflow = '';
             activeMovieId = null;
         }
+
+        // Cache e busca de trailers
+        const trailersCache = new Map();
+        async function fetchAndRenderTrailer(movieId, containerElement, sectionElement) {
+            try {
+                let trailer = trailersCache.get(movieId);
+                if (trailer === undefined) {
+                    const res = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${API_KEY}&language=pt-BR`);
+                    const data = await res.json();
+                    let video = data.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
+                    if (!video) {
+                        const resEn = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${API_KEY}&language=en-US`);
+                        const dataEn = await resEn.json();
+                        video = dataEn.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
+                    }
+                    trailer = video ? video.key : null;
+                    trailersCache.set(movieId, trailer);
+                }
+                if (trailer) {
+                    sectionElement.classList.remove('hidden');
+                    containerElement.innerHTML = `
+                        <button class="trailer-btn" onclick="openVideoTrailer('${trailer}')">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/e/ef/Youtube_logo.png" class="trailer-icon-img" alt="YouTube">
+                            <span class="text-xs font-bold text-white/90">Assistir Trailer</span>
+                            <span class="material-symbols-outlined text-primary-container text-lg">play_circle</span>
+                        </button>
+                    `;
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        window.openVideoTrailer = function(key) {
+            const overlay = document.getElementById('video-overlay');
+            const content = document.getElementById('video-content');
+            const container = document.getElementById('video-container');
+            container.innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${key}?autoplay=1" frameborder="0" allowfullscreen></iframe>`;
+            overlay.classList.remove('pointer-events-none');
+            overlay.style.opacity = '1';
+            content.style.transform = 'scale(1)';
+            document.body.style.overflow = 'hidden';
+        };
+
+        window.closeVideoTrailer = function() {
+            const overlay = document.getElementById('video-overlay');
+            const content = document.getElementById('video-content');
+            const container = document.getElementById('video-container');
+            overlay.style.opacity = '0';
+            content.style.transform = 'scale(0.9)';
+            setTimeout(() => {
+                overlay.classList.add('pointer-events-none');
+                container.innerHTML = '';
+                document.body.style.overflow = '';
+            }, 300);
+        };
+
+        document.getElementById('close-video').addEventListener('click', window.closeVideoTrailer);
+        document.getElementById('video-overlay').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('video-overlay')) window.closeVideoTrailer();
+        });
 
         // Cache e busca de provedores
         const providersCache = new Map();
@@ -633,8 +742,9 @@
                 ease: "power2.inOut",
                 onComplete: () => {
                     originalCloseModal();
-                    gsap.set(sheet, { y: 0 }); // Reset for next open
-                    gsap.set(modalBackdrop, { backgroundColor: "" }); // Reset for next open
+                    // Limpar props para evitar que fiquem travados
+                    gsap.set(sheet, { clearProps: "transform" });
+                    gsap.set(modalBackdrop, { clearProps: "all" });
                 }
             });
         };
