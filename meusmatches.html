@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MatchFlix - Meus Matches</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#e50914">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MatchFlix">
+    <link rel="apple-touch-icon" href="/logoApp.png">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:ital,wght@0,500;0,700;0,800;0,900;1,800&display=swap" rel="stylesheet" />
+    <!-- Material Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary-container": "#e50914",
+                        "secondary-container": "#921512",
+                        "on-primary-container": "#fff7f6",
+                        "surface": "#131313",
+                        "surface-container-lowest": "#0e0e0e",
+                        "surface-container-low": "#1c1b1b",
+                        "surface-container": "#201f1f",
+                        "surface-container-high": "#2a2a2a",
+                        "surface-container-highest": "#353534",
+                        "surface-variant": "#353534",
+                        "on-surface": "#e5e2e1",
+                        "on-surface-variant": "#e9bcb6",
+                        "outline-variant": "#5e3f3b",
+                        "tertiary": "#fabd00",
+                        "error": "#ffb4ab",
+                    },
+                    fontFamily: {
+                        headline: ["Plus Jakarta Sans"],
+                        body: ["Inter"],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background: #0e0e0e;
+            min-height: 100dvh;
+        }
+
+        /* Grain overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Card ── */
+        .film-card {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #1c1b1b;
+            cursor: pointer;
+            transform: translateY(20px);
+            opacity: 0;
+            transition: transform 0.28s cubic-bezier(.4,0,.2,1), box-shadow 0.28s;
+        }
+        .film-card.visible {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .film-card:active {
+            transform: scale(0.97);
+        }
+        .film-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .film-card .card-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(14,14,14,0.95) 0%, rgba(14,14,14,0.4) 50%, transparent 100%);
+        }
+        .film-card .card-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 14px;
+        }
+
+        /* ── Synopsis Modal ── */
+        #synopsis-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            display: flex;
+            align-items: flex-end;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        #synopsis-modal.open {
+            pointer-events: all;
+            opacity: 1;
+        }
+        #synopsis-modal .modal-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        #synopsis-modal .modal-sheet {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            background: #1c1b1b;
+            border-radius: 24px 24px 0 0;
+            padding: 0 0 40px;
+            transform: translateY(100%);
+            transition: transform 0.32s cubic-bezier(.4,0,.2,1);
+            max-height: 88dvh;
+            overflow-y: auto;
+        }
+        #synopsis-modal.open .modal-sheet {
+            transform: translateY(0);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #5e3f3b; border-radius: 9999px; }
+
+        /* ── Page entrance ── */
+        .page-header { animation: fadeSlideDown 0.4s ease both; }
+        @keyframes fadeSlideDown {
+            from { opacity: 0; transform: translateY(-12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Empty state ── */
+        #empty-state { animation: fadeIn 0.5s ease 0.3s both; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.96); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+
+        /* ── Count badge ── */
+        .count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #e50914;
+            color: white;
+            font-size: 11px;
+            font-weight: 800;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            letter-spacing: 0.05em;
+            border-radius: 9999px;
+            min-width: 22px;
+            height: 22px;
+            padding: 0 6px;
+            box-shadow: 0 0 12px rgba(229,9,20,0.5);
+        }
+
+        /* glass panel */
+        .glass-panel {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        /* Remove btn */
+        .btn-remove {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 28px;
+            height: 28px;
+            border-radius: 9999px;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.6);
+            font-size: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: background 0.2s, color 0.2s;
+            z-index: 10;
+        }
+        .btn-remove:active { background: rgba(229,9,20,0.8); color: white; }
+
+        /* ── Page Transition ── */
+        @keyframes pageEnter {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        body { animation: pageEnter 0.25s cubic-bezier(.4,0,.2,1) both; }
+        body.exiting {
+            opacity: 0 !important;
+            transform: translateY(-8px) !important;
+            transition: opacity 0.18s ease, transform 0.18s ease !important;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body class="text-on-surface font-body h-[100dvh] flex flex-col overflow-hidden">
+
+    <!-- ── TopAppBar ── -->
+    <header class="page-header w-full z-50 flex justify-between items-center px-6 h-16 bg-surface-container-lowest/80 backdrop-blur-2xl shrink-0 border-b border-white/5">
+        <a href="descobrir.html" class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
+            <span class="material-symbols-outlined">arrow_back</span>
+        </a>
+        <div class="flex items-center gap-2">
+            <h1 class="font-headline font-extrabold tracking-tighter text-2xl text-on-surface">Match<span class="text-primary-container">Flix</span></h1>
+        </div>
+        <div class="flex items-center gap-1">
+            <span id="count-badge" class="count-badge hidden">0</span>
+        </div>
+    </header>
+
+    <!-- ── Page Title ── -->
+    <div class="px-6 pt-5 pb-3 shrink-0">
+        <p class="text-[10px] tracking-[0.3em] uppercase text-primary-container/70 font-bold font-headline mb-1">Sua Coleção</p>
+        <h2 class="font-headline font-black text-3xl tracking-tighter text-white leading-none">Meus <span class="text-white/30">Matches</span></h2>
+    </div>
+
+    <!-- ── Grid ── -->
+    <main class="flex-grow overflow-y-auto px-4 pb-24" id="main-scroll">
+
+        <!-- Empty State -->
+        <div id="empty-state" class="hidden flex-col items-center justify-center h-full py-20 text-center">
+            <div class="w-20 h-20 rounded-full bg-primary-container/10 flex items-center justify-center mb-6 mx-auto border border-primary-container/20">
+                <span class="material-symbols-outlined text-primary-container text-4xl" style="font-variation-settings: 'FILL' 1;">favorite</span>
+            </div>
+            <p class="font-headline font-black text-2xl tracking-tight text-white mb-2">Nada por aqui ainda</p>
+            <p class="text-white/40 text-sm font-body max-w-[240px] mx-auto leading-relaxed">Deslize para a direita nos filmes que você curtir e eles aparecerão aqui.</p>
+            <a href="descobrir.html" class="mt-8 inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary-container text-white font-headline font-bold text-sm tracking-wider uppercase active:scale-95 transition-transform shadow-[0_0_20px_rgba(229,9,20,0.4)]">
+                <span class="material-symbols-outlined text-lg">style</span>
+                Ir descobrir filmes
+            </a>
+        </div>
+
+        <!-- Film Grid -->
+        <div id="film-grid" class="grid grid-cols-2 gap-3 pt-2 pb-4"></div>
+    </main>
+
+    <!-- ── BottomNavBar ── -->
+    <nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-4 pt-3 bg-neutral-900/60 backdrop-blur-3xl rounded-t-2xl shadow-[0_-10px_40px_rgba(229,9,20,0.1)]">
+        <!-- Match -->
+        <a class="flex flex-col items-center justify-center text-neutral-500 hover:text-red-400 transition-colors transform active:scale-90" href="descobrir.html">
+            <span class="material-symbols-outlined mb-0.5 text-xl">style</span>
+            <span class="font-headline text-[9px] font-semibold uppercase tracking-widest">Match</span>
+        </a>
+        <!-- Filmes (Active) -->
+        <a class="flex flex-col items-center justify-center bg-red-600/15 text-primary-container rounded-full px-5 py-1.5 shadow-[0_0_15px_rgba(229,9,20,0.2)] transform active:scale-90 transition-all" href="meusmatches.html">
+            <span class="material-symbols-outlined mb-0.5 text-xl" style="font-variation-settings: 'FILL' 1;">format_list_bulleted</span>
+            <span class="font-headline text-[9px] font-bold uppercase tracking-widest">Filmes</span>
+        </a>
+        <!-- Perfil -->
+        <a class="flex flex-col items-center justify-center text-neutral-500 hover:text-red-400 transition-colors transform active:scale-90" href="#">
+            <span class="material-symbols-outlined mb-0.5 text-xl">person</span>
+            <span class="font-headline text-[9px] font-semibold uppercase tracking-widest">Perfil</span>
+        </a>
+    </nav>
+
+    <!-- ── Synopsis Modal (Bottom Sheet) ── -->
+    <div id="synopsis-modal">
+        <div class="modal-backdrop" id="modal-backdrop"></div>
+        <div class="modal-sheet" id="modal-sheet">
+            <!-- Drag handle -->
+            <div class="flex justify-center pt-3 pb-1">
+                <div class="w-10 h-1 rounded-full bg-white/20"></div>
+            </div>
+
+            <!-- Poster + Info Row -->
+            <div class="flex gap-4 px-5 pt-4 pb-5">
+                <img id="modal-poster" src="" alt="" class="w-[90px] aspect-[2/3] object-cover rounded-xl shrink-0 shadow-[0_8px_24px_rgba(0,0,0,0.6)]" loading="lazy"/>
+                <div class="flex flex-col justify-end gap-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+                        <span id="modal-rating" class="font-headline font-bold text-sm text-tertiary"></span>
+                        <span id="modal-year" class="text-white/40 text-xs"></span>
+                    </div>
+                    <h3 id="modal-title" class="font-headline font-black text-xl tracking-tighter text-white leading-tight"></h3>
+                    <div id="modal-genres" class="flex flex-wrap gap-1 mt-2"></div>
+                </div>
+            </div>
+
+            <!-- Divider -->
+            <div class="mx-5 h-px bg-white/5 mb-5"></div>
+
+            <!-- Synopsis -->
+            <div class="px-5">
+                <p class="text-[10px] tracking-[0.25em] uppercase text-primary-container/60 font-bold font-headline mb-3">Sinopse</p>
+                <p id="modal-synopsis" class="text-white/70 font-body text-sm leading-relaxed"></p>
+            </div>
+
+            <!-- Actions -->
+            <div class="px-5 mt-6 flex gap-3">
+                <button id="modal-remove" class="flex-1 py-3 rounded-full border border-white/10 text-white/60 font-headline font-bold text-sm tracking-wider uppercase active:scale-95 transition-transform">
+                    Remover
+                </button>
+                <a href="descobrir.html" class="flex-1 py-3 rounded-full bg-primary-container text-white font-headline font-bold text-sm tracking-wider uppercase active:scale-95 transition-transform text-center shadow-[0_0_20px_rgba(229,9,20,0.4)]">
+                    + Filmes
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = "416394469462693ee5727abe4c864848";
+        const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
+
+        const grid = document.getElementById('film-grid');
+        const emptyState = document.getElementById('empty-state');
+        const countBadge = document.getElementById('count-badge');
+        const modal = document.getElementById('synopsis-modal');
+        const modalBackdrop = document.getElementById('modal-backdrop');
+        const modalPoster = document.getElementById('modal-poster');
+        const modalTitle = document.getElementById('modal-title');
+        const modalRating = document.getElementById('modal-rating');
+        const modalYear = document.getElementById('modal-year');
+        const modalGenres = document.getElementById('modal-genres');
+        const modalSynopsis = document.getElementById('modal-synopsis');
+        const modalRemove = document.getElementById('modal-remove');
+
+        // ── Load liked movies from localStorage ──
+        function getLikedMovies() {
+            try {
+                const raw = localStorage.getItem('matchflix_liked_movies');
+                return raw ? JSON.parse(raw) : [];
+            } catch { return []; }
+        }
+
+        function saveLikedMovies(movies) {
+            localStorage.setItem('matchflix_liked_movies', JSON.stringify(movies));
+        }
+
+        let likedMovies = getLikedMovies();
+        let activeMovieId = null;
+
+        // ── Fetch genres map ──
+        async function getGenreMap() {
+            try {
+                const cached = sessionStorage.getItem('mf_genres');
+                if (cached) return JSON.parse(cached);
+                const res = await fetch(`https://api.themoviedb.org/3/genre/movie/list?api_key=${API_KEY}&language=pt-BR`);
+                const data = await res.json();
+                const map = {};
+                (data.genres || []).forEach(g => map[g.id] = g.name);
+                sessionStorage.setItem('mf_genres', JSON.stringify(map));
+                return map;
+            } catch { return {}; }
+        }
+
+        // ── Fetch movie details if incomplete ──
+        async function enrichMovie(movie) {
+            if (movie.overview && movie.genre_ids) return movie;
+            try {
+                const res = await fetch(`https://api.themoviedb.org/3/movie/${movie.id}?api_key=${API_KEY}&language=pt-BR`);
+                const data = await res.json();
+                return { ...movie, ...data, genre_ids: (data.genres || []).map(g => g.id) };
+            } catch { return movie; }
+        }
+
+        // ── Build card ──
+        function buildCard(movie, genreMap, index) {
+            const card = document.createElement('article');
+            card.className = 'film-card aspect-[2/3]';
+            card.dataset.id = movie.id;
+
+            const poster = movie.poster_path
+                ? `${IMAGE_BASE}${movie.poster_path}`
+                : `https://via.placeholder.com/300x450/1c1b1b/e50914?text=${encodeURIComponent(movie.title || '?')}`;
+
+            const genreNames = (movie.genre_ids || [])
+                .slice(0, 2)
+                .map(id => genreMap[id] || '')
+                .filter(Boolean)
+                .join(' · ');
+
+            const rating = movie.vote_average ? movie.vote_average.toFixed(1) : '—';
+            const year = movie.release_date ? movie.release_date.split('-')[0] : '';
+
+            card.innerHTML = `
+                <img src="${poster}" alt="${movie.title}" loading="lazy" />
+                <div class="card-overlay"></div>
+                <div class="card-info">
+                    ${genreNames ? `<p class="text-[9px] uppercase tracking-widest text-white/50 font-headline font-bold mb-1">${genreNames}</p>` : ''}
+                    <h3 class="font-headline font-black text-[15px] leading-tight text-white tracking-tight line-clamp-2">${movie.title}</h3>
+                    <div class="flex items-center gap-1.5 mt-1.5">
+                        <span class="material-symbols-outlined text-tertiary text-xs" style="font-variation-settings: 'FILL' 1;">star</span>
+                        <span class="font-headline font-bold text-xs text-tertiary">${rating}</span>
+                        ${year ? `<span class="text-white/30 text-[10px]">${year}</span>` : ''}
+                    </div>
+                </div>
+                <button class="btn-remove" data-remove="${movie.id}" title="Remover">
+                    <span class="material-symbols-outlined" style="font-size:16px;">close</span>
+                </button>
+            `;
+
+            // Stagger entrance
+            setTimeout(() => card.classList.add('visible'), 60 + index * 60);
+
+            // Click → open modal
+            card.addEventListener('click', (e) => {
+                if (e.target.closest('.btn-remove')) return;
+                openModal(movie, genreMap);
+            });
+
+            // Remove btn
+            card.querySelector('.btn-remove').addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeMovie(movie.id);
+            });
+
+            return card;
+        }
+
+        // ── Remove movie ──
+        function removeMovie(id) {
+            likedMovies = likedMovies.filter(m => m.id !== id);
+            saveLikedMovies(likedMovies);
+            // Remove from DOM with animation
+            const card = grid.querySelector(`[data-id="${id}"]`);
+            if (card) {
+                card.style.transition = 'opacity 0.2s, transform 0.2s';
+                card.style.opacity = '0';
+                card.style.transform = 'scale(0.9)';
+                setTimeout(() => { card.remove(); checkEmpty(); updateBadge(); }, 220);
+            }
+            // Close modal if open for this movie
+            if (activeMovieId === id) closeModal();
+        }
+
+        // ── Modal ──
+        function openModal(movie, genreMap) {
+            activeMovieId = movie.id;
+            const poster = movie.poster_path
+                ? `${IMAGE_BASE}${movie.poster_path}`
+                : '';
+
+            modalPoster.src = poster;
+            modalPoster.alt = movie.title;
+            modalTitle.textContent = movie.title || '';
+            modalRating.textContent = movie.vote_average ? movie.vote_average.toFixed(1) : '—';
+            modalYear.textContent = movie.release_date ? movie.release_date.split('-')[0] : '';
+            modalSynopsis.textContent = movie.overview || 'Sinopse não disponível.';
+
+            // Genres
+            modalGenres.innerHTML = '';
+            (movie.genre_ids || []).slice(0, 3).forEach(id => {
+                if (!genreMap[id]) return;
+                const chip = document.createElement('span');
+                chip.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider font-headline glass-panel text-white/60';
+                chip.textContent = genreMap[id];
+                modalGenres.appendChild(chip);
+            });
+
+            modal.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            modal.classList.remove('open');
+            document.body.style.overflow = '';
+            activeMovieId = null;
+        }
+
+        modalBackdrop.addEventListener('click', closeModal);
+
+        // Swipe down to close
+        let touchStartY = 0;
+        const sheet = document.getElementById('modal-sheet');
+        sheet.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; }, { passive: true });
+        sheet.addEventListener('touchend', e => {
+            if (e.changedTouches[0].clientY - touchStartY > 80) closeModal();
+        }, { passive: true });
+
+        // Remove from modal
+        modalRemove.addEventListener('click', () => {
+            if (activeMovieId) removeMovie(activeMovieId);
+        });
+
+        // ── UI helpers ──
+        function checkEmpty() {
+            const hasMovies = grid.children.length > 0;
+            emptyState.style.display = hasMovies ? 'none' : 'flex';
+            grid.style.display = hasMovies ? 'grid' : 'none';
+        }
+
+        function updateBadge() {
+            const count = likedMovies.length;
+            if (count > 0) {
+                countBadge.textContent = count > 99 ? '99+' : count;
+                countBadge.classList.remove('hidden');
+            } else {
+                countBadge.classList.add('hidden');
+            }
+        }
+
+        // ── Render ──
+        async function render() {
+            updateBadge();
+
+            if (likedMovies.length === 0) {
+                emptyState.style.display = 'flex';
+                grid.style.display = 'none';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            grid.style.display = 'grid';
+
+            const genreMap = await getGenreMap();
+
+            // Enrich and render in parallel
+            const enriched = await Promise.all(likedMovies.map(enrichMovie));
+            // Update localStorage with enriched data
+            saveLikedMovies(enriched);
+            likedMovies = enriched;
+
+            grid.innerHTML = '';
+            enriched.forEach((movie, i) => {
+                grid.appendChild(buildCard(movie, genreMap, i));
+            });
+        }
+
+        render();
+
+        /* ── Nav page-exit transition ── */
+        document.querySelectorAll('nav a[href], header a[href]').forEach(link => {
+            const href = link.getAttribute('href');
+            if (!href || href === '#' || href === window.location.pathname.split('/').pop()) return;
+            link.addEventListener('click', e => {
+                e.preventDefault();
+                document.body.classList.add('exiting');
+                setTimeout(() => { window.location.href = href; }, 190);
+            });
+        });
+    </script>
+</body>
+</html>

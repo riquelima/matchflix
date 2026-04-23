@@ -160,6 +160,18 @@
             pointer-events: none;
             opacity: 0;
         }
+        /* ── Page Transition ── */
+        @keyframes pageEnter {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        body { animation: pageEnter 0.25s cubic-bezier(.4,0,.2,1) both; }
+        body.exiting {
+            opacity: 0 !important;
+            transform: translateY(-8px) !important;
+            transition: opacity 0.18s ease, transform 0.18s ease !important;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body class="text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container h-[100dvh] flex flex-col">
@@ -176,7 +188,7 @@
     </header>
 
     <!-- Main Discovery Canvas -->
-    <main class="relative flex-grow w-full flex flex-col items-center justify-center pt-16 pb-20 px-4 overflow-hidden">
+    <main class="relative flex-grow w-full flex flex-col items-center justify-start pt-[66px] pb-4 px-4 overflow-hidden">
         
         <!-- Subtle Background Glow -->
         <div class="absolute inset-0 pointer-events-none overflow-hidden z-0">
@@ -184,7 +196,7 @@
         </div>
 
         <!-- Movie Stack Container -->
-        <div class="relative w-full max-w-[360px] md:max-w-[400px] aspect-[2/3] z-10 card-container" id="card-stack">
+        <div class="relative w-full aspect-[2/3] z-10 card-container" style="max-width: min(90vw, 380px);" id="card-stack">
             <!-- Loading indicator -->
             <div id="loading-indicator" class="absolute inset-0 flex flex-col items-center justify-center">
                 <span class="material-symbols-outlined text-primary-container text-5xl animate-spin">sync</span>
@@ -194,7 +206,7 @@
         </div>
 
         <!-- Swiping FABs -->
-        <div class="absolute bottom-24 left-0 w-full flex justify-center items-center gap-6 z-30" id="controls">
+        <div class="relative w-full flex justify-center items-center gap-6 z-30 mt-4" id="controls">
             <!-- Dislike -->
             <button id="btn-dislike" class="w-16 h-16 rounded-full glass-panel border border-error/20 flex items-center justify-center text-error shadow-lg active:scale-90 transition-transform duration-200">
                 <span class="material-symbols-outlined text-3xl font-bold" data-icon="close">close</span>
@@ -231,7 +243,7 @@
             <span class="font-headline text-[9px] font-bold uppercase tracking-widest">Match</span>
         </a>
         <!-- Movies List -->
-        <a class="flex flex-col items-center justify-center text-neutral-500 hover:text-red-400 transition-colors transform active:scale-90" href="#">
+        <a class="flex flex-col items-center justify-center text-neutral-500 hover:text-red-400 transition-colors transform active:scale-90" href="meusmatches.html">
             <span class="material-symbols-outlined mb-0.5 text-xl" data-icon="format_list_bulleted">format_list_bulleted</span>
             <span class="font-headline text-[9px] font-semibold uppercase tracking-widest">Filmes</span>
         </a>
@@ -473,17 +485,16 @@
 
             // Quando der like (Match) - Exibe toast e auto-avança
             function triggerMatch() {
-                if (isAnimating || isMatched) return;
-                isAnimating = true;
+                // Apenas checa isMatched — isAnimating já foi setado antes de chamar
+                if (isMatched) return;
                 isMatched = true;
 
-                // Pulsa o card levemente antes de jogar fora
+                gsap.killTweensOf(element); // garante estado limpo
                 gsap.to(element, {
                     scale: 1.06,
-                    duration: 0.15,
-                    ease: "power1.out",
+                    duration: 0.12,
+                    ease: "power2.out",
                     onComplete: () => {
-                        // Mostra o toast e ao terminar, joga o card fora
                         showMatchToast(movie.title, () => {
                             throwOut(1);
                         });
@@ -541,12 +552,13 @@
 
             // Mapeando botões do layout
             btnLike.onclick = () => {
-                if (!isMatched && !isAnimating) {
-                    gsap.to(element, {
-                        x: 0, rotation: 0, scale: 1.05, duration: 0.2, ease: "power1.out",
-                        onComplete: triggerMatch
-                    });
-                }
+                if (isMatched || isAnimating) return;
+                isAnimating = true; // bloqueia re-entrada imediatamente
+                gsap.killTweensOf(element);
+                gsap.to(element, {
+                    x: 0, rotation: 0, scale: 1.05, duration: 0.15, ease: "power2.out",
+                    onComplete: triggerMatch
+                });
             };
             btnInfo.onclick = () => {
                 toggleSynopsis();
@@ -615,9 +627,11 @@
 
                 if (currentX > threshold) {
                     // Like (Swipe Right)
+                    isAnimating = true; // bloqueia re-entrada imediatamente
+                    gsap.killTweensOf(element);
                     gsap.to(element, {
-                        x: 0, y: 0, rotation: 0, duration: 0.3, ease: "power2.out",
-                        onComplete: triggerMatch // Ao invés de throw, ele VIRA A CARTA!
+                        x: 0, y: 0, rotation: 0, duration: 0.25, ease: "power2.out",
+                        onComplete: triggerMatch
                     });
                 } else if (currentX < -threshold) {
                     // Dislike (Swipe Left)
@@ -639,6 +653,18 @@
 
         // Start
         fetchMovies();
+    </script>
+    <script>
+        /* ── Nav page-exit transition ── */
+        document.querySelectorAll('nav a[href]').forEach(link => {
+            const href = link.getAttribute('href');
+            if (!href || href === '#' || href === window.location.pathname.split('/').pop()) return;
+            link.addEventListener('click', e => {
+                e.preventDefault();
+                document.body.classList.add('exiting');
+                setTimeout(() => { window.location.href = href; }, 190);
+            });
+        });
     </script>
 </body>
 </html>
