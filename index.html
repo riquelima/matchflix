@@ -206,6 +206,11 @@
             background: linear-gradient(to bottom, transparent 50%, rgba(5,5,5,0.7) 100%);
             pointer-events: none;
         }
+        /* Limita o grid ao que cabe na tela sem espaço vazio */
+        .poster-grid-wrap {
+            overflow: hidden;
+            /* altura dinâmica: definida por JS após montar o grid */
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -219,7 +224,7 @@
         <div class="container mx-auto px-6 py-4 flex justify-between items-center">
             <div class="flex items-center gap-2 group cursor-pointer">
                 <span class="material-symbols-outlined text-primary group-hover:rotate-180 transition-transform duration-700" style="font-variation-settings: 'FILL' 1;">movie_filter</span>
-                <span class="text-2xl font-black tracking-tighter text-white uppercase italic">Match<span class="text-primary">Flix</span></span>
+                <span class="font-headline font-extrabold text-2xl tracking-tighter text-white">Match<span class="text-[#E50914]">Flix</span></span>
             </div>
             <a href="login.html" class="font-headline font-bold text-sm tracking-widest uppercase hover:text-primary transition-colors duration-300 px-6 py-2 border border-white/10 rounded-full hover:border-primary/50">
                 Entrar
@@ -228,16 +233,11 @@
     </header>
 
     <!-- Hero Section -->
-    <main class="relative min-h-screen flex flex-col items-center justify-center pt-20 overflow-hidden">
+    <main class="relative flex flex-col items-center justify-center pt-28 pb-16 overflow-hidden">
         <!-- 3D Background Grid -->
         <div class="absolute inset-0 z-0 opacity-20" style="background-image: linear-gradient(rgba(229, 9, 20, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(229, 9, 20, 0.1) 1px, transparent 1px); background-size: 50px 50px; transform: perspective(500px) rotateX(60deg) translateY(-100px); transform-origin: top;"></div>
 
         <div class="container mx-auto px-6 relative z-10 flex flex-col items-center text-center">
-            <div class="mb-8 flex items-center gap-4 text-[10px] tracking-[0.3em] font-bold text-primary/60 uppercase hero-elem">
-                <div class="w-12 h-[1px] bg-primary/40"></div>
-                IA Scanning taste profiles active
-                <div class="w-12 h-[1px] bg-primary/40"></div>
-            </div>
 
             <h1 class="hero-elem font-headline font-black text-6xl md:text-8xl lg:text-9xl tracking-tighter leading-[0.9] mb-8 text-glow">
                 O MATCH <br/>
@@ -265,7 +265,7 @@
     </main>
 
     <!-- === MURAL DE PÔSTERES VIVOS === -->
-    <section class="relative z-10 overflow-hidden bg-surface pt-16 pb-0">
+    <section class="relative z-10 overflow-hidden bg-surface pt-4 pb-0">
         <div class="text-center mb-10 px-6">
             <p class="text-[10px] tracking-[0.3em] uppercase text-primary/60 font-bold mb-3">Seu próximo match espera por você</p>
             <h2 class="font-headline font-black text-3xl md:text-5xl tracking-tight text-white">Milhares de filmes,<br><span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-red-400">um pra chamar de seu.</span></h2>
@@ -274,63 +274,19 @@
         <div class="absolute inset-y-0 left-0 w-24 z-10 pointer-events-none" style="background: linear-gradient(to right, #050505, transparent);"></div>
         <!-- Fade lateral direito -->
         <div class="absolute inset-y-0 right-0 w-24 z-10 pointer-events-none" style="background: linear-gradient(to left, #050505, transparent);"></div>
-        <!-- Fade rodapé (funde com footer) -->
+        <!-- Fade rodapé (funde com value props) -->
         <div class="absolute bottom-0 left-0 right-0 h-48 z-10 pointer-events-none" style="background: linear-gradient(to top, #050505 20%, transparent);"></div>
 
-        <div class="poster-grid max-w-7xl mx-auto" id="poster-mural"></div>
-    </section>
-
-    <!-- Value Propositions -->
-    <section class="py-32 relative z-10 bg-surface">
-        <div class="container mx-auto px-6">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 perspective-1000">
-                
-                <div class="glass-card relative v-card">
-                    <div class="hud-corner hud-tl"></div>
-                    <div class="hud-corner hud-tr"></div>
-                    <div class="hud-corner hud-bl"></div>
-                    <div class="hud-corner hud-br"></div>
-                    
-                    <div class="w-12 h-12 bg-primary/10 flex items-center justify-center rounded-lg mb-6 text-primary">
-                        <span class="material-symbols-outlined">swipe</span>
-                    </div>
-                    <h3 class="text-2xl font-bold mb-4">Swipe to Decide</h3>
-                    <p class="text-white/50 leading-relaxed">Esqueça a indecisão interminável. Decida seu próximo filme com a rapidez de um match.</p>
-                </div>
-
-                <div class="glass-card relative v-card">
-                    <div class="hud-corner hud-tl"></div>
-                    <div class="hud-corner hud-tr"></div>
-                    <div class="hud-corner hud-bl"></div>
-                    <div class="hud-corner hud-br"></div>
-                    
-                    <div class="w-12 h-12 bg-primary/10 flex items-center justify-center rounded-lg mb-6 text-primary">
-                        <span class="material-symbols-outlined">psychology</span>
-                    </div>
-                    <h3 class="text-2xl font-bold mb-4">Neural Engine</h3>
-                    <p class="text-white/50 leading-relaxed">Nosso algoritmo aprende seu gosto a cada deslizada, entregando recomendações precisas.</p>
-                </div>
-
-                <div class="glass-card relative v-card">
-                    <div class="hud-corner hud-tl"></div>
-                    <div class="hud-corner hud-tr"></div>
-                    <div class="hud-corner hud-bl"></div>
-                    <div class="hud-corner hud-br"></div>
-                    
-                    <div class="w-12 h-12 bg-primary/10 flex items-center justify-center rounded-lg mb-6 text-primary">
-                        <span class="material-symbols-outlined">list_alt</span>
-                    </div>
-                    <h3 class="text-2xl font-bold mb-4">Master List</h3>
-                    <p class="text-white/50 leading-relaxed">Todos os seus matches salvos em uma biblioteca noir organizada e pronta.</p>
-                </div>
-            </div>
+        <div class="poster-grid-wrap" id="poster-mural-wrap">
+            <div class="poster-grid max-w-7xl mx-auto" id="poster-mural"></div>
         </div>
     </section>
 
-    <footer class="py-16 bg-black border-t border-white/5">
+
+    <footer class="py-4 bg-black border-t border-white/5">
         <div class="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8">
             <div class="flex flex-col gap-2">
-                <span class="text-2xl font-black italic">Match<span class="text-primary">Flix</span></span>
+                <span class="font-headline font-extrabold text-2xl tracking-tighter text-white">Match<span class="text-[#E50914]">Flix</span></span>
                 <span class="text-[10px] tracking-[0.4em] uppercase text-white/30">© 2024 Definitive Noir Experience</span>
             </div>
             <nav class="flex gap-8 text-[10px] tracking-widest uppercase font-bold text-white/40">
@@ -455,16 +411,34 @@
         ];
 
         function getTotalCells() {
-            // Gera células suficientes para preencher toda a tela até o rodapé
+            // Calcula quantas células são necessárias para cobrir ~75vh
             const w = window.innerWidth;
             const cols = w >= 1024 ? 8 : w >= 768 ? 6 : 4;
-            return cols * 10; // 10 linhas de altura = cobre qualquer viewport
+            const rowH = w >= 1024 ? 135 : w >= 768 ? 130 : 123;
+            const targetH = window.innerHeight * 0.75;
+            const rows = Math.ceil(targetH / rowH);
+            return Math.ceil(rows * cols / 1.6);
+        }
+
+        function setWrapHeight() {
+            // Usa max-height para nunca ultrapassar 75vh mas encolhe se o conteúdo for menor
+            const wrap = document.getElementById('poster-mural-wrap');
+            const targetH = Math.round(window.innerHeight * 0.75);
+            if (wrap) {
+                wrap.style.maxHeight = targetH + 'px';
+                wrap.style.height = 'auto';
+            }
         }
 
         function buildGrid() {
             mural.innerHTML = "";
             cells = [];
-            const total = getTotalCells();
+            setWrapHeight();
+            // Limita células aos pôsteres disponíveis para nunca criar célula vazia escura
+            const ideal = getTotalCells();
+            const total = allPosters.length > 0
+                ? Math.min(ideal, allPosters.length)
+                : ideal;
             for (let i = 0; i < total; i++) {
                 const type = PATTERN[i % PATTERN.length];
                 const cell = document.createElement("div");
@@ -552,6 +526,8 @@
             clearTimeout(window._muralResize);
             window._muralResize = setTimeout(() => { buildGrid(); initialFill(); startSwapLoop(); }, 300);
         });
+
+        setWrapHeight(); // Define altura do wrap imediatamente ao carregar
 
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', fetchPosters);
