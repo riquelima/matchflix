@@ -17,6 +17,7 @@ export default defineConfig({
         descobrir:     resolve(__dirname, 'descobrir.html'),
         meusmatches:   resolve(__dirname, 'meusmatches.html'),
         colecoes:      resolve(__dirname, 'colecoes.html'),
+        configuracoes: resolve(__dirname, 'configuracoes.html'),
       }
     }
   }

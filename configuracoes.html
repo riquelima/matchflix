@@ -23,11 +23,13 @@
             --tertiary: #FFD700;
         }
 
-        body {
+        html, body {
             background-color: var(--surface-container-lowest);
             color: var(--on-surface);
             font-family: 'Inter', sans-serif;
             -webkit-tap-highlight-color: transparent;
+            margin: 0;
+            padding: 0;
         }
 
         .font-headline { font-family: 'Outfit', sans-serif; }
@@ -171,7 +173,7 @@
     <!-- ── Page Title ── -->
     <div class="px-6 pt-5 pb-3 shrink-0 anim-enter">
         <p class="text-[10px] tracking-[0.3em] uppercase font-bold font-headline mb-1" style="color: rgba(255,59,71,0.7);">Conta</p>
-        <h2 class="font-headline font-black text-3xl tracking-tighter leading-none" style="color: #fff;">Configura<span style="color: rgba(255,255,255,0.25);">ções</span></h2>
+        <h2 class="font-headline font-black text-3xl tracking-tighter leading-none" style="color: #A0A0A0;">Configurações</h2>
     </div>
 
     <!-- ── Content ── -->
@@ -358,16 +360,15 @@
         });
 
         // ── Animação de entrada (slide da direita, sem piscar) ──
+        // Iniciamos com o corpo já deslocado e visível (com o mesmo background do html)
         document.body.style.transform = 'translateX(100%)';
-        document.body.style.visibility = 'hidden'; // Evita flash de conteúdo na posição errada
         
-        window.addEventListener('DOMContentLoaded', () => {
-            // Pequeno delay para garantir que o layout renderizou
-            setTimeout(() => {
-                document.body.style.visibility = 'visible';
+        // Usamos requestAnimationFrame para garantir que a transição comece após o primeiro paint
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
                 document.body.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)';
                 document.body.style.transform = 'translateX(0)';
-            }, 50);
+            });
         });
     </script>
 

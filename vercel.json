@@ -7,6 +7,7 @@
     { "source": "/cadastro", "destination": "/cadastro.html" },
     { "source": "/primeiro-login", "destination": "/primeiroLogin.html" },
     { "source": "/selecao-generos", "destination": "/selecaoGeneros.html" },
-    { "source": "/descobrir", "destination": "/descobrir.html" }
+    { "source": "/descobrir", "destination": "/descobrir.html" },
+    { "source": "/configuracoes", "destination": "/configuracoes.html" }
   ]
 }
