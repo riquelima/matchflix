@@ -1378,6 +1378,7 @@
             let isDragging = false;
             let startX = 0;
             let startY = 0;
+            let currentX = 0;
             let currentY = 0;
             let isMatched = false; // Flag for match
             let isInfoOpen = false; // Flag for info toggle
@@ -1509,10 +1510,12 @@
                     
                     gsap.to(previewContainer, { 
                         opacity: 0, 
-                        duration: 0.5, 
+                        duration: 0.4, 
                         onComplete: () => {
-                            previewContainer.innerHTML = '';
-                            isPreviewPlaying = false;
+                            if (previewContainer) {
+                                previewContainer.innerHTML = '';
+                                isPreviewPlaying = false;
+                            }
                         } 
                     });
                 }
