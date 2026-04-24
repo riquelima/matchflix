@@ -582,15 +582,15 @@
                     <div class="space-y-4">
                         <h3 class="text-sm font-headline font-extrabold text-white uppercase tracking-widest">Época</h3>
                         <div class="grid grid-cols-2 gap-3" id="year-filters">
-                            <button class="year-btn px-4 py-4 rounded-2xl bg-surface-container-high border border-white/5 text-white font-bold text-sm flex flex-col items-center gap-1 transition-all" data-year="all" onclick="selectedYearFilters='all';updateYearButtonsFilters()">
+                            <button class="year-btn px-4 py-4 rounded-2xl bg-surface-container-high border border-white/5 text-white font-bold text-sm flex flex-col items-center gap-1 transition-all" data-year="all">
                                 <span>Tudo</span>
                                 <span class="text-[10px] opacity-40">Qualquer ano</span>
                             </button>
-                            <button class="year-btn px-4 py-4 rounded-2xl bg-surface-container-high border border-white/5 text-white font-bold text-sm flex flex-col items-center gap-1 transition-all" data-year="2024" onclick="selectedYearFilters='2024';updateYearButtonsFilters()">
+                            <button id="year-btn-recent" class="year-btn px-4 py-4 rounded-2xl bg-surface-container-high border border-white/5 text-white font-bold text-sm flex flex-col items-center gap-1 transition-all" data-year="recent">
                                 <span>Lançamentos</span>
-                                <span class="text-[10px] opacity-40">${new Date().getFullYear() - 1} / ${new Date().getFullYear()}</span>
+                                <span id="current-years-label" class="text-[10px] opacity-40">2024 / 2025</span>
                             </button>
-                            <button class="year-btn px-4 py-4 rounded-2xl bg-surface-container-high border border-white/5 text-white font-bold text-sm flex flex-col items-center gap-1 transition-all" data-year="2020" onclick="selectedYearFilters='2020';updateYearButtonsFilters()">
+                            <button class="year-btn px-4 py-4 rounded-2xl bg-surface-container-high border border-white/5 text-white font-bold text-sm flex flex-col items-center gap-1 transition-all" data-year="2020">
                                 <span>Anos 2020</span>
                                 <span class="text-[10px] opacity-40">2020 - 2023</span>
                             </button>
@@ -741,6 +741,13 @@
             if (!session) {
                 window.location.href = 'login.html';
             } else {
+                // Inicializa labels dinâmicas de ano
+                const yearLabel = document.getElementById('current-years-label');
+                if (yearLabel) {
+                    const currentYear = new Date().getFullYear();
+                    yearLabel.textContent = `${currentYear - 1} / ${currentYear}`;
+                }
+                
                 currentUser = session.user;
                 await fetchInteractedMovies(); 
                 fetchMovies(); 
