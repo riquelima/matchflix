@@ -427,7 +427,7 @@
             </button>
             <h1 id="header-title" class="font-headline font-extrabold tracking-tighter text-2xl text-on-surface">Match<span class="text-primary-container">Flix</span></h1>
             <div class="flex items-center gap-4">
-                <span id="global-count-badge" class="hidden bg-primary-container text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(229,9,20,0.5)]">0</span>
+                <span class="global-count-badge hidden bg-primary-container text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(229,9,20,0.5)]">0</span>
                 <button id="global-filter-btn" onclick="goToTab('filtro')" class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
                     <span class="material-symbols-outlined" data-icon="filter_list">filter_list</span>
                 </button>
@@ -699,7 +699,7 @@
             <span class="material-symbols-outlined text-xl">favorite</span>
             <span class="font-headline text-[9px] font-bold uppercase tracking-widest mt-1">Likes</span>
             <!-- Badge de Notificação -->
-            <span id="global-count-badge" class="absolute top-1 right-3 bg-primary-container text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center hidden border border-white/20 shadow-[0_0_10px_rgba(229,9,20,0.5)]">0</span>
+            <span class="global-count-badge absolute top-1 right-3 bg-primary-container text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center hidden border border-white/20 shadow-[0_0_10px_rgba(229,9,20,0.5)]">0</span>
         </button>
         <!-- Perfil / Coleção -->
         <button class="nav-item flex flex-col items-center justify-center" data-page="colecoes">
@@ -793,6 +793,7 @@
         const viewSlider = document.getElementById('view-slider');
         const navItems = document.querySelectorAll('.nav-item');
         const globalFilterBtn = document.getElementById('global-filter-btn');
+        const globalCountBadges = document.querySelectorAll('.global-count-badge');
         
         // Filtros Ativos
         let selectedGenresFilters = new Set();
@@ -892,8 +893,8 @@
                 fetchMatches();
                 globalFilterBtn.classList.add('hidden');
             } else if (tabName !== 'filtro') {
-                globalCountBadge.classList.add('hidden');
-                globalFilterBtn.classList.remove('hidden');
+                globalCountBadges.forEach(b => b.classList.add('hidden'));
+                if (globalFilterBtn) globalFilterBtn.classList.remove('hidden');
             }
             if(tabName === 'colecoes') fetchCollection();
         }
@@ -1935,7 +1936,7 @@
         // --- ABA 2: MATCHES LOGIC ---
         const matchesGrid = document.getElementById('matches-grid');
         const matchesEmpty = document.getElementById('matches-empty');
-        const globalCountBadge = document.getElementById('global-count-badge');
+
 
         async function fetchMatches() {
             if (isFetchingMatches) return;
@@ -2048,13 +2049,18 @@
 
         function updateBadge(count) {
             matchCount = count;
-            const badge = document.getElementById('global-count-badge');
-            if(matchCount > 0) {
-                badge.textContent = matchCount;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
+            const badges = document.querySelectorAll('.global-count-badge');
+            
+            badges.forEach(badge => {
+                if(matchCount > 0) {
+                    badge.textContent = matchCount;
+                    badge.classList.remove('hidden');
+                    badge.style.display = 'flex';
+                } else {
+                    badge.classList.add('hidden');
+                    badge.style.display = 'none';
+                }
+            });
         }
 
         function initMatches() {
