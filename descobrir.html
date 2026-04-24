@@ -283,9 +283,9 @@
 
         /* Streaming Providers Styles */
         .provider-icon {
-            width: 52px;
-            height: 52px;
-            border-radius: 12px;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
             object-fit: cover;
             border: 1px solid rgba(255,255,255,0.15);
             box-shadow: 0 6px 16px rgba(0,0,0,0.6);
@@ -469,7 +469,7 @@
                             </h3>
                             <span class="text-[10px] text-white/40 font-bold bg-white/5 px-2 py-0.5 rounded-full uppercase">Assinatura BR</span>
                         </div>
-                        <div id="streaming-grid" class="grid grid-cols-4 gap-3">
+                        <div id="streaming-grid" class="grid grid-cols-5 gap-3">
                             <!-- Injetado via JS -->
                         </div>
                     </div>
@@ -555,7 +555,7 @@
                                     <span class="material-symbols-outlined text-2xl opacity-40 group-[.active]:opacity-100 group-[.active]:text-primary-container">new_releases</span>
                                     <div class="text-left">
                                         <p class="text-sm font-bold text-white">Mostrar filmes novos sempre</p>
-                                        <p class="text-[10px] text-white/40 uppercase font-medium">Priorizar lançamentos de 2023/24</p>
+                                        <p class="text-[10px] text-white/40 uppercase font-medium">Priorizar filmes de ${new Date().getFullYear() - 1}/${new Date().getFullYear().toString().slice(-2)}</p>
                                     </div>
                                 </div>
                                 <div class="w-5 h-5 rounded-full border-2 border-white/10 group-[.active]:border-primary-container group-[.active]:bg-primary-container flex items-center justify-center transition-all">
@@ -588,7 +588,7 @@
                             </button>
                             <button class="year-btn px-4 py-4 rounded-2xl bg-surface-container-high border border-white/5 text-white font-bold text-sm flex flex-col items-center gap-1 transition-all" data-year="2024" onclick="selectedYearFilters='2024';updateYearButtonsFilters()">
                                 <span>Lançamentos</span>
-                                <span class="text-[10px] opacity-40">2024 / 2025</span>
+                                <span class="text-[10px] opacity-40">${new Date().getFullYear() - 1} / ${new Date().getFullYear()}</span>
                             </button>
                             <button class="year-btn px-4 py-4 rounded-2xl bg-surface-container-high border border-white/5 text-white font-bold text-sm flex flex-col items-center gap-1 transition-all" data-year="2020" onclick="selectedYearFilters='2020';updateYearButtonsFilters()">
                                 <span>Anos 2020</span>
@@ -1030,8 +1030,10 @@
 
                 // 3. Filtro de Ano/Época usando release_date
                 if (filters && filters.year && filters.year !== 'all') {
-                    if (filters.year === '2024') {
-                        baseParams += `&primary_release_date.gte=2024-01-01`;
+                    if (filters.year === '2024' || filters.year === 'recent') {
+                        const currentYear = new Date().getFullYear();
+                        const startYear = currentYear - 1;
+                        baseParams += `&primary_release_date.gte=${startYear}-01-01`;
                     } else if (filters.year === 'classic') {
                         baseParams += `&primary_release_date.lte=1995-12-31`;
                     } else {
@@ -1214,7 +1216,7 @@
 
             // Status HUD Badges (Top Right)
             let statusBadgesHTML = '';
-            const isNew = movie.release_date && (new Date() - new Date(movie.release_date)) < (180 * 24 * 60 * 60 * 1000); // 6 meses
+            const isNew = movie.release_date && (new Date() - new Date(movie.release_date)) < (365 * 24 * 60 * 60 * 1000); // 1 ano (365 dias)
             const isTrending = movie.popularity > 1500;
             const isElite = movie.vote_average >= 8.5;
 
