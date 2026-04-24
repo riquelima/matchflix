@@ -227,13 +227,16 @@
 
     <!-- ── TopAppBar ── -->
     <header class="page-header w-full z-50 flex justify-between items-center px-6 h-16 bg-surface-container-lowest/80 backdrop-blur-2xl shrink-0 border-b border-white/5">
-        <a href="descobrir.html" class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
-            <span class="material-symbols-outlined">arrow_back</span>
-        </a>
+        <button class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150" onclick="history.back()">
+            <span class="material-symbols-outlined">menu</span>
+        </button>
         <div class="flex items-center gap-2">
             <h1 class="font-headline font-extrabold tracking-tighter text-2xl text-on-surface">Match<span class="text-primary-container">Flix</span></h1>
         </div>
         <div class="flex items-center gap-1">
+            <a href="configuracoes.html" id="btn-configuracoes" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 active:scale-90 transition-all duration-150 text-white" aria-label="Configurações">
+                <span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 0, 'wght' 400;">settings</span>
+            </a>
         </div>
     </header>
 
@@ -782,17 +785,21 @@
         });
 
         // ── Nav transitions ──
-        document.querySelectorAll('nav a[href]').forEach(link => {
-            link.addEventListener('click', e => {
-                const href = link.getAttribute('href');
-                if (!href || href === '#' || href === window.location.pathname.split('/').pop()) return;
-                e.preventDefault();
-                document.body.style.opacity = '0';
-                document.body.style.transform = 'scale(0.98)';
-                document.body.style.filter = 'blur(10px)';
-                document.body.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-                setTimeout(() => window.location.href = href, 300);
-            });
+        function handleNavigation(e) {
+            const link = e.currentTarget;
+            const href = link.getAttribute('href');
+            if (!href || href === '#' || href === window.location.pathname.split('/').pop()) return;
+            
+            e.preventDefault();
+            document.body.style.opacity = '0';
+            document.body.style.transform = 'scale(0.98)';
+            document.body.style.filter = 'blur(10px)';
+            document.body.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+            setTimeout(() => window.location.href = href, 300);
+        }
+
+        document.querySelectorAll('nav a[href], #btn-configuracoes').forEach(link => {
+            link.addEventListener('click', handleNavigation);
         });
 
     </script>

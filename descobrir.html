@@ -431,6 +431,9 @@
                 <button id="global-filter-btn" onclick="goToTab('filtro')" class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
                     <span class="material-symbols-outlined" data-icon="filter_list">filter_list</span>
                 </button>
+                <button id="header-settings-btn" class="hidden text-white hover:opacity-80 transition-all active:scale-90 duration-150">
+                    <span class="material-symbols-outlined text-[24px]">settings</span>
+                </button>
             </div>
         </header>
 
@@ -869,6 +872,7 @@
             const headerBackBtn = document.getElementById('header-back-btn');
             const headerMenuBtn = document.getElementById('header-menu-btn');
             const globalFilterBtn = document.getElementById('global-filter-btn');
+            const headerSettingsBtn = document.getElementById('header-settings-btn');
             const navbar = document.querySelector('nav');
 
             if (tabName === 'filtro') {
@@ -890,6 +894,7 @@
             if(tabName === 'meusmatches') {
                 fetchMatches();
                 globalFilterBtn.classList.add('hidden');
+                headerSettingsBtn.classList.add('hidden');
                 globalCountBadges.forEach(b => {
                     if (matchCount > 0) {
                         b.classList.remove('hidden');
@@ -899,15 +904,28 @@
             } else if (tabName === 'colecoes') {
                 fetchCollection();
                 globalFilterBtn.classList.add('hidden');
+                headerSettingsBtn.classList.remove('hidden');
                 globalCountBadges.forEach(b => { b.classList.add('hidden'); b.style.display = 'none'; });
             } else if (tabName === 'descobrir') {
                 globalFilterBtn.classList.remove('hidden');
+                headerSettingsBtn.classList.add('hidden');
                 globalCountBadges.forEach(b => { b.classList.add('hidden'); b.style.display = 'none'; });
             } else if (tabName === 'filtro') {
                 globalFilterBtn.classList.add('hidden');
+                headerSettingsBtn.classList.add('hidden');
                 globalCountBadges.forEach(b => { b.classList.add('hidden'); b.style.display = 'none'; });
             }
         }
+
+        // Listener para o botão de configurações (Engrenagem)
+        document.getElementById('header-settings-btn').addEventListener('click', () => {
+            // Animação de "mover abas" - Slide sem piscar
+            document.body.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+            document.body.style.transform = 'translateX(-100%)';
+            setTimeout(() => {
+                window.location.href = 'configuracoes.html';
+            }, 380);
+        } );
 
         // Swipe Gestures
         let touchStartX = 0;
