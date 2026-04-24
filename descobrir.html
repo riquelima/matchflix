@@ -336,6 +336,76 @@
             height: 24px;
             object-fit: contain;
         }
+
+        /* ── Modern Badge System (Cyber-Noir) ── */
+        .badge-cyber {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 900;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transition: all 300ms;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-width: 1px;
+        }
+
+        .badge-trending {
+            background: linear-gradient(135deg, #ea580c 0%, #dc2626 100%);
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 20px rgba(234, 88, 12, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .badge-new {
+            background: linear-gradient(135deg, #0891b2 0%, #2563eb 100%);
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 20px rgba(8, 145, 178, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .badge-elite {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 25px rgba(245, 158, 11, 0.5), inset 0 0 12px rgba(255, 255, 255, 0.3);
+            color: #000;
+        }
+        .badge-elite .material-symbols-outlined { color: #000 !important; }
+
+        .badge-match {
+            background: linear-gradient(135deg, #e50914 0%, #7c3aed 100%);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(229, 9, 20, 0.3);
+            color: white;
+        }
+
+        .badge-rating-hud {
+            background-color: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 6px 12px;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            box-shadow: 0 10px 30px -5px rgba(0,0,0,0.5), 0 0 20px rgba(229, 9, 20, 0.05);
+        }
+
+        @keyframes badge-pulse {
+            0%, 100% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.05); filter: brightness(1.2); }
+        }
+        .animate-badge-pulse {
+            animation: badge-pulse 2s infinite ease-in-out;
+        }
     </style>
 </head>
 <body class="text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container h-[100dvh] flex flex-col">
@@ -554,8 +624,8 @@
                                 <div class="flex items-center gap-3">
                                     <span class="material-symbols-outlined text-2xl opacity-40 group-[.active]:opacity-100 group-[.active]:text-primary-container">new_releases</span>
                                     <div class="text-left">
-                                        <p class="text-sm font-bold text-white">Mostrar filmes novos sempre</p>
-                                        <p class="text-[10px] text-white/40 uppercase font-medium">Priorizar filmes de ${new Date().getFullYear() - 1}/${new Date().getFullYear().toString().slice(-2)}</p>
+                                        <p class="text-sm font-bold text-white">Mostrar filmes recentes sempre</p>
+                                        <p class="text-[10px] text-white/40 uppercase font-medium" id="strategy-recent-label">Priorizar os filmes mais novos</p>
                                     </div>
                                 </div>
                                 <div class="w-5 h-5 rounded-full border-2 border-white/10 group-[.active]:border-primary-container group-[.active]:bg-primary-container flex items-center justify-center transition-all">
@@ -578,23 +648,22 @@
                         </div>
                     </div>
 
-                    <!-- Época / Lançamento -->
                     <div class="space-y-4">
-                        <h3 class="text-sm font-headline font-extrabold text-white uppercase tracking-widest">Época</h3>
+                        <h3 class="text-sm font-headline font-extrabold text-white uppercase tracking-widest">Recentes</h3>
                         <div class="grid grid-cols-2 gap-3" id="year-filters">
                             <button class="year-btn px-4 py-4 rounded-2xl bg-surface-container-high border border-white/5 text-white font-bold text-sm flex flex-col items-center gap-1 transition-all" data-year="all">
                                 <span>Tudo</span>
                                 <span class="text-[10px] opacity-40">Qualquer ano</span>
                             </button>
                             <button id="year-btn-recent" class="year-btn px-4 py-4 rounded-2xl bg-surface-container-high border border-white/5 text-white font-bold text-sm flex flex-col items-center gap-1 transition-all" data-year="recent">
-                                <span>Lançamentos</span>
-                                <span id="current-years-label" class="text-[10px] opacity-40">2024 / 2025</span>
+                                <span>Recentes</span>
+                                <span id="current-years-label" class="text-[10px] opacity-40">-- / --</span>
                             </button>
                             <button class="year-btn px-4 py-4 rounded-2xl bg-surface-container-high border border-white/5 text-white font-bold text-sm flex flex-col items-center gap-1 transition-all" data-year="2020">
                                 <span>Anos 2020</span>
                                 <span class="text-[10px] opacity-40">2020 - 2023</span>
                             </button>
-                            <button class="year-btn px-4 py-4 rounded-2xl bg-surface-container-high border border-white/5 text-white font-bold text-sm flex flex-col items-center gap-1 transition-all" data-year="classic" onclick="selectedYearFilters='classic';updateYearButtonsFilters()">
+                            <button class="year-btn px-4 py-4 rounded-2xl bg-surface-container-high border border-white/5 text-white font-bold text-sm flex flex-col items-center gap-1 transition-all" data-year="classic">
                                 <span>Clássicos</span>
                                 <span class="text-[10px] opacity-40">Até 1995</span>
                             </button>
@@ -742,10 +811,16 @@
                 window.location.href = 'login.html';
             } else {
                 // Inicializa labels dinâmicas de ano
+                const currentYear = new Date().getFullYear();
+                const twoYearsAgo = currentYear - 2;
+                
                 const yearLabel = document.getElementById('current-years-label');
                 if (yearLabel) {
-                    const currentYear = new Date().getFullYear();
-                    yearLabel.textContent = `${currentYear - 1} / ${currentYear}`;
+                    yearLabel.textContent = `${twoYearsAgo} / ${currentYear}`;
+                }
+                const strategyLabel = document.getElementById('strategy-recent-label');
+                if (strategyLabel) {
+                    strategyLabel.textContent = `Priorizar filmes de ${twoYearsAgo} a ${currentYear}`;
                 }
                 
                 currentUser = session.user;
@@ -1016,6 +1091,13 @@
 
                 // 1. Aplica filtro de nota mínima rigoroso
                 const minVote = (filters && filters.minRating) ? filters.minRating : 7.0;
+                
+                // Se a nota for muito alta (9+), reduzimos a exigência de votos para encontrar filmes de elite
+                let requiredVotes = 100;
+                if (minVote >= 9) requiredVotes = 10; // Notas 9+ são raras com muitos votos
+                else if (minVote >= 8) requiredVotes = 50;
+                
+                baseParams = baseParams.replace('vote_count.gte=100', `vote_count.gte=${requiredVotes}`);
                 baseParams += `&vote_average.gte=${minVote}`;
 
                 // 2. Gêneros Excluídos (Filtro Negativo)
@@ -1037,10 +1119,9 @@
 
                 // 3. Filtro de Ano/Época usando release_date
                 if (filters && filters.year && filters.year !== 'all') {
-                    if (filters.year === '2024' || filters.year === 'recent') {
-                        const currentYear = new Date().getFullYear();
-                        const startYear = currentYear - 1;
-                        baseParams += `&primary_release_date.gte=${startYear}-01-01`;
+                    if (filters.year === 'recent') {
+                        const twoYearsAgo = new Date().getFullYear() - 2;
+                        baseParams += `&primary_release_date.gte=${twoYearsAgo}-01-01`;
                     } else if (filters.year === 'classic') {
                         baseParams += `&primary_release_date.lte=1995-12-31`;
                     } else {
@@ -1128,14 +1209,46 @@
                 // Filtrar os que já foram mostrados (Remove dupes)
                 combined = combined.filter((v,i,a)=>a.findIndex(t=>(t.id === v.id))===i);
                 
-                // IMPORTANTE: Adicionar ao invés de substituir para manter o scroll infinito fluido
-                // Inserimos no INÍCIO da fila (que será o fim após o reverse)
-                const newMovies = combined.filter(m => !moviesQueue.some(q => q.id === m.id));
-                moviesQueue = [...newMovies.reverse(), ...moviesQueue];
-                
+                // 4. Fallback para filtros muito restritivos (ex: nota 9 sem resultados)
+                if (combined.length === 0 && currentPage === 2 && minVote > 6) { 
+                    // currentPage já foi incrementado para 2 após o primeiro fetch falho
+                    console.warn("Nenhum filme encontrado. Tentando relaxar filtros...");
+                    const relaxedVote = Math.max(6, minVote - 1);
+                    const relaxedParams = baseParams.replace(`vote_average.gte=${minVote}`, `vote_average.gte=${relaxedVote}`);
+                    const resFallback = await fetch(`https://api.themoviedb.org/3/discover/movie?${relaxedParams}&page=1`);
+                    const dataFallback = await resFallback.json();
+                    if (dataFallback.results && dataFallback.results.length > 0) {
+                        combined = dataFallback.results.filter(v => !interactedMovieIds.has(v.id));
+                    }
+                }
+
                 loadingIndicator.style.display = "none";
-                if (moviesQueue.length > 0 && stackContainer.querySelectorAll('.movie-card-wrapper').length === 0) {
-                    renderTopCards();
+                
+                if (combined.length > 0) {
+                    // Adicionamos ao INÍCIO da fila (fundo da pilha) para não interromper a fluidez
+                    // Os filmes atuais ficam no final do array (topo da pilha)
+                    const newMovies = combined.filter(m => !moviesQueue.some(q => q.id === m.id));
+                    moviesQueue = [...newMovies.reverse(), ...moviesQueue];
+                    
+                    if (stackContainer.querySelectorAll('.movie-card-wrapper').length === 0) {
+                        renderTopCards();
+                    }
+                } else {
+                    // Se a fila estiver vazia após tentar carregar, mostra feedback visual premium
+                    if (moviesQueue.length === 0) {
+                        stackContainer.innerHTML = `
+                            <div class="flex flex-col items-center justify-center h-full text-center p-8 animate-fade-in">
+                                <div class="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-6 border border-white/10 shadow-2xl">
+                                    <span class="material-symbols-outlined text-4xl text-primary-container animate-pulse">filter_list_off</span>
+                                </div>
+                                <h3 class="text-xl font-headline font-bold text-white mb-2">Nada por aqui...</h3>
+                                <p class="text-white/40 text-sm max-w-[200px] mx-auto mb-8">Não encontramos filmes com esses filtros. Que tal tentar algo menos específico?</p>
+                                <button onclick="goToTab('filtros')" class="px-8 py-3 rounded-2xl bg-primary-container text-white text-sm font-bold shadow-lg shadow-primary-container/20 hover:scale-105 active:scale-95 transition-all">
+                                    Ajustar Filtros
+                                </button>
+                            </div>
+                        `;
+                    }
                 }
 
             } catch (error) {
@@ -1210,11 +1323,11 @@
             let badgeHTML = '';
             if (movie.recommendationReason) {
                 badgeHTML = `
-                    <div class="absolute top-6 left-6 z-20 animate-fade-in pointer-events-none">
-                        <div class="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/80 backdrop-blur-2xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.8)] -rotate-1">
-                            <span class="material-symbols-outlined text-[16px] text-tertiary" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
-                            <span class="text-[10px] font-headline font-black text-white uppercase tracking-[0.15em] leading-none">
-                                Porque você curtiu <span class="text-tertiary decoration-tertiary/30 underline underline-offset-2">${movie.recommendationReason}</span>
+                    <div class="absolute top-6 left-6 z-20 badge-container-gsap pointer-events-none">
+                        <div class="badge-cyber badge-match -rotate-1">
+                            <span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+                            <span class="leading-none">
+                                Porque você curtiu <span class="text-white/80 underline underline-offset-2">${movie.recommendationReason}</span>
                             </span>
                         </div>
                     </div>
@@ -1228,28 +1341,28 @@
             const isElite = movie.vote_average >= 8.5;
 
             if (isNew || isTrending || isElite) {
-                statusBadgesHTML = `<div class="absolute top-6 right-6 z-20 flex flex-col gap-2 items-end animate-fade-in pointer-events-none">`;
+                statusBadgesHTML = `<div class="absolute top-6 right-6 z-20 flex flex-col gap-2 items-end pointer-events-none badge-container-gsap">`;
                 if (isTrending) {
                     statusBadgesHTML += `
-                        <div class="px-4 py-1.5 rounded-lg bg-orange-600 border border-orange-400/50 shadow-[0_0_25px_rgba(234,88,12,0.5)] flex items-center gap-1.5">
+                        <div class="badge-cyber badge-trending animate-badge-pulse">
                             <span class="material-symbols-outlined text-[14px] text-white" style="font-variation-settings: 'FILL' 1;">local_fire_department</span>
-                            <span class="text-[10px] font-black text-white uppercase tracking-[0.1em]">Trending</span>
+                            <span>Trending</span>
                         </div>
                     `;
                 }
                 if (isNew) {
                     statusBadgesHTML += `
-                        <div class="px-4 py-1.5 rounded-lg bg-cyan-600 border border-cyan-400/50 shadow-[0_0_25px_rgba(8,145,178,0.5)] flex items-center gap-1.5">
+                        <div class="badge-cyber badge-new">
                             <span class="material-symbols-outlined text-[14px] text-white" style="font-variation-settings: 'FILL' 1;">fiber_new</span>
-                            <span class="text-[10px] font-black text-white uppercase tracking-[0.1em]">Novo</span>
+                            <span>Novo</span>
                         </div>
                     `;
                 }
                 if (isElite) {
                     statusBadgesHTML += `
-                        <div class="px-4 py-1.5 rounded-lg bg-tertiary border border-amber-300/50 shadow-[0_0_25px_rgba(240,185,11,0.5)] flex items-center gap-1.5">
-                            <span class="material-symbols-outlined text-[14px] text-black" style="font-variation-settings: 'FILL' 1;">workspace_premium</span>
-                            <span class="text-[10px] font-black text-black uppercase tracking-[0.1em]">Elite ${movie.vote_average.toFixed(1)}</span>
+                        <div class="badge-cyber badge-elite">
+                            <span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">workspace_premium</span>
+                            <span>Elite ${movie.vote_average.toFixed(1)}</span>
                         </div>
                     `;
                 }
@@ -1268,8 +1381,8 @@
                 
                 <div class="relative z-30 p-6 pt-20">
                     <div class="flex items-center gap-3 mb-2">
-                        <span class="bg-black/50 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 flex items-center gap-1">
-                            <span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+                        <span class="badge-rating-hud">
+                            <span class="material-symbols-outlined text-primary-container text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
                             <span class="text-white font-bold font-headline text-sm tracking-wide">${movie.vote_average.toFixed(1)}</span>
                         </span>
                         <span class="text-on-surface-variant font-medium text-sm tracking-wider uppercase">${releaseYear}</span>
@@ -1331,6 +1444,31 @@
             
             // Carregar trailer para o card
             fetchAndRenderTrailer(movie.id, wrapper.querySelector('.trailer-container'), wrapper.querySelector('.trailer-section-card'));
+
+            // Animação das Badges com GSAP (Cyber-Noir Entrada)
+            const badges = wrapper.querySelectorAll('.badge-container-gsap > div');
+            if (badges.length > 0) {
+                gsap.from(badges, {
+                    scale: 0.5,
+                    opacity: 0,
+                    rotate: stackIndex === 0 ? -10 : 0,
+                    duration: 1,
+                    stagger: 0.1,
+                    delay: 0.3 + (stackIndex * 0.1),
+                    ease: "elastic.out(1, 0.7)"
+                });
+            }
+
+            const ratingBadge = wrapper.querySelector('.badge-rating-hud');
+            if (ratingBadge) {
+                gsap.from(ratingBadge, {
+                    x: -30,
+                    opacity: 0,
+                    duration: 0.8,
+                    delay: 0.5 + (stackIndex * 0.1),
+                    ease: "power4.out"
+                });
+            }
         }
 
         // Cache para trailers
