@@ -576,9 +576,11 @@
             <span class="font-headline text-[9px] font-bold uppercase tracking-widest mt-1">Match</span>
         </button>
         <!-- Likes -->
-        <button class="nav-item flex flex-col items-center justify-center" data-page="meusmatches">
+        <button class="nav-item flex flex-col items-center justify-center relative" data-page="meusmatches">
             <span class="material-symbols-outlined text-xl">favorite</span>
             <span class="font-headline text-[9px] font-bold uppercase tracking-widest mt-1">Likes</span>
+            <!-- Badge de Notificação -->
+            <span id="global-count-badge" class="absolute top-1 right-3 bg-primary-container text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center hidden border border-white/20 shadow-[0_0_10px_rgba(229,9,20,0.5)]">0</span>
         </button>
         <!-- Perfil / Coleção -->
         <button class="nav-item flex flex-col items-center justify-center" data-page="colecoes">
@@ -680,6 +682,7 @@
         let recommendationStrategy = 'mixed'; // mixed, new, preferred
         let selectedMood = 'any';
         let matchCount = 0;
+        let likedMoviesLocal = []; // Cache local para matches da sessão atual (tempo real)
 
         // Check Auth
         (async () => {
@@ -841,6 +844,16 @@
         async function saveActionToSupabase(movie, liked) {
             if (!currentUser) return;
             interactedMovieIds.add(movie.id); // Adiciona na memória local para não repetir
+            
+            if (liked) {
+                // Atualização Otimista: Adiciona à lista local para aparecer em tempo real
+                if (!likedMoviesLocal.find(m => m.id === movie.id)) {
+                    likedMoviesLocal.unshift(movie);
+                    matchCount++;
+                    updateBadge(matchCount);
+                }
+            }
+
             try {
                 const { error } = await supabase.from('curtidas_filmes').upsert({
                     usuario_id: currentUser.id,
@@ -1565,7 +1578,18 @@
 
                 if (error) throw error;
 
-                if (!data || data.length === 0) {
+                // Mesclar dados do banco com dados locais da sessão (garante tempo real)
+                let remoteIds = (data || []).map(item => Number(item.filme_id));
+                let combinedMatches = [...likedMoviesLocal]; // Inicia com os locais (mais novos)
+                
+                // Adiciona os remotos que não estão na lista local
+                remoteIds.forEach(rid => {
+                    if (!combinedMatches.find(m => m.id === rid)) {
+                        combinedMatches.push({ id: rid, isRemote: true });
+                    }
+                });
+
+                if (combinedMatches.length === 0) {
                     matchesEmpty.classList.remove('hidden');
                     matchesGrid.innerHTML = '';
                     updateBadge(0);
@@ -1573,12 +1597,17 @@
                 }
 
                 matchesEmpty.classList.add('hidden');
-                updateBadge(data.length);
+                updateBadge(combinedMatches.length);
                 
-                // Buscar detalhes do TMDB (apenas IDs)
+                // Renderizar
                 matchesGrid.innerHTML = '';
-                data.forEach((item, i) => {
-                    renderMatchItem(item.filme_id, i);
+                combinedMatches.forEach((item, i) => {
+                    if (item.isRemote) {
+                        renderMatchItem(item.id, i);
+                    } else {
+                        // Se já temos o objeto completo (local), renderizamos direto
+                        renderMatchItemFromObject(item, i);
+                    }
                 });
             } catch (e) {
                 console.error("Erro ao buscar matches", e);
@@ -1588,7 +1617,11 @@
         async function renderMatchItem(movieId, index) {
             const res = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${API_KEY}&language=pt-BR`);
             const movie = await res.json();
-            
+            renderMatchItemFromObject(movie, index);
+        }
+
+        // Renderiza direto do objeto sem precisar de fetch TMDB
+        function renderMatchItemFromObject(movie, index) {
             const card = document.createElement('div');
             card.className = 'film-card aspect-[2/3] relative group';
             card.innerHTML = `
@@ -1632,11 +1665,12 @@
 
         function updateBadge(count) {
             matchCount = count;
-            if(matchCount > 0 && activeTab === 'meusmatches') {
-                globalCountBadge.textContent = matchCount;
-                globalCountBadge.classList.remove('hidden');
+            const badge = document.getElementById('global-count-badge');
+            if(matchCount > 0) {
+                badge.textContent = matchCount;
+                badge.classList.remove('hidden');
             } else {
-                globalCountBadge.classList.add('hidden');
+                badge.classList.add('hidden');
             }
         }
 
