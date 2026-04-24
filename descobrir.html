@@ -1855,6 +1855,10 @@
                 triggerMatch();
             };
 
+            btnInfo.onpointerdown = (e) => {
+                e.preventDefault();
+                toggleSynopsis();
+            };
             btnDislike.onpointerdown = (e) => {
                 e.preventDefault();
                 if (!isMatched) triggerDislike();
@@ -2413,10 +2417,7 @@
         
         // Connect existing btn-info to open current movie
         document.getElementById('btn-info').addEventListener('click', () => {
-            if(moviesQueue.length > 0) {
-                const topMovie = moviesQueue[moviesQueue.length - 1];
-                openSynopsis(topMovie, 'discover');
-            }
+            if(moviesQueue.length > 0) openSynopsis(moviesQueue[0], 'discover');
         });
         // --- Filtros Inteligentes Logic (SPA) ---
         // (Variáveis já declaradas no topo do script)
