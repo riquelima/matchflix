@@ -1195,12 +1195,12 @@
                 ${statusBadgesHTML}
                 
                 <!-- Auto-Preview Container (TikTok Style) -->
-                <div class="video-preview-container absolute inset-0 z-0 opacity-0 transition-opacity duration-1000 pointer-events-none overflow-hidden scale-110"></div>
+                <div class="video-preview-container absolute inset-0 z-10 opacity-0 transition-opacity duration-1000 pointer-events-none overflow-hidden scale-110 bg-black"></div>
                 
-                <img src="${posterUrl}" alt="${movie.title}" class="absolute inset-0 w-full h-full object-cover select-none pointer-events-none z-0">
-                <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90 pointer-events-none z-10"></div>
+                <img src="${posterUrl}" alt="${movie.title}" class="card-poster-img absolute inset-0 w-full h-full object-cover select-none pointer-events-none z-0 transition-opacity duration-1000">
+                <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90 pointer-events-none z-20"></div>
                 
-                <div class="relative z-20 p-6 pt-20">
+                <div class="relative z-30 p-6 pt-20">
                     <div class="flex items-center gap-3 mb-2">
                         <span class="bg-black/50 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 flex items-center gap-1">
                             <span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
@@ -1385,7 +1385,14 @@
             // Auto-Preview State
             let previewTimer = null;
             let isPreviewPlaying = false;
+            let isUnmuted = false; 
             const previewContainer = frontEl.querySelector('.video-preview-container');
+            
+            // Botão de Volume (Criado dinamicamente)
+            const volumeBtn = document.createElement('button');
+            volumeBtn.className = "absolute bottom-36 right-6 z-40 w-12 h-12 rounded-full glass-panel flex items-center justify-center text-white opacity-0 pointer-events-none transition-all duration-500 scale-75 active:scale-90 border border-white/10";
+            volumeBtn.innerHTML = `<span class="material-symbols-outlined text-2xl">volume_off</span>`;
+            frontEl.appendChild(volumeBtn);
 
             const btnAcaoOverlay = element.querySelector('.btn-acao-overlay');
             const heartIcon = overlayEl.querySelector('.bg-primary-container'); // O coração no canto superior da sinopse
@@ -1461,11 +1468,45 @@
                     </iframe>
                 `;
                 gsap.to(previewContainer, { opacity: 1, duration: 1.5, ease: "power2.out" });
+                // Fade out no pôster para dar foco ao vídeo
+                const posterImg = frontEl.querySelector('.card-poster-img');
+                if (posterImg) gsap.to(posterImg, { opacity: 0.3, duration: 1.5 });
+
+                // Mostrar botão de volume
+                volumeBtn.classList.remove('pointer-events-none');
+                gsap.to(volumeBtn, { opacity: 1, scale: 1, duration: 0.8, ease: "back.out(1.7)" });
+                
+                volumeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    const iframe = previewContainer.querySelector('iframe');
+                    if (!iframe) return;
+                    
+                    isUnmuted = !isUnmuted;
+                    const key = trailersCache.get(movie.id);
+                    
+                    // Atualiza o ícone e o SRC (YouTube requer recarregamento para mudar mute via URL sem a API completa)
+                    if (isUnmuted) {
+                        volumeBtn.innerHTML = `<span class="material-symbols-outlined text-2xl text-primary-container">volume_up</span>`;
+                        volumeBtn.classList.add('border-primary-container/30', 'bg-primary-container/10');
+                        iframe.src = `https://www.youtube.com/embed/${key}?autoplay=1&mute=0&controls=0&loop=1&playlist=${key}&rel=0&modestbranding=1&iv_load_policy=3`;
+                    } else {
+                        volumeBtn.innerHTML = `<span class="material-symbols-outlined text-2xl">volume_off</span>`;
+                        volumeBtn.classList.remove('border-primary-container/30', 'bg-primary-container/10');
+                        iframe.src = `https://www.youtube.com/embed/${key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${key}&rel=0&modestbranding=1&iv_load_policy=3`;
+                    }
+                };
             }
 
             function stopAutoPreview() {
                 clearTimeout(previewTimer);
                 if (isPreviewPlaying) {
+                    const posterImg = frontEl.querySelector('.card-poster-img');
+                    if (posterImg) gsap.to(posterImg, { opacity: 1, duration: 0.5 });
+                    
+                    // Esconder botão de volume
+                    volumeBtn.classList.add('pointer-events-none');
+                    gsap.to(volumeBtn, { opacity: 0, scale: 0.7, duration: 0.3 });
+                    
                     gsap.to(previewContainer, { 
                         opacity: 0, 
                         duration: 0.5, 
@@ -1477,8 +1518,8 @@
                 }
             }
 
-            // Inicia o timer de 5 segundos
-            previewTimer = setTimeout(startAutoPreview, 5000);
+            // Inicia o timer de 3 segundos
+            previewTimer = setTimeout(startAutoPreview, 3000);
 
             // Quando for dispensado
             function triggerDislike() {
