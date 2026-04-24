@@ -717,6 +717,7 @@
         let isFetching = false;
         let interactedMovieIds = new Set();
         let watchedMovieIds = new Set();
+        let currentPage = 1; // Rastreador de página para scroll infinito
         
         let activeTab = 'descobrir'; // descobrir, meusmatches, colecoes
         const viewSlider = document.getElementById('view-slider');
@@ -1082,29 +1083,26 @@
 
                 if (activeGenres.length > 0) {
                     const genresString = activeGenres.join('|');
-                    // Mescla os excluídos globais com a lógica de descoberta (sem favoritos)
                     const discoveryExcluded = [...new Set([...globalExcluded, ...activeGenres])].join(',');
                     const globalExcludedStr = globalExcluded.join(',');
                     
-                    const page1 = Math.floor(Math.random() * 10) + 1;
-                    const page2 = Math.floor(Math.random() * 10) + 1;
-
-                    // 1. A Base (80%): Filmes dos gêneros ativos, RESPEITANDO os excluídos
-                    const resMatches = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&with_genres=${genresString}&without_genres=${globalExcludedStr}&page=${page1}`);
+                    // 1. A Base (80%): Filmes dos gêneros ativos
+                    const resMatches = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&with_genres=${genresString}&without_genres=${globalExcludedStr}&page=${currentPage}`);
                     const dataMatches = await resMatches.json();
                     matches = dataMatches.results || [];
 
-                    // 2. A Descoberta (20%): Filmes FORA dos gêneros favoritos E fora dos excluídos
-                    const resDiscoveries = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&without_genres=${discoveryExcluded}&page=${page2}`);
+                    // 2. A Descoberta (20%): Filmes fora dos favoritos
+                    const resDiscoveries = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&without_genres=${discoveryExcluded}&page=${currentPage}`);
                     const dataDiscoveries = await resDiscoveries.json();
                     discoveries = dataDiscoveries.results || [];
                 } else {
                     const globalExcludedStr = globalExcluded.join(',');
-                    const page = Math.floor(Math.random() * 20) + 1;
-                    const res = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&without_genres=${globalExcludedStr}&page=${page}`);
+                    const res = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&without_genres=${globalExcludedStr}&page=${currentPage}`);
                     const data = await res.json();
                     matches = data.results || [];
                 }
+
+                currentPage++; // Sempre incrementa para a próxima carga
 
                 // Mesclar algoritmo (4 para 1)
                 let combined = [];
@@ -1118,14 +1116,18 @@
                 // Filtrar os que o usuário JÁ VIU (curtiu ou descartou)
                 combined = combined.filter(v => !interactedMovieIds.has(v.id));
 
-                // Filtrar os que já foram mostrados (idealmente salvar no localStorage quais já viu)
-                // Remove dupes
+                // Filtrar os que já foram mostrados (Remove dupes)
                 combined = combined.filter((v,i,a)=>a.findIndex(t=>(t.id === v.id))===i);
                 
-                moviesQueue = combined.reverse(); // Reserve so we can pop() from the end (top of stack)
+                // IMPORTANTE: Adicionar ao invés de substituir para manter o scroll infinito fluido
+                // Inserimos no INÍCIO da fila (que será o fim após o reverse)
+                const newMovies = combined.filter(m => !moviesQueue.some(q => q.id === m.id));
+                moviesQueue = [...newMovies.reverse(), ...moviesQueue];
                 
                 loadingIndicator.style.display = "none";
-                renderTopCards();
+                if (moviesQueue.length > 0 && stackContainer.querySelectorAll('.movie-card-wrapper').length === 0) {
+                    renderTopCards();
+                }
 
             } catch (error) {
                 console.error("Erro ao buscar filmes", error);
@@ -1137,10 +1139,16 @@
 
         // Renderizar a fila
         function renderTopCards() {
-            if (moviesQueue.length === 0) {
-                // Fetch more if empty
-                loadingIndicator.style.display = "flex";
+            // Se a fila estiver ficando baixa (menos de 5 cards), já busca a próxima página em background
+            if (moviesQueue.length < 5 && !isFetching) {
                 fetchMovies();
+            }
+
+            if (moviesQueue.length === 0) {
+                if (!isFetching) {
+                    loadingIndicator.style.display = "flex";
+                    fetchMovies();
+                }
                 return;
             }
 
@@ -1778,7 +1786,7 @@
                     .select('filme_id')
                     .eq('usuario_id', currentUser.id)
                     .eq('curtiu', true)
-                    .eq('assistido', false)
+                    .neq('assistido', true)
                     .order('criado_em', { ascending: false });
 
                 if (error) throw error;
@@ -2470,6 +2478,7 @@
                 
                 // Recarrega filmes com novos filtros
                 gsap.killTweensOf(stackContainer.querySelectorAll('*'));
+                currentPage = 1;
                 moviesQueue = [];
                 stackContainer.innerHTML = '';
                 fetchMovies();
