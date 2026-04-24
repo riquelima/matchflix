@@ -160,6 +160,14 @@
 </main>
 <script type="module">
     import { supabase } from './js/supabase.js';
+    
+    // Verificação de sessão persistente ao carregar
+    (async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            window.location.href = "descobrir.html";
+        }
+    })();
 
     // Animação de entrada fluida
     gsap.from("main", {

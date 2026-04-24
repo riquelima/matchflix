@@ -143,10 +143,20 @@
             <span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
 </button>
 </div>
-<script>
-    // Configurações TMDB
-    // Configurações TMDB
-    const API_KEY = "416394469462693ee5727abe4c864848";
+    <script type="module">
+        import { supabase } from './js/supabase.js';
+        
+        // Verificação de sessão persistente ao carregar
+        (async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                window.location.href = "login.html";
+            }
+        })();
+    </script>
+    <script>
+        // Configurações TMDB
+        const API_KEY = "416394469462693ee5727abe4c864848";
     const API_URL = `https://api.themoviedb.org/3/movie/popular?language=pt-BR&page=1&api_key=${API_KEY}`;
     const IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500";
     
