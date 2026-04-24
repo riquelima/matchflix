@@ -1683,6 +1683,10 @@
 
             function dragStart(e) {
                 if (isAnimating || isMatched || isInfoOpen) return;
+                
+                // Se o toque/clique foi no botão de volume, ignorar para não parar o preview
+                if (e.target.closest('button') === volumeBtn) return;
+                
                 stopAutoPreview(); // Para o trailer assim que o usuário toca no card
                 isDragging = true;
                 
