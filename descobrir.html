@@ -77,13 +77,14 @@
         }
         .card-stack {
             position: relative;
-            flex: 1;
+            flex: 0 1 auto; /* Permite encolher mas não crescer infinitamente */
             width: 100%;
-            max-width: 400px;
+            max-width: 380px;
+            aspect-ratio: 2 / 3;
+            max-height: 52dvh; /* Limite crítico para dar espaço aos botões no Chrome Bottom Bar */
             margin: 0 auto;
-            margin-top: 10px;
-            margin-bottom: 20px;
             perspective: 1000px;
+            z-index: 10;
         }
         .card-wrapper {
             position: absolute;
@@ -96,14 +97,12 @@
             background-color: #1a1a1a;
         }
         .actions-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 20px;
-            padding: 20px 0;
-            padding-bottom: calc(90px + env(safe-area-inset-bottom));
-            z-index: 100;
-            background: linear-gradient(to top, var(--surface) 50%, transparent);
+            display: none; /* Removendo classe duplicada/antiga que não está no HTML principal */
+        }
+        
+        #controls {
+            flex-shrink: 0;
+            margin-bottom: calc(100px + env(safe-area-inset-bottom)); /* Espaço garantido para a Navbar flutuante */
         }
         .action-btn {
             width: 64px;
@@ -353,9 +352,9 @@
             
             <!-- ABRA 1: DESCOBRIR (Match) -->
             <section id="view-discover" class="w-[100vw] h-full relative flex flex-col pt-16">
-                <main class="relative flex-grow w-full flex flex-col items-center justify-start pb-32 px-4 overflow-hidden pt-4">
+                <main class="relative flex-grow w-full flex flex-col items-center justify-between px-4 overflow-hidden pt-4 pb-4">
                     <!-- Movie Stack Container -->
-                    <div class="relative w-full aspect-[2/3] z-10 card-container" style="max-width: min(90vw, 380px);" id="card-stack">
+                    <div id="card-stack" class="card-stack">
                         <div id="loading-indicator" class="absolute inset-0 flex flex-col items-center justify-center">
                             <span class="material-symbols-outlined text-primary-container text-5xl animate-spin">sync</span>
                             <p class="text-gray-400 mt-4 font-medium tracking-wider animate-pulse">Procurando matches...</p>
@@ -363,7 +362,7 @@
                     </div>
 
                     <!-- Swiping FABs -->
-                    <div class="relative w-full flex justify-center items-center gap-6 z-30 mt-4" id="controls">
+                    <div class="relative w-full flex justify-center items-center gap-6 z-30" id="controls">
                         <button id="btn-dislike" class="w-16 h-16 rounded-full glass-panel border border-error/20 flex items-center justify-center text-error shadow-lg active:scale-90 transition-transform duration-200">
                             <span class="material-symbols-outlined text-3xl font-bold" data-icon="close">close</span>
                         </button>
