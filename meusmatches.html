@@ -225,10 +225,10 @@
             text-transform: uppercase;
             letter-spacing: 0.1em;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-            transition: all 300ms;
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-width: 1px;
+            will-change: transform, opacity;
         }
 
         .badge-trending {
@@ -594,7 +594,7 @@
             card.innerHTML = `
                 <img src="${poster}" alt="${movie.title}" loading="lazy" />
                 <div class="card-overlay"></div>
-                <div class="absolute top-2 right-2 z-10 flex flex-col gap-1 items-end opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div class="flex flex-col gap-1 items-end transition-opacity duration-300" style="position: absolute; top: 8px; right: 8px; z-index: 50">
                     ${movie.vote_average >= 8.5 ? `
                         <div class="badge-cyber badge-elite !px-2 !py-0.5">
                             <span class="material-symbols-outlined text-[12px]">workspace_premium</span>
