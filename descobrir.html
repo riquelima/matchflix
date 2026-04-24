@@ -683,6 +683,7 @@
         let selectedMood = 'any';
         let matchCount = 0;
         let likedMoviesLocal = []; // Cache local para matches da sessão atual (tempo real)
+        let isFetchingMatches = false; // Trava para evitar race conditions
 
         // Check Auth
         (async () => {
@@ -1450,22 +1451,23 @@
                 });
             }
 
-            // Mapeando botões do layout com pointerdown para resposta instantânea (0ms de atraso) no mobile
-            btnLike.addEventListener('pointerdown', (e) => {
-                e.preventDefault(); // Evita double-firing ou delays nativos
+            // Mapeando botões do layout com onpointerdown para garantir que APENAS o card atual responda
+            // (Isso evita o acúmulo de listeners que causava a abertura de sinopses de filmes errados)
+            btnLike.onpointerdown = (e) => {
+                e.preventDefault();
                 if (isMatched || isAnimating) return;
                 isAnimating = true;
                 gsap.killTweensOf(element);
                 triggerMatch();
-            });
-            btnInfo.addEventListener('pointerdown', (e) => {
+            };
+            btnInfo.onpointerdown = (e) => {
                 e.preventDefault();
                 toggleSynopsis();
-            });
-            btnDislike.addEventListener('pointerdown', (e) => {
+            };
+            btnDislike.onpointerdown = (e) => {
                 e.preventDefault();
                 if (!isMatched) triggerDislike();
-            });
+            };
 
             // Botão interno do Overlay ("Finalizar Match" ou "Fechar Sinopse")
             btnAcaoOverlay.addEventListener('pointerdown', (e) => {
@@ -1567,6 +1569,9 @@
         const globalCountBadge = document.getElementById('global-count-badge');
 
         async function fetchMatches() {
+            if (isFetchingMatches) return;
+            isFetchingMatches = true;
+
             try {
                 const { data, error } = await supabase
                     .from('curtidas_filmes')
@@ -1578,39 +1583,45 @@
 
                 if (error) throw error;
 
-                // Mesclar dados do banco com dados locais da sessão (garante tempo real)
+                // IDs vindos do banco
                 let remoteIds = (data || []).map(item => Number(item.filme_id));
-                let combinedMatches = [...likedMoviesLocal]; // Inicia com os locais (mais novos)
                 
-                // Adiciona os remotos que não estão na lista local
+                // Construir lista combinada sem duplicatas
+                // Começamos com os likes locais da sessão (mais recentes)
+                let combinedMatches = [...likedMoviesLocal];
+                
+                // Adicionamos os do banco que não estão no cache local
                 remoteIds.forEach(rid => {
                     if (!combinedMatches.find(m => m.id === rid)) {
                         combinedMatches.push({ id: rid, isRemote: true });
                     }
                 });
 
+                // Atualizar Badge Global
+                updateBadge(combinedMatches.length);
+
                 if (combinedMatches.length === 0) {
                     matchesEmpty.classList.remove('hidden');
                     matchesGrid.innerHTML = '';
-                    updateBadge(0);
+                    isFetchingMatches = false;
                     return;
                 }
 
                 matchesEmpty.classList.add('hidden');
-                updateBadge(combinedMatches.length);
+                matchesGrid.innerHTML = ''; // Limpa antes de renderizar
                 
-                // Renderizar
-                matchesGrid.innerHTML = '';
+                // Renderizar em ordem (locais primeiro)
                 combinedMatches.forEach((item, i) => {
                     if (item.isRemote) {
                         renderMatchItem(item.id, i);
                     } else {
-                        // Se já temos o objeto completo (local), renderizamos direto
                         renderMatchItemFromObject(item, i);
                     }
                 });
             } catch (e) {
                 console.error("Erro ao buscar matches", e);
+            } finally {
+                isFetchingMatches = false;
             }
         }
 
@@ -1638,6 +1649,9 @@
 
         async function removeMatch(movieId, element) {
             try {
+                // Remover do cache local também
+                likedMoviesLocal = likedMoviesLocal.filter(m => m.id !== movieId);
+                
                 const { error } = await supabase
                     .from('curtidas_filmes')
                     .delete()
@@ -1652,7 +1666,7 @@
                             duration: 0.3,
                             onComplete: () => {
                                 element.remove();
-                                fetchMatches();
+                                fetchMatches(); // Recalcula contador e grid
                             }
                         });
                     } else {
