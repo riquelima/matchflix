@@ -59,6 +59,8 @@
             background-color: #0e0e0e;
             margin: 0;
             padding: 0;
+            height: 100%;
+            height: 100dvh;
         }
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
@@ -78,13 +80,90 @@
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
+
+        /* Settings Styles Ported */
+        .settings-group {
+            background: rgba(26, 26, 26, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        .settings-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 20px;
+            transition: background 0.2s ease;
+            position: relative;
+            text-decoration: none;
+            color: inherit;
+        }
+        .settings-row:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 20px;
+            right: 20px;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.04);
+        }
+        .settings-row:active {
+            background: rgba(255, 255, 255, 0.04);
+            transform: scale(0.99);
+        }
+        .settings-icon-wrap {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .avatar-wrap {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            border: 2px solid rgba(229, 9, 20, 0.4);
+            box-shadow: 0 0 24px rgba(229, 9, 20, 0.2);
+            overflow: hidden;
+            flex-shrink: 0;
+            background: #1a1a1a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .logout-btn {
+            width: 100%;
+            padding: 16px;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #E50914, #FF3B47);
+            color: white;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 800;
+            font-size: 15px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 0 30px rgba(229, 9, 20, 0.35);
+            transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
+            border: none;
+            cursor: pointer;
+        }
+        .logout-btn:active {
+            transform: scale(0.96);
+        }
+
         .card-stack {
             position: relative;
             flex: 0 1 auto;
             width: 100%;
             max-width: 380px;
             aspect-ratio: 2 / 3;
-            max-height: 58dvh; /* Tamanho otimizado para o navegador (com barras) */
+            max-height: 55dvh; /* Reduzido levemente para garantir que caiba com os botões sem scroll */
             margin: 0 auto;
             perspective: 1000px;
             z-index: 10;
@@ -113,13 +192,14 @@
         
         #controls {
             flex-shrink: 0;
-            margin-bottom: calc(95px + env(safe-area-inset-bottom));
-            transition: margin 0.3s ease;
+            margin-bottom: calc(100px + env(safe-area-inset-bottom));
+            transition: all 0.3s ease;
+            z-index: 50;
         }
 
         @media (display-mode: standalone) {
             #controls {
-                margin-bottom: calc(105px + env(safe-area-inset-bottom));
+                margin-bottom: calc(110px + env(safe-area-inset-bottom));
             }
         }
         .action-btn {
@@ -411,16 +491,15 @@
         }
     </style>
 </head>
-<body class="text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container h-[100dvh] flex flex-col">
-
-    <div id="app-shell" class="h-[100dvh] w-full overflow-hidden relative">
+<body class="bg-surface text-on-surface font-body h-[100dvh] flex flex-col overflow-hidden fixed inset-0 select-none touch-none selection:bg-primary-container selection:text-on-primary-container">
+    <div id="app-shell" class="h-full w-full overflow-hidden relative flex flex-col">
         <!-- Universal Background -->
         <div class="fixed inset-0 pointer-events-none overflow-hidden z-0 bg-[#0e0e0e]">
             <div class="absolute top-0 left-0 w-full h-[60%] rounded-b-full bg-primary-container/5 blur-[120px]"></div>
         </div>
 
         <!-- Universal TopAppBar -->
-        <header id="main-header" class="w-full z-[100] flex justify-between items-center px-6 h-16 bg-neutral-950/80 backdrop-blur-2xl shrink-0 fixed top-0 transition-all duration-300">
+        <header id="main-header" class="w-full z-[100] flex justify-between items-center px-6 h-16 bg-neutral-950/80 backdrop-blur-2xl shrink-0 sticky top-0 transition-all duration-300">
             <button id="header-back-btn" class="hidden text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150" onclick="goToTab('descobrir')">
                 <span class="material-symbols-outlined">arrow_back</span>
             </button>
@@ -440,13 +519,13 @@
         </header>
 
         <!-- View Slider (O coração da SPA) -->
-        <div id="view-slider" class="flex h-full w-[400vw] will-change-transform">
+        <div id="view-slider" class="grid grid-cols-5 h-full will-change-transform transition-transform duration-300 ease-out overflow-x-hidden" style="width: 500vw; grid-template-columns: repeat(5, 100vw);">
             
             <!-- ABRA 1: DESCOBRIR (Match) -->
-            <section id="view-discover" class="w-[100vw] h-full relative flex flex-col pt-16">
-                <main class="relative flex-grow w-full flex flex-col items-center justify-between px-4 overflow-hidden pt-4 pb-4">
+            <section id="view-discover" class="w-[100vw] shrink-0 h-full relative flex flex-col pt-2 overflow-hidden">
+                <main class="relative flex-grow w-full flex flex-col items-center justify-start gap-2 px-4 pt-1 pb-0 overflow-hidden touch-none">
                     <!-- Movie Stack Container -->
-                    <div id="card-stack" class="card-stack">
+                    <div id="card-stack" class="card-stack relative w-full max-h-[70vh]">
                         <div id="loading-indicator" class="absolute inset-0 flex flex-col items-center justify-center">
                             <span class="material-symbols-outlined text-primary-container text-5xl animate-spin">sync</span>
                             <p class="text-gray-400 mt-4 font-medium tracking-wider animate-pulse">Procurando matches...</p>
@@ -454,7 +533,7 @@
                     </div>
 
                     <!-- Swiping FABs -->
-                    <div class="relative w-full flex justify-center items-center gap-6 z-30" id="controls">
+                    <div class="relative w-full flex justify-center items-center gap-6 z-40 py-2" id="controls">
                         <button id="btn-dislike" class="w-16 h-16 rounded-full glass-panel border border-error/20 flex items-center justify-center text-error shadow-lg active:scale-90 transition-transform duration-200">
                             <span class="material-symbols-outlined text-3xl font-bold" data-icon="close">close</span>
                         </button>
@@ -469,8 +548,8 @@
             </section>
 
             <!-- ABA 2: MEUS MATCHES (Grid) -->
-            <section id="view-matches" class="w-[100vw] h-full relative flex flex-col pt-16">
-                <div class="px-6 pt-5 pb-3 shrink-0">
+            <section id="view-matches" class="w-[100vw] shrink-0 h-full relative flex flex-col pt-2">
+                <div class="px-6 pt-2 pb-3 shrink-0">
                     <p class="text-[10px] tracking-[0.3em] uppercase text-primary-container/70 font-bold font-headline mb-1">Seus Matches</p>
                     <h2 class="font-headline font-black text-3xl tracking-tighter text-white leading-none">Novos <span class="text-white/30">Matches</span></h2>
                 </div>
@@ -487,8 +566,8 @@
             </section>
 
             <!-- ABA 3: COLEÇÃO (Grid Categorizada) -->
-            <section id="view-collection" class="w-[100vw] h-full relative flex flex-col pt-16">
-                <div class="px-6 pt-5 pb-3 shrink-0">
+            <section id="view-collection" class="w-[100vw] shrink-0 h-full relative flex flex-col pt-2">
+                <div class="px-6 pt-2 pb-3 shrink-0">
                     <p class="text-[10px] tracking-[0.3em] uppercase text-primary-container/70 font-bold font-headline mb-1">Biblioteca</p>
                     <h2 class="font-headline font-black text-3xl tracking-tighter text-white leading-none">Sua <span class="text-white/30">Coleção</span></h2>
                 </div>
@@ -526,8 +605,8 @@
             </section>
             
             <!-- ABA 4: FILTROS (Configurações) -->
-            <section id="view-filters" class="w-[100vw] h-full relative flex flex-col pt-16 bg-neutral-950">
-                <div class="px-6 pt-5 pb-3 shrink-0 flex items-center justify-between">
+            <section id="view-filters" class="w-[100vw] shrink-0 h-full relative flex flex-col pt-2 bg-neutral-950">
+                <div class="px-6 pt-2 pb-3 shrink-0 flex items-center justify-between">
                     <div>
                         <p class="text-[10px] tracking-[0.3em] uppercase text-tertiary font-bold font-headline mb-1">Configurações</p>
                         <h2 class="font-headline font-black text-3xl tracking-tighter text-white leading-none">Filtros <span class="text-white/30">Inteligentes</span></h2>
@@ -689,6 +768,87 @@
 
                 </main>
             </section>
+
+            <!-- ABA 5: CONFIGURAÇÕES -->
+            <section id="view-configuracoes" class="w-[100vw] shrink-0 h-full relative flex flex-col pt-2 bg-neutral-950">
+                <div class="px-6 pt-2 pb-3 shrink-0 flex items-center justify-between">
+                    <div>
+                        <p class="text-[10px] tracking-[0.3em] uppercase text-primary-container font-bold font-headline mb-1">Minha Conta</p>
+                        <h2 class="font-headline font-black text-3xl tracking-tighter text-[#A0A0A0] leading-none">Configurações</h2>
+                    </div>
+                    <button onclick="goToTab('colecoes')" class="w-10 h-10 rounded-full glass-panel flex items-center justify-center text-white/40 active:scale-90 transition-all">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+
+                <main class="flex-grow overflow-y-auto px-6 pb-40 space-y-8 no-scrollbar">
+                    <!-- User Profile Card -->
+                    <div class="flex items-center gap-5 p-6 glass-panel rounded-[32px] border border-white/5">
+                        <div class="avatar-wrap">
+                            <span class="material-symbols-outlined text-white/20 text-4xl">person</span>
+                        </div>
+                        <div>
+                            <h3 id="user-display-name" class="font-headline font-black text-xl text-white tracking-tight leading-tight">Usuário</h3>
+                            <p id="user-display-email" class="text-white/40 text-xs font-medium">carregando...</p>
+                        </div>
+                    </div>
+
+                    <!-- Groups -->
+                    <div class="space-y-4">
+                        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 px-2">Preferências</p>
+                        <div class="settings-group">
+                            <a href="#" class="settings-row">
+                                <div class="settings-icon-wrap bg-blue-500/10 text-blue-500">
+                                    <span class="material-symbols-outlined">notifications</span>
+                                </div>
+                                <div class="flex-grow">
+                                    <h4 class="text-sm font-bold text-white/90">Notificações</h4>
+                                    <p class="text-[10px] text-white/30">Alertas de novos filmes</p>
+                                </div>
+                                <span class="material-symbols-outlined text-white/20 text-sm">chevron_right</span>
+                            </a>
+                            <a href="#" class="settings-row">
+                                <div class="settings-icon-wrap bg-purple-500/10 text-purple-500">
+                                    <span class="material-symbols-outlined">language</span>
+                                </div>
+                                <div class="flex-grow">
+                                    <h4 class="text-sm font-bold text-white/90">Idioma</h4>
+                                    <p class="text-[10px] text-white/30">Português (Brasil)</p>
+                                </div>
+                                <span class="material-symbols-outlined text-white/20 text-sm">chevron_right</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 px-2">Segurança</p>
+                        <div class="settings-group">
+                            <a href="#" class="settings-row">
+                                <div class="settings-icon-wrap bg-green-500/10 text-green-500">
+                                    <span class="material-symbols-outlined">lock</span>
+                                </div>
+                                <div class="flex-grow">
+                                    <h4 class="text-sm font-bold text-white/90">Privacidade</h4>
+                                    <p class="text-[10px] text-white/30">Gerenciar visibilidade</p>
+                                </div>
+                                <span class="material-symbols-outlined text-white/20 text-sm">chevron_right</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Logout Button -->
+                    <div class="pt-4">
+                        <button id="logout-btn" class="logout-btn">
+                            <span class="material-symbols-outlined">logout</span>
+                            Sair do MatchFlix
+                        </button>
+                    </div>
+
+                    <div class="text-center pt-8 opacity-20">
+                        <p class="text-[10px] font-black uppercase tracking-widest text-white">MatchFlix v2.5.0</p>
+                    </div>
+                </main>
+            </section>
         </div>
     </div>
 
@@ -797,7 +957,8 @@
         let isMatchesLoaded = false;
         let isCollectionLoaded = false;
         let matchesDirty = true;
-        let collectionDirty = true; // descobrir, meusmatches, colecoes
+        let collectionDirty = true;
+        let isUserLoaded = false; // descobrir, meusmatches, colecoes
         const viewSlider = document.getElementById('view-slider');
         const navItems = document.querySelectorAll('.nav-item');
         const globalFilterBtn = document.getElementById('global-filter-btn');
@@ -850,7 +1011,7 @@
 
         // --- SPA Navigation & Swipe ---
         window.goToTab = function(tabName, animate = true) {
-            const tabs = ['descobrir', 'meusmatches', 'colecoes', 'filtro'];
+            const tabs = ['descobrir', 'meusmatches', 'colecoes', 'filtro', 'configuracoes'];
             const index = tabs.indexOf(tabName);
             if(index === -1) return;
 
@@ -861,16 +1022,16 @@
                 item.classList.toggle('active', item.dataset.page === tabName);
             });
 
-            const xPercent = -(index * 25); // 25% because 4 tabs
+            const xTranslation = -(index * 100);
             if(animate) {
                 gsap.to(viewSlider, {
-                    xPercent: xPercent,
+                    x: xTranslation + 'vw',
                     duration: 0.5,
                     ease: "power3.out",
                     force3D: true
                 });
             } else {
-                gsap.set(viewSlider, { xPercent: xPercent });
+                gsap.set(viewSlider, { x: xTranslation + 'vw' });
             }
 
             // Header UI logic
@@ -928,18 +1089,21 @@
                 globalFilterBtn.classList.add('hidden');
                 headerSettingsBtn.classList.add('hidden');
                 globalCountBadges.forEach(b => { b.classList.add('hidden'); b.style.display = 'none'; });
+            } else if (tabName === 'configuracoes') {
+                globalFilterBtn.classList.add('hidden');
+                headerSettingsBtn.classList.add('hidden');
+                globalCountBadges.forEach(b => { b.classList.add('hidden'); b.style.display = 'none'; });
+                if (!isUserLoaded) {
+                    loadUserProfile();
+                    isUserLoaded = true;
+                }
             }
         }
 
         // Listener para o botão de configurações (Engrenagem)
         document.getElementById('header-settings-btn').addEventListener('click', () => {
-            // Animação de "mover abas" - Slide sem piscar
-            document.body.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
-            document.body.style.transform = 'translateX(-100%)';
-            setTimeout(() => {
-                window.location.href = 'configuracoes.html';
-            }, 380);
-        } );
+            goToTab('configuracoes');
+        });
 
         // Swipe Gestures
         let touchStartX = 0;
@@ -1279,13 +1443,14 @@
                     }
                 }
 
-                // 5. Ultimato Fallback: Se absolutamente NADA funcionou, traz o "Trending" do dia
+                
+                // 6. FALLBACK SUPREMO: Se tudo falhar, ignoramos interactedMovieIds e trazemos os populares (como se fosse novo usuário)
                 if (combined.length === 0 && moviesQueue.length === 0) {
-                    console.warn("Ultimato: Buscando filmes populares globais como última alternativa.");
+                    console.warn("Nenhum filme novo encontrado. Buscando populares globais...");
                     const resGlobal = await fetch(`https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}&language=pt-BR&page=1`);
                     const dataGlobal = await resGlobal.json();
-                    if (dataGlobal.results && dataGlobal.results.length > 0) {
-                        combined = dataGlobal.results.filter(v => !interactedMovieIds.has(v.id));
+                    if (dataGlobal.results) {
+                        combined = dataGlobal.results;
                     }
                 }
 
@@ -1306,16 +1471,21 @@
                     }
                 } else if (moviesQueue.length === 0) {
                     // Se mesmo com o ultimato for zero, mostra feedback visual premium
-                    stackContainer.innerHTML = `
+                        stackContainer.innerHTML = `
                             <div class="flex flex-col items-center justify-center h-full text-center p-8 animate-fade-in">
                                 <div class="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-6 border border-white/10 shadow-2xl">
                                     <span class="material-symbols-outlined text-4xl text-primary-container animate-pulse">filter_list_off</span>
                                 </div>
                                 <h3 class="text-xl font-headline font-bold text-white mb-2">Nada por aqui...</h3>
-                                <p class="text-white/40 text-sm max-w-[200px] mx-auto mb-8">Não encontramos filmes com esses filtros. Que tal tentar algo menos específico?</p>
-                                <button onclick="goToTab('filtro')" class="px-8 py-3 rounded-2xl bg-primary-container text-white text-sm font-bold shadow-lg shadow-primary-container/20 hover:scale-105 active:scale-95 transition-all">
-                                    Ajustar Filtros
-                                </button>
+                                <p class="text-white/40 text-sm max-w-[200px] mx-auto mb-8">Não encontramos filmes com esses filtros.</p>
+                                <div class="flex flex-col gap-3 w-full max-w-[200px] mx-auto">
+                                    <button onclick="localStorage.removeItem('mf_filters'); location.reload();" class="px-6 py-3 rounded-2xl bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-all">
+                                        Limpar Filtros
+                                    </button>
+                                    <button onclick="goToTab('filtro')" class="px-6 py-3 rounded-2xl bg-primary-container text-white text-xs font-bold shadow-lg shadow-primary-container/20 active:scale-95 transition-all">
+                                        Ajustar Filtros
+                                    </button>
+                                </div>
                             </div>
                         `;
                     }
@@ -2788,6 +2958,31 @@
             renderExcludedGenresFilters();
             updateYearButtonsFilters();
         };
+        // Perfil do Usuário
+        async function loadUserProfile() {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    document.getElementById('user-display-email').textContent = user.email;
+                    document.getElementById('user-display-name').textContent = user.user_metadata?.full_name || 'Usuário MatchFlix';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar perfil:', error);
+            }
+        }
+
+        // Logout
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+                alert('Erro ao sair: ' + error.message);
+            } else {
+                window.location.href = 'login.html';
+            }
+        });
+
+        // Initialize user loading if directly on settings (should not happen normally but for safety)
+        if (activeTab === 'configuracoes') loadUserProfile();
     </script>
 </body>
 </html>
