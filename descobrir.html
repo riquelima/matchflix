@@ -26,6 +26,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
@@ -77,14 +78,22 @@
         }
         .card-stack {
             position: relative;
-            flex: 0 1 auto; /* Permite encolher mas não crescer infinitamente */
+            flex: 0 1 auto;
             width: 100%;
             max-width: 380px;
             aspect-ratio: 2 / 3;
-            max-height: 52dvh; /* Limite crítico para dar espaço aos botões no Chrome Bottom Bar */
+            max-height: 58dvh; /* Tamanho otimizado para o navegador (com barras) */
             margin: 0 auto;
             perspective: 1000px;
             z-index: 10;
+            transition: max-height 0.3s ease;
+        }
+
+        /* Se for Webapp (Standalone), o card volta ao tamanho grande original */
+        @media (display-mode: standalone), (display-mode: fullscreen), (min-height: 850px) {
+            .card-stack {
+                max-height: 75dvh;
+            }
         }
         .card-wrapper {
             position: absolute;
@@ -102,7 +111,14 @@
         
         #controls {
             flex-shrink: 0;
-            margin-bottom: calc(100px + env(safe-area-inset-bottom)); /* Espaço garantido para a Navbar flutuante */
+            margin-bottom: calc(95px + env(safe-area-inset-bottom));
+            transition: margin 0.3s ease;
+        }
+
+        @media (display-mode: standalone) {
+            #controls {
+                margin-bottom: calc(105px + env(safe-area-inset-bottom));
+            }
         }
         .action-btn {
             width: 64px;
@@ -1420,6 +1436,7 @@
             let previewTimer = null;
             let isPreviewPlaying = false;
             let isUnmuted = false; 
+            let ytPlayer = null; // Armazena a instância do YouTube Player
             const previewContainer = frontEl.querySelector('.video-preview-container');
             
             // Botão de Volume (Criado dinamicamente)
@@ -1489,19 +1506,52 @@
             }
 
             function injectPreviewVideo(key) {
-                if (isPreviewPlaying || isDragging) return;
+                if (isPreviewPlaying || isDragging || !window.YT) return;
                 isPreviewPlaying = true;
                 
-                // Técnica de Zoom para efeito TikTok (preenche o card)
-                previewContainer.innerHTML = `
-                    <iframe 
-                        class="absolute inset-0 w-[300%] h-full -left-[100%] pointer-events-none scale-110 grayscale-[0.2] contrast-125" 
-                        src="https://www.youtube.com/embed/${key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${key}&rel=0&modestbranding=1&iv_load_policy=3" 
-                        frameborder="0" 
-                        allow="autoplay">
-                    </iframe>
-                `;
-                gsap.to(previewContainer, { opacity: 1, duration: 1.5, ease: "power2.out" });
+                const playerId = `player-${movie.id}-${Math.floor(Math.random() * 1000)}`;
+                previewContainer.innerHTML = `<div id="${playerId}"></div>`;
+                
+                // Inicializa o Player Oficial do YouTube
+                ytPlayer = new YT.Player(playerId, {
+                    height: '100%',
+                    width: '300%', // Mantém o efeito de zoom TikTok
+                    videoId: key,
+                    playerVars: {
+                        'autoplay': 1,
+                        'mute': 1,
+                        'controls': 0,
+                        'loop': 1,
+                        'playlist': key,
+                        'rel': 0,
+                        'modestbranding': 1,
+                        'iv_load_policy': 3,
+                        'playsinline': 1, // VITAL para Webapps/iOS
+                        'enablejsapi': 1
+                    },
+                    events: {
+                        'onReady': (event) => {
+                            event.target.playVideo();
+                            gsap.to(previewContainer, { opacity: 1, duration: 1.5, ease: "power2.out" });
+                        },
+                        'onStateChange': (event) => {
+                            // Garante o loop se o parâmetro playlist falhar
+                            if (event.data === YT.PlayerState.ENDED) {
+                                event.target.playVideo();
+                            }
+                        }
+                    }
+                });
+
+                // Estiliza o iframe injetado pelo YT
+                const checkIframe = setInterval(() => {
+                    const iframe = previewContainer.querySelector('iframe');
+                    if (iframe) {
+                        iframe.className = "absolute inset-0 w-[300%] h-full -left-[100%] pointer-events-none scale-110 grayscale-[0.2] contrast-125";
+                        clearInterval(checkIframe);
+                    }
+                }, 100);
+
                 // Fade out no pôster para dar foco ao vídeo
                 const posterImg = frontEl.querySelector('.card-poster-img');
                 if (posterImg) gsap.to(posterImg, { opacity: 0.3, duration: 1.5 });
@@ -1512,21 +1562,20 @@
                 
                 volumeBtn.onclick = (e) => {
                     e.stopPropagation();
-                    const iframe = previewContainer.querySelector('iframe');
-                    if (!iframe) return;
+                    if (!ytPlayer || typeof ytPlayer.unMute !== 'function') return;
                     
                     isUnmuted = !isUnmuted;
-                    const key = trailersCache.get(movie.id);
                     
-                    // Atualiza o ícone e o SRC (YouTube requer recarregamento para mudar mute via URL sem a API completa)
                     if (isUnmuted) {
+                        ytPlayer.unMute();
+                        ytPlayer.setVolume(80);
+                        ytPlayer.playVideo(); // Força o play no clique
                         volumeBtn.innerHTML = `<span class="material-symbols-outlined text-2xl text-primary-container">volume_up</span>`;
                         volumeBtn.classList.add('border-primary-container/30', 'bg-primary-container/10');
-                        iframe.src = `https://www.youtube.com/embed/${key}?autoplay=1&mute=0&controls=0&loop=1&playlist=${key}&rel=0&modestbranding=1&iv_load_policy=3`;
                     } else {
+                        ytPlayer.mute();
                         volumeBtn.innerHTML = `<span class="material-symbols-outlined text-2xl">volume_off</span>`;
                         volumeBtn.classList.remove('border-primary-container/30', 'bg-primary-container/10');
-                        iframe.src = `https://www.youtube.com/embed/${key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${key}&rel=0&modestbranding=1&iv_load_policy=3`;
                     }
                 };
             }
@@ -1547,6 +1596,10 @@
                         onComplete: () => {
                             if (previewContainer) {
                                 previewContainer.innerHTML = '';
+                                if (ytPlayer && ytPlayer.destroy) {
+                                    ytPlayer.destroy();
+                                    ytPlayer = null;
+                                }
                                 isPreviewPlaying = false;
                             }
                         } 
