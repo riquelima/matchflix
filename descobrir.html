@@ -1193,9 +1193,14 @@
             front.innerHTML = `
                 ${badgeHTML}
                 ${statusBadgesHTML}
-                <img src="${posterUrl}" alt="${movie.title}" class="absolute inset-0 w-full h-full object-cover select-none pointer-events-none">
-                <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90 pointer-events-none"></div>
-                <div class="relative z-10 p-6 pt-20">
+                
+                <!-- Auto-Preview Container (TikTok Style) -->
+                <div class="video-preview-container absolute inset-0 z-0 opacity-0 transition-opacity duration-1000 pointer-events-none overflow-hidden scale-110"></div>
+                
+                <img src="${posterUrl}" alt="${movie.title}" class="absolute inset-0 w-full h-full object-cover select-none pointer-events-none z-0">
+                <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90 pointer-events-none z-10"></div>
+                
+                <div class="relative z-20 p-6 pt-20">
                     <div class="flex items-center gap-3 mb-2">
                         <span class="bg-black/50 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 flex items-center gap-1">
                             <span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
@@ -1373,10 +1378,14 @@
             let isDragging = false;
             let startX = 0;
             let startY = 0;
-            let currentX = 0;
             let currentY = 0;
             let isMatched = false; // Flag for match
             let isInfoOpen = false; // Flag for info toggle
+            
+            // Auto-Preview State
+            let previewTimer = null;
+            let isPreviewPlaying = false;
+            const previewContainer = frontEl.querySelector('.video-preview-container');
 
             const btnAcaoOverlay = element.querySelector('.btn-acao-overlay');
             const heartIcon = overlayEl.querySelector('.bg-primary-container'); // O coração no canto superior da sinopse
@@ -1399,6 +1408,7 @@
             // Alternar a Sinopse (Modo Leitura)
             function toggleSynopsis() {
                 if (isAnimating || isMatched) return;
+                stopAutoPreview(); // Para o vídeo ao abrir a sinopse
                 
                 if (isInfoOpen) {
                     // Fechar Sinopse
@@ -1416,6 +1426,60 @@
                 }
             }
 
+            // --- Lógica de Auto-Preview Style TikTok ---
+            function startAutoPreview() {
+                if (isMatched || isDragging || isAnimating || isInfoOpen) return;
+                
+                const trailerKey = trailersCache.get(movie.id);
+                if (trailerKey) {
+                    injectPreviewVideo(trailerKey);
+                } else {
+                    // Se não tiver no cache, tenta buscar rapidinho
+                    fetch(`https://api.themoviedb.org/3/movie/${movie.id}/videos?api_key=${API_KEY}&language=pt-BR`)
+                        .then(r => r.json())
+                        .then(data => {
+                            const video = data.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
+                            if (video) {
+                                trailersCache.set(movie.id, video.key);
+                                injectPreviewVideo(video.key);
+                            }
+                        });
+                }
+            }
+
+            function injectPreviewVideo(key) {
+                if (isPreviewPlaying || isDragging) return;
+                isPreviewPlaying = true;
+                
+                // Técnica de Zoom para efeito TikTok (preenche o card)
+                previewContainer.innerHTML = `
+                    <iframe 
+                        class="absolute inset-0 w-[300%] h-full -left-[100%] pointer-events-none scale-110 grayscale-[0.2] contrast-125" 
+                        src="https://www.youtube.com/embed/${key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${key}&rel=0&modestbranding=1&iv_load_policy=3" 
+                        frameborder="0" 
+                        allow="autoplay">
+                    </iframe>
+                `;
+                gsap.to(previewContainer, { opacity: 1, duration: 1.5, ease: "power2.out" });
+            }
+
+            function stopAutoPreview() {
+                clearTimeout(previewTimer);
+                if (isPreviewPlaying) {
+                    gsap.to(previewContainer, { 
+                        opacity: 0, 
+                        duration: 0.5, 
+                        onComplete: () => {
+                            previewContainer.innerHTML = '';
+                            isPreviewPlaying = false;
+                        } 
+                    });
+                }
+            }
+
+            // Inicia o timer de 5 segundos
+            previewTimer = setTimeout(startAutoPreview, 5000);
+
             // Quando for dispensado
             function triggerDislike() {
                 if (isAnimating) return;
@@ -1424,6 +1488,7 @@
             }
 
             function throwOut(direction) {
+                stopAutoPreview(); // Importante: Mata o vídeo ao sair
                 if (direction === -1) {
                     saveActionToSupabase(movie, false);
                 }
@@ -1488,6 +1553,7 @@
 
             function dragStart(e) {
                 if (isAnimating || isMatched || isInfoOpen) return;
+                stopAutoPreview(); // Para o trailer assim que o usuário toca no card
                 isDragging = true;
                 
                 const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
