@@ -1261,9 +1261,8 @@
             }
         }
 
-        // Renderizar a fila
+        // Renderizar a fila (Otimizado estilo Tinder)
         function renderTopCards() {
-            // Se a fila estiver ficando baixa (menos de 5 cards), já busca a próxima página em background
             if (moviesQueue.length < 5 && !isFetching) {
                 fetchMovies();
             }
@@ -1276,25 +1275,62 @@
                 return;
             }
 
-            // Apenas renderizamos os 2 do topo para performance
             const maxVisible = Math.min(2, moviesQueue.length);
+            const existingWrappers = Array.from(stackContainer.querySelectorAll('.movie-card-wrapper'));
             
-            // Remove old cards except loading
-            const cards = stackContainer.querySelectorAll('.movie-card-wrapper');
-            cards.forEach(c => {
-                if (c.parentNode) c.remove();
-            });
+            // Mapear quais IDs já estão renderizados
+            const renderedIds = existingWrappers.map(w => parseInt(w.dataset.movieId));
 
             for (let i = 0; i < maxVisible; i++) {
                 const movieIndex = moviesQueue.length - 1 - i;
                 const movie = moviesQueue[movieIndex];
-                createCardDOM(movie, i);
+                
+                // Se já estiver no DOM, apenas atualiza a posição visual
+                const existing = existingWrappers.find(w => parseInt(w.dataset.movieId) === movie.id);
+                
+                if (existing) {
+                    const scale = 1 - (i * 0.05);
+                    const yOffset = i * 20;
+                    const opacity = 1 - (i * 0.4);
+                    const zIndex = 20 - i;
+                    
+                    existing.className = `absolute inset-0 movie-card-wrapper z-${zIndex}`;
+                    
+                    gsap.to(existing, {
+                        scale: scale,
+                        y: yOffset,
+                        opacity: opacity,
+                        duration: 0.5,
+                        ease: "power2.out"
+                    });
+                    
+                    if (i === 0 && !existing.classList.contains('active-drag')) {
+                        existing.classList.add('active-drag');
+                        // Reinicializa drag se for o novo topo
+                        const front = existing.querySelector('.front-content');
+                        const overlay = existing.querySelector('.match-overlay');
+                        initDrag(existing, movie, front, overlay);
+                    }
+                } else {
+                    // Se não estiver no DOM, cria
+                    createCardDOM(movie, i);
+                }
             }
+
+            // Remove cards que não deveriam mais estar visíveis (exceto o que está saindo por animação)
+            existingWrappers.forEach(w => {
+                const id = parseInt(w.dataset.movieId);
+                const isStillVisible = moviesQueue.slice(-maxVisible).some(m => m.id === id);
+                if (!isStillVisible && !w.classList.contains('is-throwing')) {
+                    w.remove();
+                }
+            });
         }
 
         // Cria o elemento do card
         function createCardDOM(movie, stackIndex) {
             const wrapper = document.createElement("div");
+            wrapper.dataset.movieId = movie.id;
             wrapper.className = "absolute inset-0 movie-card-wrapper z-" + (20 - stackIndex);
             
             // Posição visual inicial na pilha
@@ -1434,11 +1470,16 @@
             innerCard.appendChild(front);
             innerCard.appendChild(matchOverlay);
             
-            // Insert at the beginning so visually it stacks right
-            stackContainer.insertBefore(wrapper, stackContainer.firstChild);
+            // Insert at the bottom visually if it's the second card, or top if it's the first
+            if (stackIndex === 0) {
+                stackContainer.appendChild(wrapper);
+            } else {
+                stackContainer.insertBefore(wrapper, stackContainer.firstChild);
+            }
 
             if (stackIndex === 0) {
                 currentCardDOM = wrapper;
+                wrapper.classList.add('active-drag');
                 initDrag(currentCardDOM, movie, front, matchOverlay);
             }
 
@@ -1448,7 +1489,7 @@
             // Carregar trailer para o card
             fetchAndRenderTrailer(movie.id, wrapper.querySelector('.trailer-container'), wrapper.querySelector('.trailer-section-card'));
 
-            // Animação das Badges com GSAP (Cyber-Noir Entrada)
+            // Animação das Badges com GSAP (Cyber-Noir Entrada - apenas se for novo no topo)
             const badges = wrapper.querySelectorAll('.badge-container-gsap > div');
             if (badges.length > 0) {
                 gsap.fromTo(badges, 
@@ -1463,27 +1504,14 @@
                         rotate: 0,
                         duration: 0.8,
                         stagger: 0.1,
-                        delay: 0.2 + (stackIndex * 0.1),
+                        delay: 0.2,
                         ease: "elastic.out(1, 0.7)",
                         clearProps: "scale,opacity,rotate"
                     }
                 );
             }
 
-            const ratingBadge = wrapper.querySelector('.badge-rating-hud');
-            if (ratingBadge) {
-                gsap.fromTo(ratingBadge, 
-                    { x: -30, opacity: 0 },
-                    { 
-                        x: 0, 
-                        opacity: 1, 
-                        duration: 1, 
-                        delay: 0.4 + (stackIndex * 0.1), 
-                        ease: "power2.out",
-                        clearProps: "all"
-                    }
-                );
-            }
+            // Removida animação da nota (badge-rating-hud) para evitar engasgos conforme solicitado
         }
 
         // Cache para trailers
@@ -1797,6 +1825,7 @@
                 const endX = direction * windowWidth;
                 const rotation = direction * 25;
 
+                element.classList.add('is-throwing');
                 gsap.to(element, {
                     x: endX,
                     rotation: rotation,
@@ -1825,10 +1854,7 @@
                 gsap.killTweensOf(element);
                 triggerMatch();
             };
-            btnInfo.onpointerdown = (e) => {
-                e.preventDefault();
-                toggleSynopsis();
-            };
+
             btnDislike.onpointerdown = (e) => {
                 e.preventDefault();
                 if (!isMatched) triggerDislike();
@@ -2387,7 +2413,10 @@
         
         // Connect existing btn-info to open current movie
         document.getElementById('btn-info').addEventListener('click', () => {
-            if(moviesQueue.length > 0) openSynopsis(moviesQueue[0], 'discover');
+            if(moviesQueue.length > 0) {
+                const topMovie = moviesQueue[moviesQueue.length - 1];
+                openSynopsis(topMovie, 'discover');
+            }
         });
         // --- Filtros Inteligentes Logic (SPA) ---
         // (Variáveis já declaradas no topo do script)
