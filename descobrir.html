@@ -75,6 +75,16 @@
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
+        .card-stack {
+            position: relative;
+            flex: 1;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            perspective: 1000px;
+        }
         .card-wrapper {
             position: absolute;
             top: 0;
@@ -84,6 +94,30 @@
             border-radius: 1rem;
             overflow: hidden;
             background-color: #1a1a1a;
+        }
+        .actions-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            padding: 20px 0;
+            padding-bottom: calc(90px + env(safe-area-inset-bottom));
+            z-index: 100;
+            background: linear-gradient(to top, var(--surface) 50%, transparent);
+        }
+        .action-btn {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.05);
+            position: relative;
+            overflow: hidden;
         }
         .front-content {
             position: absolute;
