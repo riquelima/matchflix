@@ -1081,6 +1081,9 @@
                     ? filters.genres 
                     : (favoriteGenres.length > 0 ? favoriteGenres : []);
 
+                let matches = [];
+                let discoveries = [];
+
                 if (activeGenres.length > 0) {
                     const genresString = activeGenres.join('|');
                     const discoveryExcluded = [...new Set([...globalExcluded, ...activeGenres])].join(',');
