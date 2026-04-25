@@ -500,9 +500,9 @@
         </div>
 
         <!-- Universal TopAppBar -->
-        <header id="main-header" class="w-full z-[100] flex items-center px-6 h-16 bg-neutral-950/80 backdrop-blur-2xl shrink-0 sticky top-0 transition-all duration-300 border-b border-white/5">
-            <!-- Bloco Esquerdo: Ações (Sempre ocupa o mesmo espaço) -->
-            <div class="flex items-center w-12 shrink-0">
+        <header id="main-header" class="w-full z-[100] flex items-center justify-between px-6 h-16 bg-neutral-950/80 backdrop-blur-2xl shrink-0 sticky top-0 transition-all duration-300 border-b border-white/5">
+            <!-- Bloco Esquerdo: Ações -->
+            <div class="flex items-center w-12 shrink-0 z-10">
                 <button id="header-back-btn" class="hidden text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
                     <span class="material-symbols-outlined">arrow_back</span>
                 </button>
@@ -511,13 +511,13 @@
                 </button>
             </div>
 
-            <!-- Bloco Central: Título (Posição estável) -->
-            <div class="flex-grow">
+            <!-- Título Centralizado Absoluto -->
+            <div class="absolute left-1/2 -translate-x-1/2 whitespace-nowrap pointer-events-none">
                 <h1 id="header-title" class="font-headline font-extrabold tracking-tighter text-2xl text-on-surface">Match<span class="text-primary-container">Flix</span></h1>
             </div>
 
             <!-- Bloco Direito: Opções -->
-            <div class="flex items-center gap-4 justify-end shrink-0">
+            <div class="flex items-center gap-4 justify-end shrink-0 z-10">
                 <span class="global-count-badge hidden bg-primary-container text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(229,9,20,0.5)]">0</span>
                 <button id="global-filter-btn" onclick="goToTab('filtro')" class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
                     <span class="material-symbols-outlined">filter_list</span>
@@ -602,22 +602,39 @@
 
                     <!-- 4. Carrossel Principal de Tendências -->
                     <section class="mb-8">
-                        <p class="text-[10px] font-black uppercase tracking-widest text-white/30 mb-4 px-6">🎬 O que o mundo está vendo</p>
+                        <div class="px-6 flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-headline font-black text-white flex items-center gap-2 uppercase tracking-widest">
+                                🔥 Em Alta
+                            </h3>
+                        </div>
                         <div id="trending-grid" class="flex gap-4 overflow-x-auto no-scrollbar px-6 snap-x">
                             <!-- Injetado via JS -->
                         </div>
                     </section>
 
-                    <!-- 3. Hall da Fama (Premiados) -->
-                    <section id="section-awarded" class="mb-8 hidden">
-                        <div class="px-6 flex items-center gap-2 mb-4">
-                            <span class="material-symbols-outlined text-yellow-500">trophy</span>
-                            <h3 class="text-sm font-headline font-black text-white uppercase tracking-widest">Hall da Fama</h3>
+                    <!-- ABRA 2: HALL DA FAMA (PREMIADOS) -->
+                    <div id="section-awarded" class="mt-8">
+                        <div class="px-6 flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-headline font-black text-white flex items-center gap-2 uppercase tracking-widest">
+                                🏆 Hall da Fama
+                            </h3>
                         </div>
-                        <div id="awarded-grid" class="flex gap-4 overflow-x-auto no-scrollbar px-6 snap-x">
-                            <!-- Injetado via JS -->
+                        <div id="awarded-grid" class="flex gap-4 overflow-x-auto snap-x snap-mandatory px-6 pb-4 scrollbar-hide pt-2">
+                            <!-- Filmes premiados -->
                         </div>
-                    </section>
+                    </div>
+
+                    <!-- NOVA SESSÃO: LANÇAMENTOS RECENTES -->
+                    <div id="section-new-releases" class="mt-8 mb-20">
+                        <div class="px-6 flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-headline font-black text-white flex items-center gap-2 uppercase tracking-widest">
+                                🆕 Lançamentos
+                            </h3>
+                        </div>
+                        <div id="new-releases-list" class="flex gap-4 overflow-x-auto snap-x snap-mandatory px-6 pb-4 scrollbar-hide pt-2">
+                            <!-- Filmes recém-lançados -->
+                        </div>
+                    </div>
 
                 </main>
             </section>
@@ -2329,6 +2346,7 @@
         const trendingPeopleList = document.getElementById('trending-people-list');
         const upcomingList = document.getElementById('upcoming-list');
         const awardedGrid = document.getElementById('awarded-grid');
+        const newReleasesList = document.getElementById('new-releases-list');
         const sectionAwarded = document.getElementById('section-awarded');
         const newsList = document.getElementById('news-list');
         let isTrendingLoaded = false;
@@ -2337,13 +2355,26 @@
             if (isTrendingLoaded) return;
             
             try {
+                // Cálculo dinâmico de datas para Lançamentos (Últimos 30 dias)
+                const today = new Date();
+                const past = new Date();
+                past.setDate(today.getDate() - 30);
+                const dateFrom = past.toISOString().split('T')[0];
+                const dateTo = today.toISOString().split('T')[0];
+
+                // Cálculo de Seed para o Hall da Fama (muda a cada 3 dias)
+                const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
+                const hallOfFameSeed = Math.floor(Date.now() / threeDaysMs);
+                const hallOfFamePage = (hallOfFameSeed % 10) + 1; // Rotaciona entre as 10 primeiras páginas de clássicos
+
                 // Busca simultânea de vários endpoints do TMDB
-                const [resDay, resWeek, resPeople, resUpcoming, resAwarded] = await Promise.all([
+                const [resDay, resWeek, resPeople, resUpcoming, resAwarded, resNewReleases] = await Promise.all([
                     fetch(`https://api.themoviedb.org/3/trending/movie/day?api_key=${API_KEY}&language=pt-BR`),
                     fetch(`https://api.themoviedb.org/3/trending/movie/week?api_key=${API_KEY}&language=pt-BR`),
                     fetch(`https://api.themoviedb.org/3/trending/person/day?api_key=${API_KEY}&language=pt-BR`),
                     fetch(`https://api.themoviedb.org/3/movie/upcoming?api_key=${API_KEY}&language=pt-BR&region=BR`),
-                    fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&language=pt-BR&sort_by=vote_count.desc&vote_average.gte=8&with_runtime.gte=60`)
+                    fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&language=pt-BR&sort_by=vote_count.desc&vote_average.gte=8&with_runtime.gte=60&page=${hallOfFamePage}`),
+                    fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&language=pt-BR&primary_release_date.gte=${dateFrom}&primary_release_date.lte=${dateTo}&sort_by=popularity.desc&vote_count.gte=50&vote_average.gte=6`)
                 ]);
 
                 const dataDay = await resDay.json();
@@ -2351,6 +2382,7 @@
                 const dataPeople = await resPeople.json();
                 const dataUpcoming = await resUpcoming.json();
                 const dataAwarded = await resAwarded.json();
+                const dataNewReleases = await resNewReleases.json();
 
                 // 0. Renderizar Notícias (Lendo do Cache do Supabase)
                 const { data: cachedNews, error: newsError } = await supabase
@@ -2445,7 +2477,44 @@
                     });
                 }
 
-                // 4. Renderizar Grid Principal com Ranking e Termômetro
+                // 4. Renderizar Lançamentos Recentes
+                if (dataNewReleases.results) {
+                    newReleasesList.innerHTML = '';
+                    const now = new Date();
+                    dataNewReleases.results.forEach(movie => {
+                        const relDate = new Date(movie.release_date);
+                        const diffDays = Math.floor((now - relDate) / (1000 * 60 * 60 * 24));
+                        
+                        let badgeText = 'NOVO';
+                        let badgeClass = 'bg-blue-600';
+                        if (diffDays <= 7) {
+                            badgeText = 'SAIU ESSA SEMANA';
+                            badgeClass = 'bg-green-600';
+                        } else if (diffDays <= 1) {
+                            badgeText = 'SAIU HOJE';
+                            badgeClass = 'bg-primary-container';
+                        }
+
+                        const card = document.createElement('div');
+                        card.className = 'shrink-0 w-[140px] snap-start group cursor-pointer';
+                        card.innerHTML = `
+                            <div class="relative aspect-[2/3] rounded-xl overflow-hidden mb-2 border border-white/5 shadow-lg">
+                                <img src="${IMAGE_BASE_URL}${movie.poster_path}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                                <div class="absolute top-2 left-2 ${badgeClass} text-[7px] font-black px-1.5 py-0.5 rounded text-white tracking-widest shadow-lg">
+                                    ${badgeText}
+                                </div>
+                                <div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black via-black/40 to-transparent">
+                                    <p class="text-[8px] text-white/70 font-medium">${movie.release_date.split('-').reverse().join('/')}</p>
+                                </div>
+                            </div>
+                            <p class="text-[10px] font-bold text-white line-clamp-1 uppercase tracking-tight">${movie.title}</p>
+                        `;
+                        card.onclick = () => openSynopsis(movie, 'trending', card);
+                        newReleasesList.appendChild(card);
+                    });
+                }
+
+                // 5. Renderizar Grid Principal com Ranking e Termômetro
                 if (dataDay.results) {
                     const weeklyResults = dataWeek.results || [];
                     trendingGrid.innerHTML = '';
