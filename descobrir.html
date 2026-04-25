@@ -163,7 +163,8 @@
             width: 100%;
             max-width: 380px;
             aspect-ratio: 2 / 3;
-            max-height: 55dvh; /* Reduzido levemente para garantir que caiba com os botões sem scroll */
+            min-height: 450px; /* Garante que o container não colapse */
+            max-height: 55dvh;
             margin: 0 auto;
             perspective: 1000px;
             z-index: 10;
@@ -192,7 +193,7 @@
         
         #controls {
             flex-shrink: 0;
-            margin-bottom: calc(100px + env(safe-area-inset-bottom));
+            margin-bottom: calc(85px + env(safe-area-inset-bottom));
             transition: all 0.3s ease;
             z-index: 50;
         }
@@ -500,7 +501,7 @@
 
         <!-- Universal TopAppBar -->
         <header id="main-header" class="w-full z-[100] flex justify-between items-center px-6 h-16 bg-neutral-950/80 backdrop-blur-2xl shrink-0 sticky top-0 transition-all duration-300">
-            <button id="header-back-btn" class="hidden text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150" onclick="goToTab('descobrir')">
+            <button id="header-back-btn" class="hidden text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
                 <span class="material-symbols-outlined">arrow_back</span>
             </button>
             <button id="header-menu-btn" class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
@@ -680,6 +681,9 @@
                             Tipo de momento
                         </h3>
                         <div class="flex flex-wrap gap-2">
+                            <button class="mood-btn px-4 py-3 rounded-2xl bg-white/[0.03] border border-white/5 text-sm font-bold text-white/60 transition-all flex items-center gap-2 hover:bg-white/[0.07]" data-mood="underrated" onclick="setMood('underrated')">
+                                <span class="text-lg">💎</span> Filmes subestimados
+                            </button>
                             <button class="mood-btn px-4 py-3 rounded-2xl bg-white/[0.03] border border-white/5 text-sm font-bold text-white/60 transition-all flex items-center gap-2 hover:bg-white/[0.07]" data-mood="relax" onclick="setMood('relax')">
                                 <span class="text-lg">🍃</span> Filme leve
                             </button>
@@ -771,21 +775,22 @@
 
             <!-- ABA 5: CONFIGURAÇÕES -->
             <section id="view-configuracoes" class="w-[100vw] shrink-0 h-full relative flex flex-col pt-2 bg-neutral-950">
-                <div class="px-6 pt-2 pb-3 shrink-0 flex items-center justify-between">
-                    <div>
-                        <p class="text-[10px] tracking-[0.3em] uppercase text-primary-container font-bold font-headline mb-1">Minha Conta</p>
-                        <h2 class="font-headline font-black text-3xl tracking-tighter text-[#A0A0A0] leading-none">Configurações</h2>
-                    </div>
-                    <button onclick="goToTab('colecoes')" class="w-10 h-10 rounded-full glass-panel flex items-center justify-center text-white/40 active:scale-90 transition-all">
-                        <span class="material-symbols-outlined">close</span>
-                    </button>
+                <div class="px-6 pt-2 pb-4">
+                    <p class="text-[10px] tracking-[0.3em] uppercase text-primary-container font-bold font-headline mb-1">Minha Conta</p>
+                    <h2 class="font-headline font-black text-3xl tracking-tighter text-[#A0A0A0] leading-none">Configurações</h2>
                 </div>
 
                 <main class="flex-grow overflow-y-auto px-6 pb-40 space-y-8 no-scrollbar">
                     <!-- User Profile Card -->
                     <div class="flex items-center gap-5 p-6 glass-panel rounded-[32px] border border-white/5">
-                        <div class="avatar-wrap">
-                            <span class="material-symbols-outlined text-white/20 text-4xl">person</span>
+                        <div class="avatar-wrap cursor-pointer relative group" id="avatar-container">
+                            <input type="file" id="avatar-input" class="hidden" accept="image/*">
+                            <div id="avatar-image-container" class="w-full h-full flex items-center justify-center">
+                                <span class="material-symbols-outlined text-white/20 text-4xl">person</span>
+                            </div>
+                            <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                                <span class="material-symbols-outlined text-white text-xl">photo_camera</span>
+                            </div>
                         </div>
                         <div>
                             <h3 id="user-display-name" class="font-headline font-black text-xl text-white tracking-tight leading-tight">Usuário</h3>
@@ -842,10 +847,6 @@
                             <span class="material-symbols-outlined">logout</span>
                             Sair do MatchFlix
                         </button>
-                    </div>
-
-                    <div class="text-center pt-8 opacity-20">
-                        <p class="text-[10px] font-black uppercase tracking-widest text-white">MatchFlix v2.5.0</p>
                     </div>
                 </main>
             </section>
@@ -1090,6 +1091,10 @@
                 headerSettingsBtn.classList.add('hidden');
                 globalCountBadges.forEach(b => { b.classList.add('hidden'); b.style.display = 'none'; });
             } else if (tabName === 'configuracoes') {
+                headerTitle.innerHTML = 'Configurações';
+                headerBackBtn.classList.remove('hidden');
+                headerBackBtn.onclick = () => goToTab('colecoes');
+                headerMenuBtn.classList.add('hidden');
                 globalFilterBtn.classList.add('hidden');
                 headerSettingsBtn.classList.add('hidden');
                 globalCountBadges.forEach(b => { b.classList.add('hidden'); b.style.display = 'none'; });
@@ -1097,6 +1102,7 @@
                     loadUserProfile();
                     isUserLoaded = true;
                 }
+                initAvatarUpload();
             }
         }
 
@@ -1167,12 +1173,27 @@
             try {
                 const { data, error } = await supabase
                     .from('curtidas_filmes')
-                    .select('filme_id, assistido')
+                    .select('filme_id, assistido, curtiu, criado_em')
                     .eq('usuario_id', currentUser.id);
                 if (data) {
+                    const now = new Date();
+                    const twentyDaysInMs = 20 * 24 * 60 * 60 * 1000;
+
                     data.forEach(item => {
                         const id = Number(item.filme_id);
-                        interactedMovieIds.add(id);
+                        const isLike = item.curtiu;
+                        const createdAt = new Date(item.criado_em);
+
+                        if (isLike) {
+                            // Se deu LIKE, nunca mais aparece na sugestão
+                            interactedMovieIds.add(id);
+                        } else {
+                            // Se deu DISLIKE, só esconde se for recente (menos de 20 dias)
+                            if (now - createdAt < twentyDaysInMs) {
+                                interactedMovieIds.add(id);
+                            }
+                        }
+                        
                         if (item.assistido) watchedMovieIds.add(id);
                     });
                 }
@@ -1268,82 +1289,97 @@
                 const savedFilters = localStorage.getItem('mf_filters');
                 const filters = savedFilters ? JSON.parse(savedFilters) : null;
 
-                // Configurações Globais da API
-                let baseParams = `api_key=${API_KEY}&language=pt-BR&sort_by=popularity.desc&include_adult=false&vote_count.gte=100`;
-                
+                // Configurações Globais da API (Usando URLSearchParams para evitar duplicatas)
+                const queryParams = new URLSearchParams({
+                    api_key: API_KEY,
+                    language: 'pt-BR',
+                    sort_by: 'popularity.desc',
+                    include_adult: 'false'
+                });
+
                 // Estratégia: Filmes Novos Sempre
                 if (filters && filters.strategy === 'new') {
-                    baseParams += `&primary_release_date.gte=2023-01-01`;
+                    queryParams.set('primary_release_date.gte', '2023-01-01');
                 }
 
                 // Lógica de Mood (Mapeamento Emocional)
                 if (filters && filters.mood && filters.mood !== 'any') {
                     switch(filters.mood) {
+                        case 'underrated': 
+                            // Hidden Gems: Alta nota, mas volume moderado de votos
+                            queryParams.set('sort_by', 'vote_average.desc');
+                            queryParams.set('vote_count.gte', 50);
+                            queryParams.set('vote_count.lte', 2000); 
+                            queryParams.set('vote_average.gte', 7.0); 
+                            break;
                         case 'relax': 
-                            baseParams += `&with_genres=35,10751&without_genres=27,53,10752`;
+                            queryParams.set('with_genres', '35,10751');
+                            queryParams.set('without_genres', '27,53,10752');
                             break;
                         case 'intense': 
-                            baseParams += `&with_genres=53,9648,27&vote_average.gte=7`;
+                            queryParams.set('with_genres', '53,9648,27');
+                            queryParams.set('vote_average.gte', 7);
                             break;
                         case 'cry': 
-                            baseParams += `&with_genres=18&with_keywords=sadness,tragedy`;
+                            queryParams.set('with_genres', '18');
+                            queryParams.set('with_keywords', 'sadness,tragedy');
                             break;
                         case 'laugh': 
-                            baseParams += `&with_genres=35&without_genres=18,27`;
+                            queryParams.set('with_genres', '35');
+                            queryParams.set('without_genres', '18,27');
                             break;
                         case 'mind': 
-                            baseParams += `&with_genres=878,9648&vote_average.gte=7.5`;
+                            queryParams.set('with_genres', '878,9648');
+                            queryParams.set('vote_average.gte', 7.5);
                             break;
                     }
                 }
 
                 // 1. Aplica filtro de nota mínima rigoroso
-                const minVote = (filters && filters.minRating) ? filters.minRating : 7.0;
-                
-                // Se a nota for muito alta (9+), reduzimos a exigência de votos para encontrar filmes de elite
+                const minVote = (filters && filters.minRating) ? parseFloat(filters.minRating) : 7.0;
                 let requiredVotes = 100;
-                if (minVote >= 9) requiredVotes = 10; // Notas 9+ são raras com muitos votos
+                if (minVote >= 9) requiredVotes = 10;
                 else if (minVote >= 8) requiredVotes = 50;
                 
-                baseParams = baseParams.replace('vote_count.gte=100', `vote_count.gte=${requiredVotes}`);
-                baseParams += `&vote_average.gte=${minVote}`;
+                if (!queryParams.has('vote_count.gte')) queryParams.set('vote_count.gte', requiredVotes);
+                const currentMinAvg = queryParams.get('vote_average.gte') ? parseFloat(queryParams.get('vote_average.gte')) : 0;
+                queryParams.set('vote_average.gte', Math.max(currentMinAvg, minVote));
 
-                // 2. Gêneros Excluídos (Filtro Negativo)
+                // 2. Gêneros Excluídos
                 let globalExcluded = [];
                 if (filters && filters.excludedGenres && filters.excludedGenres.length > 0) {
                     globalExcluded = filters.excludedGenres;
+                    queryParams.set('without_genres', globalExcluded.join(','));
                 }
 
-                // 3. Filtro de Streaming (Provedores) - Sempre BR e Assinatura
+                // 3. Filtro de Streaming
                 if (filters && filters.providers && filters.providers.length > 0) {
-                    const providersString = filters.providers.join('|');
-                    baseParams += `&watch_region=BR&with_watch_providers=${providersString}&with_watch_monetization_types=flatrate`;
-                } else {
-                    // Mesmo sem provedor específico, se o usuário quer BR apenas (fallback)
-                    if (filters && filters.brOnly) {
-                        baseParams += `&watch_region=BR&with_watch_monetization_types=flatrate`;
-                    }
+                    queryParams.set('watch_region', 'BR');
+                    queryParams.set('with_watch_providers', filters.providers.join('|'));
+                    queryParams.set('with_watch_monetization_types', 'flatrate');
+                } else if (filters && filters.brOnly) {
+                    queryParams.set('watch_region', 'BR');
+                    queryParams.set('with_watch_monetization_types', 'flatrate');
                 }
 
-                // 3. Filtro de Ano/Época usando release_date
+                // 4. Filtro de Ano
                 if (filters && filters.year && filters.year !== 'all') {
                     if (filters.year === 'recent') {
                         const twoYearsAgo = new Date().getFullYear() - 2;
-                        baseParams += `&primary_release_date.gte=${twoYearsAgo}-01-01`;
+                        queryParams.set('primary_release_date.gte', `${twoYearsAgo}-01-01`);
                     } else if (filters.year === 'classic') {
-                        baseParams += `&primary_release_date.lte=1995-12-31`;
+                        queryParams.set('primary_release_date.lte', '1995-12-31');
                     } else {
-                        baseParams += `&primary_release_year=${filters.year}`;
+                        queryParams.set('primary_release_year', filters.year);
                     }
                 }
 
                 let matches = [];
                 let discoveries = [];
 
-                // Estratégia: Repetir Estilos que eu gosto (Usando Recommendations da API)
+                // Estratégia Preferred
                 if (filters && filters.strategy === 'preferred' && currentUser) {
                     try {
-                        // Buscar os últimos 3 filmes favoritados
                         const { data: recentLikes } = await supabase
                             .from('curtidas_filmes')
                             .select('filme_id')
@@ -1352,106 +1388,71 @@
                             .order('criado_em', { ascending: false })
                             .limit(3);
 
-                        if (recentLikes && recentLikes.length > 0) {
+                        if (recentLikes) {
                             for (const like of recentLikes) {
-                                // Buscar o título do filme que o usuário gostou para a badge
                                 const resMovie = await fetch(`https://api.themoviedb.org/3/movie/${like.filme_id}?api_key=${API_KEY}&language=pt-BR`);
                                 const parentMovie = await resMovie.json();
-                                
                                 const resRec = await fetch(`https://api.themoviedb.org/3/movie/${like.filme_id}/recommendations?api_key=${API_KEY}&language=pt-BR&page=1`);
                                 const dataRec = await resRec.json();
-                                
                                 if (dataRec.results) {
-                                    // Anexar o motivo da recomendação
-                                    const recommended = dataRec.results.map(m => ({
-                                        ...m,
-                                        recommendationReason: parentMovie.title || parentMovie.original_title
-                                    }));
-                                    matches = [...matches, ...recommended];
+                                    matches = [...matches, ...dataRec.results.map(m => ({
+                                        ...m, recommendationReason: parentMovie.title || parentMovie.original_title
+                                    }))];
                                 }
                             }
                         }
-                    } catch (e) { console.error("Erro em preferred logic", e); }
+                    } catch (e) { console.error(e); }
                 }
 
-                // Prioridade para gêneros salvos no filtro ou gêneros favoritos padrão
                 const activeGenres = (filters && filters.genres && filters.genres.length > 0) 
-                    ? filters.genres 
-                    : (favoriteGenres.length > 0 ? favoriteGenres : []);
+                    ? filters.genres : (favoriteGenres.length > 0 ? favoriteGenres : []);
+
+                queryParams.set('page', currentPage);
+                const baseUrl = `https://api.themoviedb.org/3/discover/movie?${queryParams.toString()}`;
 
                 if (activeGenres.length > 0) {
                     const genresString = activeGenres.join('|');
                     const discoveryExcluded = [...new Set([...globalExcluded, ...activeGenres])].join(',');
-                    const globalExcludedStr = globalExcluded.join(',');
-                    
-                    // 1. A Base (80%): Filmes dos gêneros ativos
-                    const resMatches = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&with_genres=${genresString}&without_genres=${globalExcludedStr}&page=${currentPage}`);
+                    const resMatches = await fetch(`${baseUrl}&with_genres=${genresString}`);
                     const dataMatches = await resMatches.json();
                     matches = [...matches, ...(dataMatches.results || [])];
-
-                    // 2. A Descoberta (20%): Filmes fora dos favoritos
-                    const resDiscoveries = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&without_genres=${discoveryExcluded}&page=${currentPage}`);
+                    const resDiscoveries = await fetch(`${baseUrl}&without_genres=${discoveryExcluded}`);
                     const dataDiscoveries = await resDiscoveries.json();
                     discoveries = dataDiscoveries.results || [];
                 } else {
-                    const globalExcludedStr = globalExcluded.join(',');
-                    const res = await fetch(`https://api.themoviedb.org/3/discover/movie?${baseParams}&without_genres=${globalExcludedStr}&page=${currentPage}`);
+                    const res = await fetch(baseUrl);
                     const data = await res.json();
                     matches = data.results || [];
                 }
 
-                currentPage++; // Sempre incrementa para a próxima carga
+                currentPage++;
 
-                // Mesclar algoritmo (4 para 1)
                 let combined = [];
                 while(matches.length > 0 || discoveries.length > 0) {
-                    for(let i=0; i<4; i++) {
-                        if(matches.length > 0) combined.push(matches.shift());
-                    }
+                    for(let i=0; i<4; i++) if(matches.length > 0) combined.push(matches.shift());
                     if(discoveries.length > 0) combined.push(discoveries.shift());
                 }
 
-                // Filtrar os que o usuário JÁ VIU (curtiu ou descartou)
                 combined = combined.filter(v => !interactedMovieIds.has(v.id));
-
-                // Filtrar os que já foram mostrados (Remove dupes)
                 combined = combined.filter((v,i,a)=>a.findIndex(t=>(t.id === v.id))===i);
                 
-                // 4. Fallback agressivo para filtros muito restritivos
-                if (combined.length === 0 && currentPage === 2) { 
-                    console.warn("Nenhum filme encontrado. Tentando relaxar filtros drasticamente...");
-                    
-                    // Tenta relaxar nota e remover restrições de streaming/região
-                    let relaxedParams = baseParams;
-                    
-                    // Relaxa nota se for alta
-                    if (minVote > 6) {
-                        const relaxedVote = Math.max(6, minVote - 1.5);
-                        relaxedParams = relaxedParams.replace(`&vote_average.gte=${minVote}`, `&vote_average.gte=${relaxedVote}`);
-                    }
-                    
-                    // Remove filtros de provedores se houver, pois são os que mais limitam resultados
-                    relaxedParams = relaxedParams.replace(/&watch_region=[^&]*/g, '');
-                    relaxedParams = relaxedParams.replace(/&with_watch_providers=[^&]*/g, '');
-                    relaxedParams = relaxedParams.replace(/&with_watch_monetization_types=[^&]*/g, '');
-                    
-                    const resFallback = await fetch(`https://api.themoviedb.org/3/discover/movie?${relaxedParams}&page=1`);
+                // Fallback Agressivo
+                if (combined.length === 0 && currentPage >= 2 && currentPage <= 3) { 
+                    queryParams.delete('watch_region');
+                    queryParams.delete('with_watch_providers');
+                    queryParams.delete('with_watch_monetization_types');
+                    queryParams.set('vote_average.gte', 6.0);
+                    queryParams.set('page', 1);
+                    const resFallback = await fetch(`https://api.themoviedb.org/3/discover/movie?${queryParams.toString()}`);
                     const dataFallback = await resFallback.json();
-                    
-                    if (dataFallback.results && dataFallback.results.length > 0) {
-                        combined = dataFallback.results.filter(v => !interactedMovieIds.has(v.id));
-                    }
+                    if (dataFallback.results) combined = dataFallback.results.filter(v => !interactedMovieIds.has(v.id));
                 }
 
-                
-                // 6. FALLBACK SUPREMO: Se tudo falhar, ignoramos interactedMovieIds e trazemos os populares (como se fosse novo usuário)
+                // Fallback Supremo
                 if (combined.length === 0 && moviesQueue.length === 0) {
-                    console.warn("Nenhum filme novo encontrado. Buscando populares globais...");
                     const resGlobal = await fetch(`https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}&language=pt-BR&page=1`);
                     const dataGlobal = await resGlobal.json();
-                    if (dataGlobal.results) {
-                        combined = dataGlobal.results;
-                    }
+                    if (dataGlobal.results) combined = dataGlobal.results;
                 }
 
                 loadingIndicator.style.display = "none";
@@ -1459,6 +1460,7 @@
                 if (combined.length > 0) {
                     // Limpa estado vazio se existir
                     if (stackContainer.querySelector('.animate-fade-in')) {
+                        gsap.killTweensOf(stackContainer, true);
                         stackContainer.innerHTML = '';
                     }
                     
@@ -1470,19 +1472,18 @@
                         }
                     }
                 } else if (moviesQueue.length === 0) {
-                    // Se mesmo com o ultimato for zero, mostra feedback visual premium
                         stackContainer.innerHTML = `
                             <div class="flex flex-col items-center justify-center h-full text-center p-8 animate-fade-in">
                                 <div class="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-6 border border-white/10 shadow-2xl">
-                                    <span class="material-symbols-outlined text-4xl text-primary-container animate-pulse">filter_list_off</span>
+                                    <span class="material-symbols-outlined text-4xl text-primary-container">filter_list_off</span>
                                 </div>
-                                <h3 class="text-xl font-headline font-bold text-white mb-2">Nada por aqui...</h3>
-                                <p class="text-white/40 text-sm max-w-[200px] mx-auto mb-8">Não encontramos filmes com esses filtros.</p>
+                                <h3 class="text-xl font-headline font-bold text-white mb-2">Filtros muito específicos?</h3>
+                                <p class="text-white/40 text-sm max-w-[200px] mx-auto mb-8">Não encontramos filmes com seus filtros atuais. Tente relaxar a nota ou mudar o gênero.</p>
                                 <div class="flex flex-col gap-3 w-full max-w-[200px] mx-auto">
-                                    <button onclick="localStorage.removeItem('mf_filters'); location.reload();" class="px-6 py-3 rounded-2xl bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-all">
+                                    <button onclick="localStorage.removeItem('mf_filters'); location.reload();" class="px-6 py-4 rounded-2xl bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-all active:scale-95">
                                         Limpar Filtros
                                     </button>
-                                    <button onclick="goToTab('filtro')" class="px-6 py-3 rounded-2xl bg-primary-container text-white text-xs font-bold shadow-lg shadow-primary-container/20 active:scale-95 transition-all">
+                                    <button onclick="goToTab('filtro')" class="px-6 py-4 rounded-2xl bg-primary-container text-white text-xs font-bold shadow-lg shadow-primary-container/20 active:scale-95 transition-all">
                                         Ajustar Filtros
                                     </button>
                                 </div>
@@ -1491,12 +1492,20 @@
                     }
 
             } catch (error) {
+                // Se for um erro de DOM/GSAP não fatal, apenas loga e tenta seguir
+                if (error.name === 'NotFoundError' || error.message.includes('removeChild')) {
+                    console.warn("Aviso de DOM (GSAP):", error.message);
+                    isFetching = false;
+                    return;
+                }
+
                 console.error("Erro crítico ao buscar filmes:", error);
-                loadingIndicator.style.display = "none";
+                if (loadingIndicator) loadingIndicator.style.display = "none";
                 stackContainer.innerHTML = `
                     <div class="flex flex-col items-center justify-center h-full text-center p-8">
-                        <span class="material-symbols-outlined text-4xl text-error mb-4">wifi_off</span>
-                        <p class="text-white/60 text-sm">Problema na conexão com o servidor de filmes.<br>Verifique sua internet.</p>
+                        <span class="material-symbols-outlined text-4xl text-error mb-4">error</span>
+                        <p class="text-white/60 text-sm">Erro ao carregar filmes.<br>Tente novamente mais tarde.</p>
+                        <button onclick="location.reload()" class="mt-4 px-6 py-2 bg-white/10 rounded-xl text-xs">Recarregar</button>
                     </div>
                 `;
             } finally {
@@ -1565,7 +1574,8 @@
                 const id = parseInt(w.dataset.movieId);
                 const isStillVisible = moviesQueue.slice(-maxVisible).some(m => m.id === id);
                 if (!isStillVisible && !w.classList.contains('is-throwing')) {
-                    w.remove();
+                    gsap.killTweensOf(w, true);
+                    if (w.parentNode) w.parentNode.removeChild(w);
                 }
             });
         }
@@ -1580,12 +1590,6 @@
             const scale = 1 - (stackIndex * 0.05);
             const yOffset = stackIndex * 20;
             const opacity = 1 - (stackIndex * 0.4);
-            
-            gsap.set(wrapper, {
-                scale: scale,
-                y: yOffset,
-                opacity: opacity
-            });
 
             const innerCard = document.createElement("div");
             innerCard.className = "card-wrapper cinematic-shadow relative";
@@ -1719,6 +1723,10 @@
             } else {
                 stackContainer.insertBefore(wrapper, stackContainer.firstChild);
             }
+
+            // Configuração visual inicial via CSS DIRETO (evita erro de removeChild do GSAP em medições)
+            wrapper.style.transform = `translateY(${yOffset}px) scale(${scale})`;
+            wrapper.style.opacity = opacity;
 
             if (stackIndex === 0) {
                 currentCardDOM = wrapper;
@@ -2930,7 +2938,7 @@
                 goToTab('descobrir');
                 
                 // Recarrega filmes com novos filtros
-                gsap.killTweensOf(stackContainer.querySelectorAll('*'));
+                gsap.killTweensOf(stackContainer, true);
                 currentPage = 1;
                 moviesQueue = [];
                 stackContainer.innerHTML = '';
@@ -2964,11 +2972,83 @@
                 const { data: { user } } = await supabase.auth.getUser();
                 if (user) {
                     document.getElementById('user-display-email').textContent = user.email;
-                    document.getElementById('user-display-name').textContent = user.user_metadata?.full_name || 'Usuário MatchFlix';
+                    
+                    // Buscar da tabela perfis conforme orientação do usuário
+                    const { data: perfil } = await supabase
+                        .from('perfis')
+                        .select('nome')
+                        .eq('id', user.id)
+                        .single();
+
+                    const fullName = perfil?.nome || user.user_metadata?.nome || user.user_metadata?.full_name || 'Usuário MatchFlix';
+                    const firstName = fullName.split(' ')[0];
+                    document.getElementById('user-display-name').textContent = firstName;
+                    
+                    // Carregar avatar se existir
+                    const avatarUrl = user.user_metadata?.avatar_url;
+                    if (avatarUrl) {
+                        const avatarContainer = document.getElementById('avatar-image-container');
+                        avatarContainer.innerHTML = `<img src="${avatarUrl}" class="w-full h-full object-cover rounded-full">`;
+                    }
                 }
             } catch (error) {
                 console.error('Erro ao carregar perfil:', error);
             }
+        }
+
+        // Upload de Avatar
+        function initAvatarUpload() {
+            const avatarContainer = document.getElementById('avatar-container');
+            const avatarInput = document.getElementById('avatar-input');
+            const imageContainer = document.getElementById('avatar-image-container');
+
+            if (!avatarContainer || !avatarInput || avatarContainer.dataset.initialized) return;
+            avatarContainer.dataset.initialized = "true";
+
+            avatarContainer.addEventListener('click', () => avatarInput.click());
+
+            avatarInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                // Feedback visual de carregando
+                const originalContent = imageContainer.innerHTML;
+                imageContainer.innerHTML = `<span class="material-symbols-outlined text-primary-container text-2xl animate-spin">sync</span>`;
+
+                try {
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `${currentUser.id}/${Math.random()}.${fileExt}`;
+                    const filePath = fileName;
+
+                    // Upload para o Supabase Storage
+                    const { error: uploadError } = await supabase.storage
+                        .from('fotos-perfil')
+                        .upload(filePath, file, { upsert: true });
+
+                    if (uploadError) throw uploadError;
+
+                    // Obter URL pública
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('fotos-perfil')
+                        .getPublicUrl(filePath);
+
+                    // Atualizar metadata do usuário
+                    const { error: updateError } = await supabase.auth.updateUser({
+                        data: { avatar_url: publicUrl }
+                    });
+
+                    if (updateError) throw updateError;
+
+                    // Atualizar UI
+                    imageContainer.innerHTML = `<img src="${publicUrl}" class="w-full h-full object-cover rounded-full">`;
+                    
+                    // Notificar sucesso (opcional)
+                } catch (error) {
+                    console.error('Erro no upload:', error);
+                    alert('Erro ao carregar foto: ' + error.message);
+                    imageContainer.innerHTML = originalContent;
+                }
+            });
         }
 
         // Logout
