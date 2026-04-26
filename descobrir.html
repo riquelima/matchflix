@@ -1162,31 +1162,41 @@
             }
         }
 
-        // Inicialização Global
+        // Inicialização Global com Bloqueio de Splash
         async function initApp() {
+            console.log("🎬 Iniciando MatchFlix...");
             try {
-                // Carrega dados essenciais em paralelo
-                const loaders = [
-                    fetchMovies(), // Discover
-                    fetchTrending(), // Pre-load Trending
-                    fetchMatches()   // Pre-load Matches
-                ];
+                // Carrega TUDO em paralelo (Match, Tendências, Matches e Coleção)
+                await Promise.all([
+                    fetchMovies(),      // Aba Match
+                    fetchTrending(),    // Aba Tendências (Hall da Fama, etc)
+                    fetchMatches(),     // Aba Likes
+                    fetchCollection()   // Aba Coleção
+                ]);
                 
-                await Promise.all(loaders);
-                
+                console.log("✅ Conteúdo carregado em background.");
+
                 // Inicializa os componentes de UI
                 initMatches();
                 initCollection();
                 
-                // Define aba inicial sem animação
+                // Força a renderização inicial dos cards do Match
+                if (typeof renderTopCards === 'function') renderTopCards();
+                
+                // Define aba inicial (Match)
                 goToTab('descobrir', false);
                 
-                // Pequeno delay para garantir que o DOM renderizou
-                setTimeout(hideSplashScreen, 1200);
+                // O Splash Screen só morre após garantir que os dados estão prontos
+                // Damos 1.5s para uma transição suave e "premium"
+                setTimeout(() => {
+                    hideSplashScreen();
+                    console.log("🚀 App pronto!");
+                }, 1500);
                 
             } catch (error) {
-                console.error("Erro na inicialização:", error);
-                hideSplashScreen(); 
+                console.error("❌ Erro crítico na inicialização:", error);
+                // Em caso de erro, removemos o splash após 3s para não travar o usuário
+                setTimeout(hideSplashScreen, 3000);
             }
 
             // Suporte a Deep Linking (SPA)
@@ -3613,9 +3623,7 @@
                     </div>
                 `;
                 card.addEventListener('click', () => {
-                    if (typeof openMovieDetails === 'function') {
-                        openMovieDetails(movie);
-                    }
+                    openSynopsis(movie, 'search', card);
                 });
                 searchResultsGrid.appendChild(card);
             });
