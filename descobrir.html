@@ -1390,6 +1390,7 @@
                 setVisible(headerSearchBtn, true);
                 setVisible(headerMenuBtn, false);
                 setVisible(globalFilterBtn, false);
+                if (navbar) navbar.classList.remove('hidden');
                 if (!isTrendingLoaded) fetchTrending();
             } else if (tabName === 'busca') {
                 if (headerTitle) headerTitle.innerHTML = 'Buscar';
@@ -1398,6 +1399,7 @@
                 setVisible(headerSearchBtn, false);
                 setVisible(headerMenuBtn, false);
                 setVisible(globalFilterBtn, false);
+                if (navbar) navbar.classList.add('hidden'); // Oculta a navbar na busca para evitar confusões de layout e liberar espaço
                 const searchInp = document.getElementById('search-input');
                 if (searchInp) searchInp.focus();
             } else if (tabName === 'filtro') {
@@ -1427,6 +1429,7 @@
                 setVisible(headerMenuBtn, true);
                 setVisible(globalFilterBtn, true);
                 setVisible(headerSettingsBtn, false); // Garante que some na home e outras abas
+                if (navbar) navbar.classList.remove('hidden');
             }
 
             if (navbar) navbar.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-10');
