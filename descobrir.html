@@ -12,16 +12,16 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="MatchFlix">
-    <link rel="apple-touch-icon" href="/logoApp.png">
+    <link rel="apple-touch-icon" href="https://i.imgur.com/1m1iVsm.png">
 
     <!-- Open Graph / Social Preview -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="MatchFlix - Descubra filmes que combinam com você">
     <meta property="og:description" content="Swipe, curta e construa sua coleção de filmes perfeita. O app que faz o match entre você e o cinema.">
-    <meta property="og:image" content="https://matchflix.vercel.app/logoApp.png">
+    <meta property="og:image" content="https://i.imgur.com/1m1iVsm.png">
     <meta property="og:url" content="https://matchflix.vercel.app">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="https://matchflix.vercel.app/logoApp.png">
+    <meta name="twitter:image" content="https://i.imgur.com/1m1iVsm.png">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -62,9 +62,21 @@
             height: 100%;
             height: 100dvh;
         }
+
+        /* Anti-FOUC and Premium Shielding */
+        .opacity-0 { opacity: 0 !important; transition: opacity 0.5s ease; }
+        .pointer-events-none { pointer-events: none !important; }
+        
+        /* Garantir que ícones não apareçam como texto antes de carregar a fonte */
         .material-symbols-outlined {
+            font-display: block;
+            overflow: hidden;
+            width: 1em;
+            height: 1em;
+            white-space: nowrap;
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
+
         .cinematic-shadow {
             box-shadow: 0 32px 64px -12px rgba(0, 0, 0, 0.8), 0 0 40px 0 rgba(229, 9, 20, 0.06);
         }
@@ -519,8 +531,8 @@
         <!-- TELA DE ABERTURA (SPLASH SCREEN) - NO TOPO PARA BLINDAGEM TOTAL -->
         <div id="splash-screen" class="fixed inset-0 z-[200] bg-neutral-950 flex flex-col items-center justify-center transition-all duration-700 ease-in-out">
             <div class="relative">
-                <div class="w-24 h-24 mb-6 relative">
-                    <span class="material-symbols-outlined text-primary-container text-7xl absolute inset-0 flex items-center justify-center animate-pulse">local_fire_department</span>
+                <div class="w-24 h-24 mb-6 relative flex items-center justify-center">
+                    <span class="material-symbols-outlined text-primary-container leading-none select-none" style="font-variation-settings: 'FILL' 1; font-size: 56px !important;">local_fire_department</span>
                     <div class="absolute inset-0 border-4 border-primary-container/20 border-t-primary-container rounded-full animate-spin"></div>
                 </div>
             </div>
@@ -551,13 +563,15 @@
             </div>
 
             <!-- Bloco Direito: Opções -->
-            <div class="flex items-center gap-4 justify-end shrink-0 z-10">
+            <div class="flex items-center gap-4 justify-end shrink-0 z-10 min-w-[80px]">
                 <span class="global-count-badge hidden bg-primary-container text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(229,9,20,0.5)]">0</span>
-                <button id="header-search-btn" class="hidden text-white hover:opacity-80 transition-opacity active:scale-95 duration-150">
-                    <span class="material-symbols-outlined">search</span>
-                </button>
+                
+                <!-- Ordem alterada para garantir que o último ícone visível fique sempre na mesma posição -->
                 <button id="global-filter-btn" onclick="goToTab('filtro')" class="text-white hover:opacity-80 transition-opacity active:scale-95 duration-150">
                     <span class="material-symbols-outlined">filter_list</span>
+                </button>
+                <button id="header-search-btn" class="hidden text-white hover:opacity-80 transition-opacity active:scale-95 duration-150">
+                    <span class="material-symbols-outlined">search</span>
                 </button>
                 <button id="header-settings-btn" class="hidden text-white hover:opacity-80 transition-opacity active:scale-95 duration-150">
                     <span class="material-symbols-outlined">settings</span>
@@ -568,7 +582,7 @@
 
 
         <!-- View Slider (O coração da SPA) -->
-        <div id="view-slider" class="opacity-0 flex h-full w-full will-change-transform transition-transform duration-300 ease-out overflow-hidden" style="width: 700vw;">
+        <div id="view-slider" class="opacity-0 flex h-full w-full relative will-change-transform" style="width: 700vw;">
             
             <!-- ABRA 1: DESCOBRIR (Match) -->
             <section id="view-discover" class="w-[100vw] shrink-0 h-full overflow-y-auto relative flex flex-col pt-2">
@@ -1010,7 +1024,7 @@
     </div>
 
     <!-- BottomNavBar (Floating Style) -->
-    <nav class="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] z-[250] flex justify-around items-center px-2 py-2 bg-neutral-900/60 backdrop-blur-3xl rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/5">
+    <nav class="opacity-0 fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] z-[250] flex justify-around items-center px-2 py-2 bg-neutral-900/60 backdrop-blur-3xl rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/5 transition-all duration-500">
         <!-- Match -->
         <button class="nav-item active flex flex-col items-center justify-center" data-page="descobrir">
             <span class="material-symbols-outlined text-xl">style</span>
@@ -1038,8 +1052,8 @@
     </div>
 
     <!-- Universal Modal (Synopsis) -->
+    <div id="modal-backdrop" class="fixed inset-0 bg-black/80 backdrop-blur-md opacity-0 pointer-events-none z-[290] will-change-[opacity]"></div>
     <div id="synopsis-modal" class="fixed inset-x-0 bottom-0 z-[300] translate-y-full will-change-transform">
-        <div id="modal-backdrop" class="fixed inset-0 bg-black/80 backdrop-blur-md opacity-0 pointer-events-none will-change-[opacity]"></div>
         <div class="relative bg-neutral-900 rounded-t-[2.5rem] border-t border-white/10 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
             <div class="w-12 h-1.5 bg-white/20 rounded-full mx-auto mt-4 mb-2 shrink-0"></div>
             <div id="modal-scroll-container" class="overflow-y-auto pb-20">
@@ -1101,11 +1115,26 @@
         const IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w780";
         const BACKDROP_BASE_URL = "https://image.tmdb.org/t/p/w1280";
         
-        let currentUser = null;
+        let isFetching = false;
         let moviesQueue = [];
+        const trailersCache = new Map();
+        const posterCache = new Set();
+
+        // --- Função de Pre-loading de Imagens ---
+        function preloadMoviePosters(movies) {
+            if (!movies || !Array.isArray(movies)) return;
+            // Pre-carrega os próximos 10 pôsteres
+            movies.slice(0, 10).forEach(movie => {
+                if (movie.poster_path && !posterCache.has(movie.poster_path)) {
+                    const img = new Image();
+                    img.src = `${IMAGE_BASE_URL}${movie.poster_path}`;
+                    posterCache.add(movie.poster_path);
+                }
+            });
+        }
+        let currentUser = null;
         let currentCardDOM = null;
         let isAnimating = false;
-        let isFetching = false;
         let interactedMovieIds = new Set();
         let watchedMovieIds = new Set();
         let currentPage = 1; // Rastreador de página para scroll infinito
@@ -1130,7 +1159,26 @@
         let selectedMood = 'any';
         let matchCount = 0;
         let likedMoviesLocal = []; // Cache local para matches da sessão atual (tempo real)
-        let isFetchingMatches = false; // Trava para evitar race conditions
+        let isFetchingMatches = false; 
+
+        // Definição única e global das abas para evitar erros de índice
+        const APP_TABS = ['descobrir', 'trending', 'busca', 'meusmatches', 'colecoes', 'filtro', 'configuracoes'];
+
+        // Elementos DOM Críticos (Mover para o topo para evitar erros de referência)
+        const stackContainer = document.getElementById("card-stack");
+        const loadingIndicator = document.getElementById("loading-indicator");
+        const btnDislike = document.getElementById("btn-dislike");
+        const btnLike = document.getElementById("btn-like");
+        const btnInfo = document.getElementById("btn-info");
+        const matchToast = document.getElementById("match-toast");
+        const matchFlash = document.getElementById("match-flash");
+        const navbar = document.querySelector('nav');
+        const headerSearchBtn = document.getElementById('header-search-btn');
+        const headerTrendingBtn = document.getElementById('header-trending-btn');
+        const headerSettingsBtn = document.getElementById('header-settings-btn');
+        const headerBackBtn = document.getElementById('header-back-btn');
+        const headerMenuBtn = document.getElementById('header-trending-btn');
+        const headerTitle = document.getElementById('header-title');
 
         // Check Auth
         (async () => {
@@ -1167,17 +1215,23 @@
             const nav = document.querySelector('nav');
 
             if (splash) {
-                splash.classList.add('opacity-0', 'pointer-events-none', 'scale-110');
+                splash.classList.add('opacity-0', 'pointer-events-none');
                 
                 // Revela a interface principal suavemente
-                if (header) header.classList.remove('opacity-0');
+                if (header) {
+                    header.classList.remove('opacity-0');
+                    header.style.opacity = '1';
+                }
                 if (slider) {
                     slider.classList.remove('opacity-0');
                     slider.style.opacity = '1';
                 }
-                if (nav) nav.classList.remove('opacity-0');
+                if (nav) {
+                    nav.classList.remove('opacity-0');
+                    nav.style.opacity = '1';
+                }
 
-                setTimeout(() => splash.remove(), 700);
+                setTimeout(() => splash.remove(), 800);
             }
         }
 
@@ -1206,11 +1260,22 @@
                 goToTab('descobrir', false);
                 
                 // O Splash Screen só morre após garantir que os dados estão prontos
-                // Damos 1.5s para uma transição suave e "premium"
+                // E aguardamos as primeiras imagens para evitar "piscagem"
+                if (moviesQueue.length > 0) {
+                    const firstPosters = moviesQueue.slice(0, 2).map(m => `${IMAGE_BASE_URL}${m.poster_path}`);
+                    await Promise.all(firstPosters.map(url => {
+                        return new Promise(resolve => {
+                            const img = new Image();
+                            img.onload = img.onerror = resolve;
+                            img.src = url;
+                        });
+                    }));
+                }
+
                 setTimeout(() => {
                     hideSplashScreen();
                     console.log("🚀 App pronto!");
-                }, 1500);
+                }, 800);
                 
             } catch (error) {
                 console.error("❌ Erro crítico na inicialização:", error);
@@ -1228,8 +1293,7 @@
 
         // --- SPA Navigation & Swipe ---
         window.goToTab = function(tabName, animate = true) {
-            const tabs = ['descobrir', 'trending', 'busca', 'meusmatches', 'colecoes', 'filtro', 'configuracoes'];
-            const index = tabs.indexOf(tabName);
+            const index = APP_TABS.indexOf(tabName);
             if(index === -1) return;
 
             activeTab = tabName;
@@ -1251,20 +1315,16 @@
                 gsap.set(viewSlider, { x: xTranslation + 'vw' });
             }
 
-            // Header UI logic
-            const headerTitle = document.getElementById('header-title');
-            const headerBackBtn = document.getElementById('header-back-btn');
-            const headerSearchBtn = document.getElementById('header-search-btn');
-            const headerMenuBtn = document.getElementById('header-trending-btn');
-            const globalFilterBtn = document.getElementById('global-filter-btn');
-            const headerSettingsBtn = document.getElementById('header-settings-btn');
-            const navbar = document.querySelector('nav');
-
             // Função auxiliar para esconder/mostrar com segurança
             const setVisible = (el, visible) => {
                 if (el) {
-                    if (visible) el.classList.remove('hidden');
-                    else el.classList.add('hidden');
+                    if (visible) {
+                        el.classList.remove('hidden');
+                        el.style.display = '';
+                    } else {
+                        el.classList.add('hidden');
+                        el.style.display = 'none';
+                    }
                 }
             };
 
@@ -1283,7 +1343,7 @@
                 setVisible(headerSearchBtn, true);
                 setVisible(headerMenuBtn, false);
                 setVisible(globalFilterBtn, false);
-                fetchTrending();
+                if (!isTrendingLoaded) fetchTrending();
             } else if (tabName === 'busca') {
                 if (headerTitle) headerTitle.innerHTML = 'Buscar';
                 setVisible(headerBackBtn, true);
@@ -1441,14 +1501,15 @@
             const threshold = window.innerWidth * 0.2;
             
             if(Math.abs(diffX) > threshold) {
-                const tabs = ['descobrir', 'trending', 'meusmatches', 'colecoes'];
-                const currentIndex = tabs.indexOf(activeTab);
+                // Filtramos apenas as abas principais para o swipe
+                const swipableTabs = ['descobrir', 'trending', 'busca', 'meusmatches', 'colecoes'];
+                const currentIndex = swipableTabs.indexOf(activeTab);
                 
                 if (currentIndex !== -1) {
                     if(diffX > 0 && currentIndex > 0) {
-                        goToTab(tabs[currentIndex - 1]);
-                    } else if(diffX < 0 && currentIndex < tabs.length - 1) {
-                        goToTab(tabs[currentIndex + 1]);
+                        goToTab(swipableTabs[currentIndex - 1]);
+                    } else if(diffX < 0 && currentIndex < swipableTabs.length - 1) {
+                        goToTab(swipableTabs[currentIndex + 1]);
                     }
                 }
             }
@@ -1524,14 +1585,7 @@
             }
         }
 
-        const stackContainer = document.getElementById("card-stack");
-        const loadingIndicator = document.getElementById("loading-indicator");
-        
-        const btnDislike = document.getElementById("btn-dislike");
-        const btnLike = document.getElementById("btn-like");
-        const btnInfo = document.getElementById("btn-info");
-        const matchToast = document.getElementById("match-toast");
-        const matchFlash = document.getElementById("match-flash");
+        // O matchToast e matchFlash já foram declarados no topo do script
 
         // Animação elegante de Match (sem abrir a sinopse)
         function showMatchToast(movieTitle, onComplete) {
@@ -1760,6 +1814,7 @@
                     const newMovies = combined.filter(m => !moviesQueue.some(q => Number(q.id) === Number(m.id)));
                     if (newMovies.length > 0) {
                         moviesQueue = [...newMovies.reverse(), ...moviesQueue];
+                        preloadMoviePosters(newMovies);
                         if (stackContainer.querySelectorAll('.movie-card-wrapper').length === 0) {
                             renderTopCards();
                         }
@@ -1767,8 +1822,9 @@
                 } else if (moviesQueue.length === 0) {
                         stackContainer.innerHTML = `
                             <div class="flex flex-col items-center justify-center h-full text-center p-8 animate-fade-in">
-                                <div class="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-6 border border-white/10 shadow-2xl">
-                                    <span class="material-symbols-outlined text-4xl text-primary-container">filter_list_off</span>
+                                <!-- Ícone Central -->
+                                <div class="bg-primary-container/10 w-24 h-24 rounded-full flex items-center justify-center backdrop-blur-md border border-white/10 shadow-[0_0_30px_rgba(229,9,20,0.3)] mb-6">
+                                    <span class="material-symbols-outlined text-primary-container leading-none select-none" style="font-variation-settings: 'FILL' 1; font-size: 56px !important; display: block;">local_fire_department</span>
                                 </div>
                                 <h3 class="text-xl font-headline font-bold text-white mb-2">Filtros muito específicos?</h3>
                                 <p class="text-white/40 text-sm max-w-[200px] mx-auto mb-8">Não encontramos filmes com seus filtros atuais. Tente relaxar a nota ou mudar o gênero.</p>
@@ -2105,7 +2161,20 @@
             const content = document.getElementById('video-content');
             const container = document.getElementById('video-container');
             
-            container.innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${key}?autoplay=1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+            container.innerHTML = `
+        <div class="absolute inset-0 flex items-center justify-center bg-black/60 z-0">
+            <div class="w-12 h-12 border-4 border-primary-container/20 border-t-primary-container rounded-full animate-spin"></div>
+        </div>
+        <iframe 
+            width="100%" 
+            height="100%" 
+            src="https://www.youtube.com/embed/${key}?autoplay=1&origin=${window.location.origin}&rel=0&modestbranding=1" 
+            frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            allowfullscreen 
+            class="relative z-10"
+            onload="this.previousElementSibling.remove()">
+        </iframe>`;
             
             overlay.classList.remove('pointer-events-none');
             overlay.style.opacity = '1';
@@ -3043,7 +3112,7 @@
             fetchAndRenderProviders(movie.id, mProvidersList, mProvidersSection);
 
             // Show/Hide remove button based on context
-            if(type === 'discover' || type === 'trending') {
+            if(type === 'discover' || type === 'trending' || type === 'search') {
                 mRemoveBtn.classList.add('hidden');
             } else {
                 mRemoveBtn.classList.remove('hidden');
