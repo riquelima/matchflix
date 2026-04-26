@@ -1085,6 +1085,11 @@
                         <div id="modal-providers-list" class="providers-list"></div>
                     </div>
                     
+                    <button id="modal-share" class="w-full bg-white/5 text-white/90 font-bold py-4 rounded-2xl flex items-center justify-center gap-3 active:scale-95 transition-all hover:bg-white/10 border border-white/5 mb-4 group shadow-lg">
+                        <span class="material-symbols-outlined text-primary-container group-hover:scale-110 transition-transform">share</span>
+                        COMPARTILHAR NO STORIES
+                    </button>
+
                     <div class="grid grid-cols-2 gap-4">
                         <button id="modal-remove" class="bg-neutral-800 text-white/70 font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all hover:bg-neutral-700">
                             REMOVER
@@ -3222,6 +3227,40 @@
 
         mWatchedBtn.addEventListener('click', toggleWatched);
 
+        // --- Lógica de Compartilhamento Instagram ---
+        const modalShare = document.getElementById('modal-share');
+        modalShare.onclick = async () => {
+            const originalText = modalShare.innerHTML;
+            modalShare.innerHTML = `<div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>`;
+            modalShare.disabled = true;
+
+            try {
+                const blob = await generateStoryImage(currentActiveMovie);
+                const file = new File([blob], `matchflix-${currentActiveMovie.id}.png`, { type: 'image/png' });
+
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: `MatchFlix - ${currentActiveMovie.title}`,
+                        text: `Olha esse filme que encontrei no MatchFlix: ${currentActiveMovie.title}!`
+                    });
+                } else {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `matchflix-${currentActiveMovie.title.toLowerCase().replace(/\s+/g, '-')}.png`;
+                    a.click();
+                    showToast("Imagem gerada! Compartilhe no seu Stories 🎬");
+                }
+            } catch (error) {
+                console.error("Erro ao compartilhar:", error);
+                showToast("Erro ao gerar imagem.");
+            } finally {
+                modalShare.innerHTML = originalText;
+                modalShare.disabled = false;
+            }
+        };
+
         function handleModalRemove() {
             if(!currentActiveMovie) return;
             if(currentActiveType === 'match') {
@@ -3752,6 +3791,88 @@
                     openSynopsis(movie, 'search', card);
                 });
                 searchResultsGrid.appendChild(card);
+            });
+        }
+        // --- Função Geradora de Imagem para Stories (9:16) ---
+        async function generateStoryImage(movie) {
+            return new Promise((resolve, reject) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1080;
+                canvas.height = 1920;
+                const ctx = canvas.getContext('2d');
+
+                // 1. Fundo Preto
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.src = movie.poster_path ? `https://image.tmdb.org/t/p/w780${movie.poster_path}` : 'https://placehold.co/780x1170/2a2a2a/ffffff?text=MatchFlix';
+
+                img.onload = () => {
+                    // Efeito Backdrop Borrado
+                    ctx.filter = 'blur(60px) brightness(0.3)';
+                    ctx.drawImage(img, -200, -200, canvas.width + 400, canvas.height + 400);
+                    ctx.filter = 'none';
+
+                    const posterWidth = 840;
+                    const posterHeight = 1260;
+                    const x = (canvas.width - posterWidth) / 2;
+                    const y = (canvas.height - posterHeight) / 2 - 100;
+
+                    // Sombra Projetada
+                    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                    ctx.shadowBlur = 100;
+                    ctx.shadowOffsetY = 50;
+                    ctx.fillStyle = '#000000';
+                    ctx.fillRect(x, y, posterWidth, posterHeight);
+                    ctx.shadowBlur = 0;
+
+                    // Borda Neon
+                    ctx.strokeStyle = 'rgba(229, 9, 20, 0.4)';
+                    ctx.lineWidth = 15;
+                    ctx.strokeRect(x - 5, y - 5, posterWidth + 10, posterHeight + 10);
+
+                    ctx.drawImage(img, x, y, posterWidth, posterHeight);
+
+                    // Overlay de Degradê Inferior
+                    const grad = ctx.createLinearGradient(0, canvas.height * 0.7, 0, canvas.height);
+                    grad.addColorStop(0, 'transparent');
+                    grad.addColorStop(1, 'rgba(0,0,0,0.9)');
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    // Branding & Texto Premium
+                    ctx.textAlign = 'center';
+                    
+                    // Logo Estilizada
+                    ctx.fillStyle = '#E50914';
+                    ctx.font = '900 100px "Outfit", sans-serif';
+                    ctx.fillText('MATCHFLIX', canvas.width / 2, 220);
+
+                    // Título do Filme
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.font = '900 70px "Outfit", sans-serif';
+                    const title = movie.title.toUpperCase();
+                    if (title.length > 25) ctx.font = '900 50px "Outfit", sans-serif';
+                    ctx.fillText(title, canvas.width / 2, canvas.height - 380);
+
+                    // Nota
+                    ctx.fillStyle = '#FFD700';
+                    ctx.font = '700 45px "Outfit", sans-serif';
+                    const rating = movie.vote_average ? `⭐ ${movie.vote_average.toFixed(1)} / 10` : '';
+                    ctx.fillText(rating, canvas.width / 2, canvas.height - 300);
+
+                    // Rodapé
+                    ctx.fillStyle = '#E50914';
+                    ctx.font = '900 30px "Outfit", sans-serif';
+                    ctx.letterSpacing = '12px';
+                    ctx.fillText('DESCUBRA NO APP', canvas.width / 2, canvas.height - 180);
+
+                    canvas.toBlob(blob => resolve(blob), 'image/png', 0.95);
+                };
+
+                img.onerror = () => reject(new Error("Erro ao carregar imagem"));
             });
         }
     </script>
