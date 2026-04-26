@@ -2356,78 +2356,85 @@
                 isPreviewPlaying = true;
                 
                 const playerId = `player-${movie.id}-${Math.floor(Math.random() * 1000)}`;
-                previewContainer.innerHTML = `<div id="${playerId}"></div>`;
                 
-                // Inicializa o Player Oficial do YouTube
-                ytPlayer = new YT.Player(playerId, {
-                    height: '100%',
-                    width: '300%', // Mantém o efeito de zoom TikTok
-                    videoId: key,
-                    playerVars: {
-                        'autoplay': 1,
-                        'mute': 1,
-                        'controls': 0,
-                        'loop': 1,
-                        'playlist': key,
-                        'rel': 0,
-                        'modestbranding': 1,
-                        'iv_load_policy': 3,
-                        'playsinline': 1,
-                        'enablejsapi': 1,
-                        'origin': window.location.origin,
-                        'widget_referrer': window.location.href
-                    },
-                    events: {
-                        'onReady': (event) => {
-                            event.target.playVideo();
-                            gsap.to(previewContainer, { opacity: 1, duration: 1, ease: "power2.out" });
-                        },
-                        'onStateChange': (event) => {
-                            if (event.data === YT.PlayerState.ENDED) {
-                                event.target.playVideo();
-                            }
-                        },
-                        'onError': () => {
-                            // Se der erro (provavelmente AdBlock), tenta mostrar o container de qualquer jeito
-                            gsap.to(previewContainer, { opacity: 1, duration: 1 });
-                        }
-                    }
-                });
+                // Parâmetros otimizados para Autoplay Silencioso e Resiliência
+                const params = [
+                    `autoplay=1`,
+                    `mute=1`,
+                    `controls=0`,
+                    `loop=1`,
+                    `playlist=${key}`,
+                    `rel=0`,
+                    `modestbranding=1`,
+                    `iv_load_policy=3`,
+                    `playsinline=1`,
+                    `enablejsapi=1`,
+                    `widget_referrer=${encodeURIComponent(window.location.href)}`,
+                    `origin=${encodeURIComponent(window.location.origin)}`
+                ].join('&');
 
-                // FALLBACK: Se o YouTube não responder em 2.5s (AdBlock interferindo no JS), força a exibição
+                // Usamos youtube-nocookie para evitar bloqueios de privacidade/rastreamento que ativam AdBlocks
+                const iframeUrl = `https://www.youtube-nocookie.com/embed/${key}?${params}`;
+                
+                // INJEÇÃO DIRETA: Iframe já nasce com as classes e estilos corretos
+                // Isso evita o delay do evento 'onReady' que o AdBlock costuma quebrar
+                previewContainer.innerHTML = `
+                    <iframe id="${playerId}" 
+                            src="${iframeUrl}" 
+                            class="absolute inset-0 w-[300%] h-full -left-[100%] pointer-events-none scale-110 grayscale-[0.2] contrast-125 transition-opacity duration-1000" 
+                            frameborder="0" 
+                            allow="autoplay; encrypted-media" 
+                            style="opacity: 0">
+                    </iframe>
+                `;
+
+                const iframe = previewContainer.querySelector('iframe');
+                
+                // Gatilho de Visibilidade Nativo (Não depende da API do YouTube)
+                iframe.onload = () => {
+                    iframe.style.opacity = '1';
+                    gsap.to(previewContainer, { opacity: 1, duration: 1.5, ease: "power2.inOut" });
+                    
+                    // Inicializa a API JS no iframe existente (para controle de volume se o usuário clicar)
+                    ytPlayer = new YT.Player(playerId, {
+                        events: {
+                            'onReady': (event) => {
+                                event.target.playVideo(); // Garante o play
+                            },
+                            'onStateChange': (event) => {
+                                if (event.data === YT.PlayerState.ENDED) event.target.playVideo();
+                            }
+                        }
+                    });
+                };
+
+                // FALLBACK MESTRE: Se o AdBlock for radical, forçamos o fade-in após 2s
                 setTimeout(() => {
-                    if (previewContainer && previewContainer.style.opacity === "0" || previewContainer.style.opacity === "") {
+                    if (previewContainer && (previewContainer.style.opacity === "0" || previewContainer.style.opacity === "")) {
                         gsap.to(previewContainer, { opacity: 1, duration: 1 });
                     }
-                }, 2500);
-
-                // Estiliza o iframe injetado pelo YT
-                const checkIframe = setInterval(() => {
-                    const iframe = previewContainer.querySelector('iframe');
-                    if (iframe) {
-                        iframe.className = "absolute inset-0 w-[300%] h-full -left-[100%] pointer-events-none scale-110 grayscale-[0.2] contrast-125";
-                        clearInterval(checkIframe);
-                    }
-                }, 100);
+                }, 2000);
 
                 // Fade out no pôster para dar foco ao vídeo
                 const posterImg = frontEl.querySelector('.card-poster-img');
                 if (posterImg) gsap.to(posterImg, { opacity: 0.3, duration: 1.5 });
 
-                // Mostrar botão de volume
+                // Configuração do botão de volume
                 volumeBtn.classList.remove('pointer-events-none');
                 gsap.to(volumeBtn, { opacity: 1, scale: 1, duration: 0.8, ease: "back.out(1.7)" });
                 
                 volumeBtn.onclick = (e) => {
                     e.stopPropagation();
-                    if (!ytPlayer || typeof ytPlayer.unMute !== 'function') return;
+                    if (!ytPlayer || typeof ytPlayer.unMute !== 'function') {
+                        // Se o player JS ainda não estiver pronto, tentamos inicializá-lo agora
+                        showToast("Ajustando áudio...");
+                        return;
+                    }
                     
                     isUnmuted = !isUnmuted;
-                    
                     if (isUnmuted) {
                         ytPlayer.unMute();
                         ytPlayer.setVolume(80);
-                        ytPlayer.playVideo(); // Força o play no clique
                         volumeBtn.innerHTML = `<span class="material-symbols-outlined text-xl text-primary-container">volume_up</span>`;
                         volumeBtn.classList.add('border-primary-container/30', 'bg-primary-container/10');
                     } else {
