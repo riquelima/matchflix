@@ -309,6 +309,17 @@
             gap: 16px;
             text-align: center;
         }
+
+        .preview-surface-element iframe {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            pointer-events: none !important;
+            border: none !important;
+        }
+
         #match-toast .toast-ring {
             width: 100px;
             height: 100px;
@@ -1140,12 +1151,15 @@
         }
         
         // --- Sistema de Carregamento da API do YouTube ---
-        let isAutoPreviewCancelled = false;
         const ytAPIQueue = [];
 
         function loadYouTubeAPI() {
             if (window.YT && window.YT.Player) {
                 isYouTubeAPIReady = true;
+                while (ytAPIQueue.length > 0) {
+                    const task = ytAPIQueue.shift();
+                    task();
+                }
                 return;
             }
             const tag = document.createElement('script');
@@ -2249,16 +2263,6 @@
 
         document.getElementById('close-video').addEventListener('click', window.closeVideoTrailer);
 
-        // Garantir que a API do YouTube está pronta
-        window.onYouTubeIframeAPIReady = function() {
-            isYouTubeAPIReady = true;
-            console.log("YouTube IFrame API Pronta ✅");
-        };
-
-        // Fallback caso a API já tenha carregado antes do script
-        if (window.YT && window.YT.loaded) {
-            isYouTubeAPIReady = true;
-        }
         document.getElementById('video-overlay').addEventListener('click', (e) => {
             if (e.target === document.getElementById('video-overlay')) window.closeVideoTrailer();
         });
@@ -2317,7 +2321,7 @@
             let isPreviewPlaying = false;
             let isUnmuted = false; 
             let ytPlayer = null; 
-            let isAutoPreviewCancelled = false; // Trava para evitar injeção após swipe
+            let isAutoPreviewCancelled = false; 
 
             const previewContainer = frontEl.querySelector('.preview-surface-element');
             const volumeBtn = frontEl.querySelector('.volume-preview-btn');
@@ -2440,9 +2444,11 @@
                                 const posterImg = frontEl.querySelector('.card-poster-img');
                                 if (posterImg) gsap.to(posterImg, { opacity: 0, duration: 1 });
                                 
-                                // Mostra botão de volume
-                                volumeBtn.classList.remove('pointer-events-none');
-                                gsap.to(volumeBtn, { opacity: 1, scale: 1, duration: 0.5 });
+                                // Mostra botão de volume INDEPENDENTE do vídeo carregar bem
+                                if (volumeBtn) {
+                                    volumeBtn.classList.remove('pointer-events-none');
+                                    gsap.to(volumeBtn, { opacity: 1, scale: 1, duration: 0.5 });
+                                }
                             },
                             'onStateChange': (event) => {
                                 if (event.data === YT.PlayerState.ENDED) event.target.playVideo();
