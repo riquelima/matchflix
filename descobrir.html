@@ -1138,6 +1138,33 @@
                 }
             });
         }
+        
+        // --- Sistema de Carregamento da API do YouTube ---
+        let isAutoPreviewCancelled = false;
+        const ytAPIQueue = [];
+
+        function loadYouTubeAPI() {
+            if (window.YT && window.YT.Player) {
+                isYouTubeAPIReady = true;
+                return;
+            }
+            const tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            const firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        }
+
+        window.onYouTubeIframeAPIReady = () => {
+            console.log("🚀 YouTube IFrame API Pronta");
+            isYouTubeAPIReady = true;
+            while (ytAPIQueue.length > 0) {
+                const task = ytAPIQueue.shift();
+                task();
+            }
+        };
+
+        loadYouTubeAPI();
+
         let currentUser = null;
         let currentCardDOM = null;
         let isAnimating = false;
@@ -1564,9 +1591,6 @@
             const mId = Number(movie.id);
             interactedMovieIds.add(mId); 
             
-            // Remove da fila local caso o mesmo filme apareça em outras categorias/recomendações
-            moviesQueue = moviesQueue.filter(m => Number(m.id) !== mId);
-            
             if (liked) {
                 // Atualização Otimista: Adiciona à lista local para aparecer em tempo real
                 if (!likedMoviesLocal.find(m => m.id === movie.id)) {
@@ -1886,7 +1910,8 @@
                 return;
             }
 
-            const maxVisible = Math.min(2, moviesQueue.length);
+            // Buffer agressivo: Mantemos até 10 cards no DOM para garantir que a fila visual seja estável
+            const maxVisible = Math.min(10, moviesQueue.length);
             // Pegamos apenas wrappers que NÃO estão sendo descartados (sem a classe is-throwing)
             const existingWrappers = Array.from(stackContainer.querySelectorAll('.movie-card-wrapper:not(.is-throwing)'));
             
@@ -1896,30 +1921,36 @@
             for (let i = 0; i < maxVisible; i++) {
                 const movieIndex = moviesQueue.length - 1 - i;
                 const movie = moviesQueue[movieIndex];
+                console.log(`[Stack] Renderizando card i=${i}, index=${movieIndex}, filme="${movie.title}"`);
                 
-                // Se já estiver no DOM, apenas atualiza a posição visual
-                const existing = existingWrappers.find(w => parseInt(w.dataset.movieId) === movie.id);
+                // Busca direta e segura pelo ID no container (ignorando cards em animação de saída)
+                const existing = stackContainer.querySelector(`.movie-card-wrapper[data-movie-id="${movie.id}"]:not(.is-throwing)`);
                 
                 if (existing) {
-                    const scale = 1 - (i * 0.05);
+                    // Escalonamento visual: Apenas os 3 primeiros são realmente visíveis e empilhados
+                    const scale = 1 - (Math.min(i, 2) * 0.05);
                     const yOffset = i * 20;
-                    const opacity = 1 - (i * 0.4);
-                    const zIndex = 20 - i;
+                    // Cards a partir do 4º ficam no DOM (pre-loaded) mas totalmente invisíveis
+                    const opacity = i === 0 ? 1 : (i === 1 ? 0.6 : (i === 2 ? 0.3 : 0));
+                    const zIndex = 100 - i;
                     
-                    existing.className = `absolute inset-0 movie-card-wrapper z-${zIndex}`;
+                    // Atualiza apenas o Z-index e classes funcionais, preservando o conteúdo
+                    existing.style.zIndex = zIndex;
+                    existing.classList.remove('z-20', 'z-19', 'z-18'); // Limpa z-indexes antigos
+                    existing.classList.add(`z-${zIndex}`);
                     
                     gsap.to(existing, {
                         scale: scale,
                         y: yOffset,
                         opacity: opacity,
-                        duration: 0.5,
-                        ease: "power2.out"
+                        duration: 0.4,
+                        ease: "power2.out",
+                        overwrite: "auto"
                     });
                     
                     if (i === 0 && !existing.classList.contains('active-drag')) {
-                        currentCardDOM = existing; // Atualiza a referência global do card no topo
+                        currentCardDOM = existing; 
                         existing.classList.add('active-drag');
-                        // Reinicializa drag se for o novo topo
                         const front = existing.querySelector('.front-content');
                         const overlay = existing.querySelector('.match-overlay');
                         initDrag(existing, movie, front, overlay);
@@ -1930,11 +1961,11 @@
                 }
             }
 
-            // Remove cards que não deveriam mais estar visíveis (exceto o que está saindo por animação)
+            // Remove cards que saíram totalmente da janela de visibilidade (buffer de 5)
             existingWrappers.forEach(w => {
                 const id = parseInt(w.dataset.movieId);
-                const isStillVisible = moviesQueue.slice(-maxVisible).some(m => m.id === id);
-                if (!isStillVisible && !w.classList.contains('is-throwing')) {
+                const isStillInQueue = moviesQueue.slice(-10).some(m => m.id === id); // Mantém no DOM mesmo que não visível no stack imediato
+                if (!isStillInQueue && !w.classList.contains('is-throwing')) {
                     gsap.killTweensOf(w, true);
                     if (w.parentNode) w.parentNode.removeChild(w);
                 }
@@ -2018,10 +2049,10 @@
 
             front.innerHTML = `
                 <!-- Surface Element (TikTok Style) -->
-                <div class="preview-surface-element absolute inset-0 z-25 opacity-0 transition-opacity duration-1000 pointer-events-none overflow-hidden scale-105 bg-black"></div>
+                <div class="preview-surface-element absolute inset-0 z-20 opacity-0 pointer-events-none overflow-hidden bg-black"></div>
                 
-                <img src="${posterUrl}" alt="${movie.title}" class="card-poster-img absolute inset-0 w-full h-full object-cover select-none pointer-events-none z-0 transition-opacity duration-1000">
-                <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent opacity-90 pointer-events-none z-20"></div>
+                <img src="${posterUrl}" alt="${movie.title}" class="card-poster-img absolute inset-0 w-full h-full object-cover select-none pointer-events-none z-10 transition-opacity duration-1000">
+                <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent opacity-90 pointer-events-none z-15"></div>
                 
                 <div class="relative z-30 p-6 pt-20">
                     <div class="flex items-center gap-3 mb-2">
@@ -2037,9 +2068,9 @@
                 ${badgeHTML}
                 ${statusBadgesHTML}
 
-                <!-- Botão de Volume (Fixado no Template) -->
-                <button class="volume-preview-btn absolute bottom-24 right-6 z-[70] w-12 h-12 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white opacity-0 pointer-events-none transition-all duration-500 scale-75 active:scale-90 border border-white/20 shadow-2xl">
-                    <span class="material-symbols-outlined text-2xl">volume_off</span>
+                <!-- Botão de Volume (z-index alto para ficar sobre o vídeo) -->
+                <button class="volume-preview-btn absolute bottom-32 right-6 z-[100] w-14 h-14 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white opacity-0 pointer-events-none scale-75 active:scale-90 border border-white/20 shadow-2xl shadow-black/50">
+                    <span class="material-symbols-outlined text-3xl">volume_off</span>
                 </button>
             `;
             
@@ -2266,6 +2297,13 @@
 
         // Lógica de Arrasto e Swipe
         function initDrag(element, movie, frontEl, overlayEl) {
+            if (element.dataset.dragInitialized === 'true') {
+                console.log(`[Drag] Card "${movie.title}" já estava inicializado. Ignorando.`);
+                return;
+            }
+            console.log(`[Drag] Inicializando novo card: "${movie.title}"`);
+            element.dataset.dragInitialized = 'true';
+
             let isDragging = false;
             let startX = 0;
             let startY = 0;
@@ -2278,9 +2316,10 @@
             let previewTimer = null;
             let isPreviewPlaying = false;
             let isUnmuted = false; 
-            let ytPlayer = null; // Armazena a instância do YouTube Player
+            let ytPlayer = null; 
+            let isAutoPreviewCancelled = false; // Trava para evitar injeção após swipe
+
             const previewContainer = frontEl.querySelector('.preview-surface-element');
-            
             const volumeBtn = frontEl.querySelector('.volume-preview-btn');
 
             const btnAcaoOverlay = element.querySelector('.btn-acao-overlay');
@@ -2326,8 +2365,10 @@
                 }
             }
 
-            // --- Lógica de Auto-Preview Style TikTok ---
             async function startAutoPreview() {
+                isAutoPreviewCancelled = false;
+                console.log(`[Preview] Agendando trailer para: "${movie.title}"`);
+                
                 if (isMatched || isDragging || isAnimating || isInfoOpen) return;
                 
                 let trailerKey = trailersCache.get(movie.id);
@@ -2349,135 +2390,115 @@
                         trailerKey = video ? video.key : null;
                         trailersCache.set(movie.id, trailerKey);
                     } catch (e) {
-                        console.error("Erro no autoplay search:", e);
+                        console.error("Erro no fetch do trailer:", e);
                     }
                 }
 
-                if (trailerKey) {
-                    injectPreviewVideo(trailerKey);
-                }
+                // Se o usuário já deu swipe enquanto o fetch rolava, abortamos
+                if (isAutoPreviewCancelled || !trailerKey) return;
+
+                injectPreviewVideo(trailerKey);
             }
 
             function injectPreviewVideo(key) {
-                if (isPreviewPlaying || isDragging) return;
+                if (isPreviewPlaying || isAutoPreviewCancelled) return;
                 isPreviewPlaying = true;
                 
                 const playerId = `player-${movie.id}-${Math.floor(Math.random() * 1000)}`;
+                previewContainer.innerHTML = `<div id="${playerId}" class="absolute inset-0 w-full h-full pointer-events-none"></div>`;
                 
-                // Parâmetros mínimos para evitar gatilhos de AdBlock
-                const params = [
-                    `autoplay=1`,
-                    `mute=1`,
-                    `controls=0`,
-                    `loop=1`,
-                    `playlist=${key}`,
-                    `playsinline=1`,
-                    `enablejsapi=1`,
-                    `widget_referrer=${encodeURIComponent(window.location.href)}`,
-                    `origin=${encodeURIComponent(window.location.origin)}`
-                ].join('&');
-
-                const iframeUrl = `https://www.youtube.com/embed/${key}?${params}`;
-                
-                // INJEÇÃO DIRETA: Iframe já nasce com as classes e estilos corretos
-                previewContainer.innerHTML = `
-                    <iframe id="${playerId}" 
-                            src="${iframeUrl}" 
-                            class="absolute inset-0 w-[300%] h-full -left-[100%] pointer-events-none scale-110" 
-                            frameborder="0" 
-                            allow="autoplay; encrypted-media">
-                    </iframe>
-                `;
-
-                const iframe = previewContainer.querySelector('iframe');
-                
-                // EXIBIÇÃO IMEDIATA: Não esperamos nada, apenas mostramos o contêiner
-                // Isso garante que se o YouTube carregar o vídeo, ele aparecerá.
-                // Se o AdBlock bloquear os logs, o vídeo ainda rodará por baixo.
-                setTimeout(() => {
-                    gsap.to(previewContainer, { opacity: 1, duration: 1, ease: "power2.inOut" });
+                const initPlayer = () => {
+                    if (isAutoPreviewCancelled) return;
                     
-                    // Inicializa a API JS de forma SEGURA
-                    // Se o AdBlock bloquear o script da API, o player não quebra o resto da página
-                    try {
-                        if (window.YT && window.YT.Player) {
-                            ytPlayer = new YT.Player(playerId, {
-                                events: {
-                                    'onReady': (event) => {
-                                        event.target.playVideo();
-                                    },
-                                    'onStateChange': (event) => {
-                                        if (event.data === YT.PlayerState.ENDED) event.target.playVideo();
-                                    }
+                    ytPlayer = new YT.Player(playerId, {
+                        height: '100%',
+                        width: '100%',
+                        videoId: key,
+                        playerVars: {
+                            'autoplay': 1,
+                            'mute': 1,
+                            'controls': 0,
+                            'loop': 1,
+                            'playlist': key,
+                            'playsinline': 1,
+                            'modestbranding': 1,
+                            'iv_load_policy': 3,
+                            'enablejsapi': 1,
+                            'origin': window.location.origin
+                        },
+                        events: {
+                            'onReady': (event) => {
+                                if (isAutoPreviewCancelled) {
+                                    event.target.destroy();
+                                    return;
                                 }
-                            });
+                                console.log(`[Preview] Player pronto: "${movie.title}"`);
+                                event.target.playVideo();
+                                
+                                // Revela o vídeo e esconde o pôster
+                                gsap.to(previewContainer, { opacity: 1, duration: 0.8 });
+                                const posterImg = frontEl.querySelector('.card-poster-img');
+                                if (posterImg) gsap.to(posterImg, { opacity: 0, duration: 1 });
+                                
+                                // Mostra botão de volume
+                                volumeBtn.classList.remove('pointer-events-none');
+                                gsap.to(volumeBtn, { opacity: 1, scale: 1, duration: 0.5 });
+                            },
+                            'onStateChange': (event) => {
+                                if (event.data === YT.PlayerState.ENDED) event.target.playVideo();
+                            },
+                            'onError': () => {
+                                console.warn("Erro no player do YouTube. Fallback para pôster.");
+                                stopAutoPreview();
+                            }
                         }
-                    } catch (e) {
-                        console.warn("API do YouTube bloqueada ou inacessível, mas o iframe deve rodar nativamente.");
-                    }
-                }, 300);
+                    });
+                };
 
-                // FALLBACK MESTRE: Se o AdBlock for radical, forçamos o fade-in após 2s
-                setTimeout(() => {
-                    if (previewContainer && (previewContainer.style.opacity === "0" || previewContainer.style.opacity === "")) {
-                        gsap.to(previewContainer, { opacity: 1, duration: 1 });
-                    }
-                }, 2000);
+                if (isYouTubeAPIReady) {
+                    initPlayer();
+                } else {
+                    ytAPIQueue.push(initPlayer);
+                }
 
-                // Fade out total no pôster para evitar sobreposição
-                const posterImg = frontEl.querySelector('.card-poster-img');
-                if (posterImg) gsap.to(posterImg, { opacity: 0, duration: 1 });
-
-                // Configuração do botão de volume
-                volumeBtn.classList.remove('pointer-events-none');
-                gsap.to(volumeBtn, { opacity: 1, scale: 1, duration: 0.8, ease: "back.out(1.7)" });
-                
+                // Clique do volume usando a API oficial
                 volumeBtn.onclick = (e) => {
                     e.stopPropagation();
-                    if (!ytPlayer || typeof ytPlayer.unMute !== 'function') {
-                        // Se o player JS ainda não estiver pronto, tentamos inicializá-lo agora
-                        showToast("Ajustando áudio...");
-                        return;
-                    }
+                    if (!ytPlayer || typeof ytPlayer.unMute !== 'function') return;
                     
                     isUnmuted = !isUnmuted;
                     if (isUnmuted) {
                         ytPlayer.unMute();
-                        ytPlayer.setVolume(80);
-                        volumeBtn.innerHTML = `<span class="material-symbols-outlined text-xl text-primary-container">volume_up</span>`;
-                        volumeBtn.classList.add('border-primary-container/30', 'bg-primary-container/10');
+                        ytPlayer.setVolume(100);
+                        volumeBtn.innerHTML = `<span class="material-symbols-outlined text-3xl text-primary-container">volume_up</span>`;
+                        volumeBtn.classList.add('bg-primary-container/20', 'border-primary-container/40');
                     } else {
                         ytPlayer.mute();
-                        volumeBtn.innerHTML = `<span class="material-symbols-outlined text-xl">volume_off</span>`;
-                        volumeBtn.classList.remove('border-primary-container/30', 'bg-primary-container/10');
+                        volumeBtn.innerHTML = `<span class="material-symbols-outlined text-3xl">volume_off</span>`;
+                        volumeBtn.classList.remove('bg-primary-container/20', 'border-primary-container/40');
                     }
                 };
             }
 
             function stopAutoPreview() {
+                isAutoPreviewCancelled = true;
                 clearTimeout(previewTimer);
+                
                 if (isPreviewPlaying) {
                     const posterImg = frontEl.querySelector('.card-poster-img');
-                    if (posterImg) gsap.to(posterImg, { opacity: 1, duration: 0.5 });
+                    if (posterImg) gsap.to(posterImg, { opacity: 1, duration: 0.3 });
                     
-                    // Esconder botão de volume
+                    gsap.to(volumeBtn, { opacity: 0, scale: 0.5, duration: 0.2 });
                     volumeBtn.classList.add('pointer-events-none');
-                    gsap.to(volumeBtn, { opacity: 0, scale: 0.7, duration: 0.3 });
+
+                    if (ytPlayer && ytPlayer.destroy) {
+                        try { ytPlayer.destroy(); } catch(e) {}
+                        ytPlayer = null;
+                    }
                     
-                    gsap.to(previewContainer, { 
-                        opacity: 0, 
-                        duration: 0.4, 
-                        onComplete: () => {
-                            if (previewContainer) {
-                                previewContainer.innerHTML = '';
-                                if (ytPlayer && ytPlayer.destroy) {
-                                    ytPlayer.destroy();
-                                    ytPlayer = null;
-                                }
-                                isPreviewPlaying = false;
-                            }
-                        } 
-                    });
+                    previewContainer.innerHTML = '';
+                    previewContainer.style.opacity = "0";
+                    isPreviewPlaying = false;
                 }
             }
 
@@ -2492,31 +2513,41 @@
             }
 
             function throwOut(direction) {
-                stopAutoPreview(); // Importante: Mata o vídeo ao sair
+                stopAutoPreview(); 
+                
+                // REMOÇÃO SEGURA POR ID: Removemos exatamente o filme deste card.
+                // Isso evita o bug onde o swipe pra direita removia 2 filmes (um pelo save e outro pelo pop)
+                moviesQueue = moviesQueue.filter(m => m.id !== movie.id);
+                interactedMovieIds.add(movie.id);
+                
                 if (direction === -1) {
                     saveActionToSupabase(movie, false);
                 }
-                // Throw out of screen
+
+                // A pilha de trás já começa a se mover para frente agora
+                renderTopCards();
+
+                // Animação de saída do card atual
                 const windowWidth = window.innerWidth;
-                const endX = direction * windowWidth;
-                const rotation = direction * 25;
+                const endX = direction * windowWidth * 1.5;
+                const rotation = direction * 45;
 
                 element.classList.add('is-throwing');
+                element.style.pointerEvents = 'none';
+
                 gsap.to(element, {
                     x: endX,
                     rotation: rotation,
-                    scale: 0.85,
+                    scale: 0.8,
                     opacity: 0,
-                    duration: 0.5,
+                    duration: 0.6,
                     force3D: true,
-                    ease: "power2.inOut",
+                    ease: "power2.in",
                     onComplete: () => {
                         if (element && element.parentNode) {
                             element.remove();
                         }
-                        moviesQueue.pop(); // Remove from queue
                         isAnimating = false;
-                        renderTopCards(); // Bring next card up
                     }
                 });
             }
@@ -2525,9 +2556,9 @@
             // (Isso evita o acúmulo de listeners que causava a abertura de sinopses de filmes errados)
             btnLike.onpointerdown = (e) => {
                 e.preventDefault();
-                if (isMatched || isAnimating) return;
+                if (isAnimating || moviesQueue.length === 0) return;
                 isAnimating = true;
-                gsap.killTweensOf(element);
+                // Não limpamos tweens aqui para deixar a transição suave
                 triggerMatch();
             };
 
