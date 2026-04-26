@@ -1912,6 +1912,7 @@
                     });
                     
                     if (i === 0 && !existing.classList.contains('active-drag')) {
+                        currentCardDOM = existing; // Atualiza a referência global do card no topo
                         existing.classList.add('active-drag');
                         // Reinicializa drag se for o novo topo
                         const front = existing.querySelector('.front-content');
@@ -1958,7 +1959,7 @@
 
             // Frente (Poster)
             const front = document.createElement("div");
-            front.className = "front-content bg-surface-container-highest flex flex-col justify-end";
+            front.className = "front-content absolute inset-0 bg-surface-container-highest flex flex-col justify-end";
             front.style.zIndex = "30";
             
             let badgeHTML = '';
@@ -2012,10 +2013,10 @@
 
             front.innerHTML = `
                 <!-- Surface Element (TikTok Style) -->
-                <div class="preview-surface-element absolute inset-0 z-[21] opacity-0 transition-opacity duration-1000 pointer-events-none overflow-hidden scale-110 bg-black"></div>
+                <div class="preview-surface-element absolute inset-0 z-25 opacity-0 transition-opacity duration-1000 pointer-events-none overflow-hidden scale-105 bg-black"></div>
                 
                 <img src="${posterUrl}" alt="${movie.title}" class="card-poster-img absolute inset-0 w-full h-full object-cover select-none pointer-events-none z-0 transition-opacity duration-1000">
-                <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90 pointer-events-none z-20"></div>
+                <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent opacity-90 pointer-events-none z-20"></div>
                 
                 <div class="relative z-30 p-6 pt-20">
                     <div class="flex items-center gap-3 mb-2">
@@ -2030,6 +2031,11 @@
 
                 ${badgeHTML}
                 ${statusBadgesHTML}
+
+                <!-- Botão de Volume (Fixado no Template) -->
+                <button class="volume-preview-btn absolute bottom-24 right-6 z-[70] w-12 h-12 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white opacity-0 pointer-events-none transition-all duration-500 scale-75 active:scale-90 border border-white/20 shadow-2xl">
+                    <span class="material-symbols-outlined text-2xl">volume_off</span>
+                </button>
             `;
             
             // Verso (Sinopse Animada do Match overlay)
@@ -2270,11 +2276,7 @@
             let ytPlayer = null; // Armazena a instância do YouTube Player
             const previewContainer = frontEl.querySelector('.preview-surface-element');
             
-            // Botão de Volume (Criado dinamicamente)
-            const volumeBtn = document.createElement('button');
-            volumeBtn.className = "absolute bottom-3 right-3 z-40 w-9 h-9 rounded-full glass-panel flex items-center justify-center text-white opacity-0 pointer-events-none transition-all duration-500 scale-75 active:scale-90 border border-white/10";
-            volumeBtn.innerHTML = `<span class="material-symbols-outlined text-xl">volume_off</span>`;
-            frontEl.appendChild(volumeBtn);
+            const volumeBtn = frontEl.querySelector('.volume-preview-btn');
 
             const btnAcaoOverlay = element.querySelector('.btn-acao-overlay');
             const heartIcon = overlayEl.querySelector('.bg-primary-container'); // O coração no canto superior da sinopse
@@ -2352,61 +2354,63 @@
             }
 
             function injectPreviewVideo(key) {
-                if (isPreviewPlaying || isDragging || !window.YT || !isYouTubeAPIReady) return;
+                if (isPreviewPlaying || isDragging) return;
                 isPreviewPlaying = true;
                 
                 const playerId = `player-${movie.id}-${Math.floor(Math.random() * 1000)}`;
                 
-                // Parâmetros otimizados para Autoplay Silencioso e Resiliência
+                // Parâmetros mínimos para evitar gatilhos de AdBlock
                 const params = [
                     `autoplay=1`,
                     `mute=1`,
                     `controls=0`,
                     `loop=1`,
                     `playlist=${key}`,
-                    `rel=0`,
-                    `modestbranding=1`,
-                    `iv_load_policy=3`,
                     `playsinline=1`,
                     `enablejsapi=1`,
                     `widget_referrer=${encodeURIComponent(window.location.href)}`,
                     `origin=${encodeURIComponent(window.location.origin)}`
                 ].join('&');
 
-                // Usamos youtube-nocookie para evitar bloqueios de privacidade/rastreamento que ativam AdBlocks
-                const iframeUrl = `https://www.youtube-nocookie.com/embed/${key}?${params}`;
+                const iframeUrl = `https://www.youtube.com/embed/${key}?${params}`;
                 
                 // INJEÇÃO DIRETA: Iframe já nasce com as classes e estilos corretos
-                // Isso evita o delay do evento 'onReady' que o AdBlock costuma quebrar
                 previewContainer.innerHTML = `
                     <iframe id="${playerId}" 
                             src="${iframeUrl}" 
-                            class="absolute inset-0 w-[300%] h-full -left-[100%] pointer-events-none scale-110 grayscale-[0.2] contrast-125 transition-opacity duration-1000" 
+                            class="absolute inset-0 w-[300%] h-full -left-[100%] pointer-events-none scale-110" 
                             frameborder="0" 
-                            allow="autoplay; encrypted-media" 
-                            style="opacity: 0">
+                            allow="autoplay; encrypted-media">
                     </iframe>
                 `;
 
                 const iframe = previewContainer.querySelector('iframe');
                 
-                // Gatilho de Visibilidade Nativo (Não depende da API do YouTube)
-                iframe.onload = () => {
-                    iframe.style.opacity = '1';
-                    gsap.to(previewContainer, { opacity: 1, duration: 1.5, ease: "power2.inOut" });
+                // EXIBIÇÃO IMEDIATA: Não esperamos nada, apenas mostramos o contêiner
+                // Isso garante que se o YouTube carregar o vídeo, ele aparecerá.
+                // Se o AdBlock bloquear os logs, o vídeo ainda rodará por baixo.
+                setTimeout(() => {
+                    gsap.to(previewContainer, { opacity: 1, duration: 1, ease: "power2.inOut" });
                     
-                    // Inicializa a API JS no iframe existente (para controle de volume se o usuário clicar)
-                    ytPlayer = new YT.Player(playerId, {
-                        events: {
-                            'onReady': (event) => {
-                                event.target.playVideo(); // Garante o play
-                            },
-                            'onStateChange': (event) => {
-                                if (event.data === YT.PlayerState.ENDED) event.target.playVideo();
-                            }
+                    // Inicializa a API JS de forma SEGURA
+                    // Se o AdBlock bloquear o script da API, o player não quebra o resto da página
+                    try {
+                        if (window.YT && window.YT.Player) {
+                            ytPlayer = new YT.Player(playerId, {
+                                events: {
+                                    'onReady': (event) => {
+                                        event.target.playVideo();
+                                    },
+                                    'onStateChange': (event) => {
+                                        if (event.data === YT.PlayerState.ENDED) event.target.playVideo();
+                                    }
+                                }
+                            });
                         }
-                    });
-                };
+                    } catch (e) {
+                        console.warn("API do YouTube bloqueada ou inacessível, mas o iframe deve rodar nativamente.");
+                    }
+                }, 300);
 
                 // FALLBACK MESTRE: Se o AdBlock for radical, forçamos o fade-in após 2s
                 setTimeout(() => {
@@ -2415,9 +2419,9 @@
                     }
                 }, 2000);
 
-                // Fade out no pôster para dar foco ao vídeo
+                // Fade out total no pôster para evitar sobreposição
                 const posterImg = frontEl.querySelector('.card-poster-img');
-                if (posterImg) gsap.to(posterImg, { opacity: 0.3, duration: 1.5 });
+                if (posterImg) gsap.to(posterImg, { opacity: 0, duration: 1 });
 
                 // Configuração do botão de volume
                 volumeBtn.classList.remove('pointer-events-none');
@@ -3243,15 +3247,41 @@
 
             try {
                 const blob = await generateStoryImage(currentActiveMovie);
-                const file = new File([blob], `matchflix-${currentActiveMovie.id}.png`, { type: 'image/png' });
+                const file = new File([blob], 'matchflix-story.png', { type: 'image/png' });
 
-                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({
-                        files: [file],
-                        title: `MatchFlix - ${currentActiveMovie.title}`,
-                        text: `Olha esse filme que encontrei no MatchFlix: ${currentActiveMovie.title}!`
-                    });
+                // Tenta o compartilhamento nativo (Painel do Smartphone)
+                if (navigator.share) {
+                    try {
+                        // Verificamos se o navegador aceita compartilhar arquivos
+                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                            await navigator.share({
+                                files: [file],
+                                title: 'MatchFlix',
+                                text: `Olha esse filme que encontrei no MatchFlix: ${currentActiveMovie.title}!`
+                            });
+                        } else {
+                            // Se não aceita arquivos, tenta compartilhar texto/link (fallback)
+                            await navigator.share({
+                                title: 'MatchFlix',
+                                text: `Olha esse filme que encontrei no MatchFlix: ${currentActiveMovie.title}!`,
+                                url: window.location.href
+                            });
+                        }
+                    } catch (err) {
+                        // Usuário cancelou ou erro no sistema de compartilhamento
+                        console.log("Sistema de compartilhamento nativo fechado ou indisponível:", err);
+                        if (err.name !== 'AbortError') {
+                            // Só faz download se não for um cancelamento do usuário
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `matchflix-${currentActiveMovie.title.toLowerCase().replace(/\s+/g, '-')}.png`;
+                            a.click();
+                            showToast("Imagem salva! Agora você pode postar no seu Stories 🎬");
+                        }
+                    }
                 } else {
+                    // Sem suporte a navigator.share (Desktop ou navegadores antigos)
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
