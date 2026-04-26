@@ -2006,8 +2006,8 @@
             }
 
             front.innerHTML = `
-                <!-- Auto-Preview Container (TikTok Style) -->
-                <div class="video-preview-container absolute inset-0 z-10 opacity-0 transition-opacity duration-1000 pointer-events-none overflow-hidden scale-110 bg-black"></div>
+                <!-- Surface Element (TikTok Style) -->
+                <div class="preview-surface-element absolute inset-0 z-[21] opacity-0 transition-opacity duration-1000 pointer-events-none overflow-hidden scale-110 bg-black"></div>
                 
                 <img src="${posterUrl}" alt="${movie.title}" class="card-poster-img absolute inset-0 w-full h-full object-cover select-none pointer-events-none z-0 transition-opacity duration-1000">
                 <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90 pointer-events-none z-20"></div>
@@ -2207,6 +2207,11 @@
             isYouTubeAPIReady = true;
             console.log("YouTube IFrame API Pronta ✅");
         };
+
+        // Fallback caso a API já tenha carregado antes do script
+        if (window.YT && window.YT.loaded) {
+            isYouTubeAPIReady = true;
+        }
         document.getElementById('video-overlay').addEventListener('click', (e) => {
             if (e.target === document.getElementById('video-overlay')) window.closeVideoTrailer();
         });
@@ -2258,7 +2263,7 @@
             let isPreviewPlaying = false;
             let isUnmuted = false; 
             let ytPlayer = null; // Armazena a instância do YouTube Player
-            const previewContainer = frontEl.querySelector('.video-preview-container');
+            const previewContainer = frontEl.querySelector('.preview-surface-element');
             
             // Botão de Volume (Criado dinamicamente)
             const volumeBtn = document.createElement('button');
@@ -2310,23 +2315,34 @@
             }
 
             // --- Lógica de Auto-Preview Style TikTok ---
-            function startAutoPreview() {
+            async function startAutoPreview() {
                 if (isMatched || isDragging || isAnimating || isInfoOpen) return;
                 
-                const trailerKey = trailersCache.get(movie.id);
+                let trailerKey = trailersCache.get(movie.id);
+                
+                if (trailerKey === undefined) {
+                    try {
+                        const res = await fetch(`https://api.themoviedb.org/3/movie/${movie.id}/videos?api_key=${API_KEY}&language=pt-BR`);
+                        const data = await res.json();
+                        let video = data.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
+                        if (!video) video = data.results.find(v => (v.type === 'Teaser' || v.type === 'Clip') && v.site === 'YouTube');
+                        
+                        if (!video) {
+                            const resEn = await fetch(`https://api.themoviedb.org/3/movie/${movie.id}/videos?api_key=${API_KEY}&language=en-US`);
+                            const dataEn = await resEn.json();
+                            video = dataEn.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
+                            if (!video) video = dataEn.results.find(v => (v.type === 'Teaser' || v.type === 'Clip') && v.site === 'YouTube');
+                        }
+                        
+                        trailerKey = video ? video.key : null;
+                        trailersCache.set(movie.id, trailerKey);
+                    } catch (e) {
+                        console.error("Erro no autoplay search:", e);
+                    }
+                }
+
                 if (trailerKey) {
                     injectPreviewVideo(trailerKey);
-                } else {
-                    // Se não tiver no cache, tenta buscar rapidinho
-                    fetch(`https://api.themoviedb.org/3/movie/${movie.id}/videos?api_key=${API_KEY}&language=pt-BR`)
-                        .then(r => r.json())
-                        .then(data => {
-                            const video = data.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
-                            if (video) {
-                                trailersCache.set(movie.id, video.key);
-                                injectPreviewVideo(video.key);
-                            }
-                        });
                 }
             }
 
@@ -2351,22 +2367,34 @@
                         'rel': 0,
                         'modestbranding': 1,
                         'iv_load_policy': 3,
-                        'playsinline': 1, // VITAL para Webapps/iOS
-                        'enablejsapi': 1
+                        'playsinline': 1,
+                        'enablejsapi': 1,
+                        'origin': window.location.origin,
+                        'widget_referrer': window.location.href
                     },
                     events: {
                         'onReady': (event) => {
                             event.target.playVideo();
-                            gsap.to(previewContainer, { opacity: 1, duration: 1.5, ease: "power2.out" });
+                            gsap.to(previewContainer, { opacity: 1, duration: 1, ease: "power2.out" });
                         },
                         'onStateChange': (event) => {
-                            // Garante o loop se o parâmetro playlist falhar
                             if (event.data === YT.PlayerState.ENDED) {
                                 event.target.playVideo();
                             }
+                        },
+                        'onError': () => {
+                            // Se der erro (provavelmente AdBlock), tenta mostrar o container de qualquer jeito
+                            gsap.to(previewContainer, { opacity: 1, duration: 1 });
                         }
                     }
                 });
+
+                // FALLBACK: Se o YouTube não responder em 2.5s (AdBlock interferindo no JS), força a exibição
+                setTimeout(() => {
+                    if (previewContainer && previewContainer.style.opacity === "0" || previewContainer.style.opacity === "") {
+                        gsap.to(previewContainer, { opacity: 1, duration: 1 });
+                    }
+                }, 2500);
 
                 // Estiliza o iframe injetado pelo YT
                 const checkIframe = setInterval(() => {
