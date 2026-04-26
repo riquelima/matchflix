@@ -2115,7 +2115,8 @@
         }
 
         // Cache para trailers
-        const trailersCache = new Map();
+        // O trailersCache já foi declarado no topo do script
+
 
         async function fetchAndRenderTrailer(movieId, containerElement, sectionElement) {
             if (!containerElement || !sectionElement) return;
