@@ -1786,7 +1786,11 @@
                     if(discoveries.length > 0) combined.push(discoveries.shift());
                 }
 
-                combined = combined.filter(v => !interactedMovieIds.has(Number(v.id)));
+                // Deduplicação Rigorosa: Remove filmes já interagidos E filmes que já estão na fila
+                const queueIds = new Set(moviesQueue.map(m => Number(m.id)));
+                combined = combined.filter(v => !interactedMovieIds.has(Number(v.id)) && !queueIds.has(Number(v.id)));
+                
+                // Remove duplicatas dentro do próprio lote novo
                 combined = combined.filter((v,i,a)=>a.findIndex(t=>(Number(t.id) === Number(v.id)))===i);
                 
                 // Fallback Agressivo
@@ -1883,7 +1887,8 @@
             }
 
             const maxVisible = Math.min(2, moviesQueue.length);
-            const existingWrappers = Array.from(stackContainer.querySelectorAll('.movie-card-wrapper'));
+            // Pegamos apenas wrappers que NÃO estão sendo descartados (sem a classe is-throwing)
+            const existingWrappers = Array.from(stackContainer.querySelectorAll('.movie-card-wrapper:not(.is-throwing)'));
             
             // Mapear quais IDs já estão renderizados
             const renderedIds = existingWrappers.map(w => parseInt(w.dataset.movieId));
