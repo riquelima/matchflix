@@ -548,6 +548,19 @@
             </div>
         </header>
 
+        <!-- TELA DE ABERTURA (SPLASH SCREEN) -->
+        <div id="splash-screen" class="fixed inset-0 z-[200] bg-neutral-950 flex flex-col items-center justify-center transition-all duration-700 ease-in-out">
+            <div class="relative">
+                <div class="w-24 h-24 mb-6 relative">
+                    <!-- Logo Animado -->
+                    <span class="material-symbols-outlined text-primary-container text-7xl absolute inset-0 flex items-center justify-center animate-pulse">local_fire_department</span>
+                    <div class="absolute inset-0 border-4 border-primary-container/20 border-t-primary-container rounded-full animate-spin"></div>
+                </div>
+            </div>
+            <h1 class="font-headline font-extrabold tracking-tighter text-4xl text-white mb-2">Match<span class="text-primary-container">Flix</span></h1>
+            <p class="text-gray-500 font-medium tracking-[0.2em] text-xs uppercase animate-pulse">Preparando sua sessão...</p>
+        </div>
+
         <!-- View Slider (O coração da SPA) -->
         <div id="view-slider" class="flex h-full w-full will-change-transform transition-transform duration-300 ease-out overflow-hidden" style="width: 700vw;">
             
@@ -1134,21 +1147,55 @@
                 
                 currentUser = session.user;
                 await fetchInteractedMovies(); 
-                fetchMovies(); 
-                initMatches(); // Inicializa aba de matches
-                initCollection(); // Inicializa aba de coleção
                 
-                // Inicialização do estado visual (Garante que configurações sumam no Match)
-                goToTab('descobrir', false);
-
-                // Suporte a Deep Linking (SPA)
-                const urlParams = new URLSearchParams(window.location.search);
-                const pageParam = urlParams.get('page');
-                if (pageParam && pageParam !== 'descobrir') {
-                    setTimeout(() => goToTab(pageParam, false), 100);
-                }
+                // Dispara a inicialização global do App
+                initApp();
             }
         })();
+
+        // Função para remover o Splash Screen
+        function hideSplashScreen() {
+            const splash = document.getElementById('splash-screen');
+            if (splash) {
+                splash.classList.add('opacity-0', 'pointer-events-none', 'scale-110');
+                setTimeout(() => splash.remove(), 700);
+            }
+        }
+
+        // Inicialização Global
+        async function initApp() {
+            try {
+                // Carrega dados essenciais em paralelo
+                const loaders = [
+                    fetchMovies(), // Discover
+                    fetchTrending(), // Pre-load Trending
+                    fetchMatches()   // Pre-load Matches
+                ];
+                
+                await Promise.all(loaders);
+                
+                // Inicializa os componentes de UI
+                initMatches();
+                initCollection();
+                
+                // Define aba inicial sem animação
+                goToTab('descobrir', false);
+                
+                // Pequeno delay para garantir que o DOM renderizou
+                setTimeout(hideSplashScreen, 1200);
+                
+            } catch (error) {
+                console.error("Erro na inicialização:", error);
+                hideSplashScreen(); 
+            }
+
+            // Suporte a Deep Linking (SPA)
+            const urlParams = new URLSearchParams(window.location.search);
+            const pageParam = urlParams.get('page');
+            if (pageParam && pageParam !== 'descobrir') {
+                setTimeout(() => goToTab(pageParam, false), 100);
+            }
+        }
 
         // --- SPA Navigation & Swipe ---
         window.goToTab = function(tabName, animate = true) {
