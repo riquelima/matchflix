@@ -1118,6 +1118,7 @@
         let isFetching = false;
         let moviesQueue = [];
         const trailersCache = new Map();
+        let isYouTubeAPIReady = false;
         const posterCache = new Set();
 
         // --- Função de Pre-loading de Imagens ---
@@ -1944,7 +1945,7 @@
             innerCard.className = "card-wrapper cinematic-shadow relative";
             wrapper.appendChild(innerCard);
 
-            const posterUrl = movie.poster_path ? `${IMAGE_BASE_URL}${movie.poster_path}` : "https://via.placeholder.com/500x750/2a2a2a/ffffff?text=Sem+Poster";
+            const posterUrl = movie.poster_path ? `${IMAGE_BASE_URL}${movie.poster_path}` : "https://placehold.co/500x750/2a2a2a/ffffff?text=Sem+Poster";
             const backdropUrl = movie.backdrop_path ? `${BACKDROP_BASE_URL}${movie.backdrop_path}` : posterUrl;
             
             const releaseYear = movie.release_date ? movie.release_date.split('-')[0] : '';
@@ -2128,14 +2129,16 @@
                     const res = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${API_KEY}&language=pt-BR`);
                     const data = await res.json();
                     
-                    // Prioriza trailers do YouTube em PT-BR
+                    // Tenta encontrar um Trailer, senão busca por Teaser ou Clip
                     let video = data.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
+                    if (!video) video = data.results.find(v => (v.type === 'Teaser' || v.type === 'Clip') && v.site === 'YouTube');
                     
                     // Se não achar em PT-BR, tenta EN-US
                     if (!video) {
                         const resEn = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${API_KEY}&language=en-US`);
                         const dataEn = await resEn.json();
                         video = dataEn.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
+                        if (!video) video = dataEn.results.find(v => (v.type === 'Teaser' || v.type === 'Clip') && v.site === 'YouTube');
                     }
                     
                     trailer = video ? video.key : null;
@@ -2198,6 +2201,12 @@
         }
 
         document.getElementById('close-video').addEventListener('click', window.closeVideoTrailer);
+
+        // Garantir que a API do YouTube está pronta
+        window.onYouTubeIframeAPIReady = function() {
+            isYouTubeAPIReady = true;
+            console.log("YouTube IFrame API Pronta ✅");
+        };
         document.getElementById('video-overlay').addEventListener('click', (e) => {
             if (e.target === document.getElementById('video-overlay')) window.closeVideoTrailer();
         });
@@ -2322,7 +2331,7 @@
             }
 
             function injectPreviewVideo(key) {
-                if (isPreviewPlaying || isDragging || !window.YT) return;
+                if (isPreviewPlaying || isDragging || !window.YT || !isYouTubeAPIReady) return;
                 isPreviewPlaying = true;
                 
                 const playerId = `player-${movie.id}-${Math.floor(Math.random() * 1000)}`;
@@ -2663,7 +2672,7 @@
                     dataPeople.results.slice(0, 8).forEach(person => {
                         const personDiv = document.createElement('div');
                         personDiv.className = 'flex flex-col items-center shrink-0 w-20 gap-2';
-                        const profilePath = person.profile_path ? `${IMAGE_BASE_URL}${person.profile_path}` : 'https://via.placeholder.com/150/2a2a2a/ffffff?text=?';
+                        const profilePath = person.profile_path ? `${IMAGE_BASE_URL}${person.profile_path}` : 'https://placehold.co/150/2a2a2a/ffffff?text=?';
                         personDiv.innerHTML = `
                             <div class="w-16 h-16 rounded-full border-2 border-primary-container/30 overflow-hidden shadow-lg shadow-primary-container/10">
                                 <img src="${profilePath}" class="w-full h-full object-cover">
