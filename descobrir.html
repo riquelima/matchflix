@@ -1393,13 +1393,13 @@
                 if (navbar) navbar.classList.remove('hidden');
                 if (!isTrendingLoaded) fetchTrending();
             } else if (tabName === 'busca') {
-                if (headerTitle) headerTitle.innerHTML = 'Buscar';
+                if (headerTitle) headerTitle.innerHTML = 'Match<span class="text-primary-container">Flix</span>';
                 setVisible(headerBackBtn, true);
                 if (headerBackBtn) headerBackBtn.onclick = () => goToTab('trending');
                 setVisible(headerSearchBtn, false);
                 setVisible(headerMenuBtn, false);
                 setVisible(globalFilterBtn, false);
-                if (navbar) navbar.classList.add('hidden'); // Oculta a navbar na busca para evitar confusões de layout e liberar espaço
+                if (navbar) navbar.classList.remove('hidden'); // Exibe a navbar
                 const searchInp = document.getElementById('search-input');
                 if (searchInp) searchInp.focus();
             } else if (tabName === 'filtro') {
@@ -1408,7 +1408,7 @@
                 setVisible(headerMenuBtn, false);
                 setVisible(globalFilterBtn, false);
                 setVisible(headerSettingsBtn, false);
-                if (navbar) navbar.classList.add('hidden');
+                if (navbar) navbar.classList.remove('hidden'); // Exibe a navbar
                 if (typeof initFilters === 'function') initFilters();
             } else if (tabName === 'configuracoes') {
                 if (headerTitle) headerTitle.innerHTML = 'Match<span class="text-primary-container">Flix</span>';
@@ -1416,7 +1416,7 @@
                 setVisible(headerMenuBtn, false);
                 setVisible(globalFilterBtn, false);
                 setVisible(headerSettingsBtn, false);
-                if (navbar) navbar.classList.add('hidden');
+                if (navbar) navbar.classList.remove('hidden'); // Exibe a navbar
                 if (typeof loadUserProfile === 'function' && !isUserLoaded) {
                     loadUserProfile();
                     isUserLoaded = true;
@@ -3181,6 +3181,7 @@
         let currentActiveMovie = null;
         let currentActiveType = null; // 'discover', 'match', 'collection'
         let currentActiveElement = null;
+        let currentStoryImagePromise = null; // Promise pre-cacheada da imagem
 
         // Persistência de filmes assistidos
 
@@ -3188,6 +3189,13 @@
             currentActiveMovie = movie;
             currentActiveType = type;
             currentActiveElement = element;
+
+            // Inicia o pré-carregamento da imagem para o Stories 
+            // Essencial para o iOS/Safari: a imagem precisa estar pronta antes do clique para o navigator.share() não perder o "transient user activation"
+            currentStoryImagePromise = generateStoryImage(movie).catch(err => {
+                console.error("Erro no pré-carregamento da imagem do stories:", err);
+                return null;
+            });
 
             mTitle.textContent = movie.title;
             mPoster.src = `${IMAGE_BASE_URL}${movie.backdrop_path || movie.poster_path}`;
@@ -3291,7 +3299,10 @@
             modalShare.disabled = true;
 
             try {
-                const blob = await generateStoryImage(currentActiveMovie);
+                // Aguarda a imagem que foi pré-gerada quando a sinopse abriu
+                const blob = await currentStoryImagePromise;
+                if (!blob) throw new Error("A imagem do Stories não pôde ser gerada.");
+                
                 const file = new File([blob], 'matchflix-story.png', { type: 'image/png' });
 
                 // Tenta o compartilhamento nativo (Painel do Smartphone)
