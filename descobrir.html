@@ -1345,156 +1345,111 @@
 
             activeTab = tabName;
             
-            // Update UI
+            // 1. Atualizar UI - Estado Ativo na Navbar
             navItems.forEach(item => {
                 item.classList.toggle('active', item.dataset.page === tabName);
             });
 
+            // 2. Animar Slider
             const xTranslation = -(index * 100);
             if(animate) {
-                gsap.to(viewSlider, {
-                    x: xTranslation + 'vw',
-                    duration: 0.5,
-                    ease: "power3.out",
-                    force3D: true
-                });
+                gsap.to(viewSlider, { x: xTranslation + 'vw', duration: 0.5, ease: "power3.out", force3D: true });
             } else {
                 gsap.set(viewSlider, { x: xTranslation + 'vw' });
             }
 
-            // Função auxiliar para esconder/mostrar com segurança
+            // 3. Reset Universal do Header
             const setVisible = (el, visible) => {
                 if (el) {
-                    if (visible) {
-                        el.classList.remove('hidden');
-                        el.style.display = '';
-                    } else {
-                        el.classList.add('hidden');
-                        el.style.display = 'none';
-                    }
+                    el.classList.toggle('hidden', !visible);
+                    el.style.display = visible ? '' : 'none';
                 }
             };
 
-            // Reset inicial de segurança para todos os botões
             setVisible(headerBackBtn, false);
             setVisible(headerSearchBtn, false);
-            setVisible(headerMenuBtn, true);
-            setVisible(globalFilterBtn, true);
+            setVisible(headerMenuBtn, false);
+            setVisible(globalFilterBtn, false);
             setVisible(headerSettingsBtn, false);
             if (navbar) setVisible(navbar, true);
+            if (headerTitle) headerTitle.innerHTML = 'Match<span class="text-primary-container">Flix</span>';
+            
+            // Reset Badges (ocultar por padrão, mostrar apenas em Meus Matches)
+            if (typeof globalCountBadges !== 'undefined') {
+                globalCountBadges.forEach(b => { b.classList.add('hidden'); b.style.display = 'none'; });
+            }
 
-            if (tabName === 'trending') {
-                if (headerTitle) headerTitle.innerHTML = 'Match<span class="text-primary-container">Flix</span>';
-                setVisible(headerBackBtn, true);
-                if (headerBackBtn) headerBackBtn.onclick = () => goToTab('descobrir');
-                setVisible(headerSearchBtn, true);
-                setVisible(headerMenuBtn, false);
-                setVisible(globalFilterBtn, false);
-                if (navbar) navbar.classList.remove('hidden');
-                if (!isTrendingLoaded) fetchTrending();
-            } else if (tabName === 'busca') {
-                if (headerTitle) headerTitle.innerHTML = 'Match<span class="text-primary-container">Flix</span>';
-                setVisible(headerBackBtn, true);
-                if (headerBackBtn) headerBackBtn.onclick = () => goToTab('trending');
-                setVisible(headerSearchBtn, false);
-                setVisible(headerMenuBtn, false);
-                setVisible(globalFilterBtn, false);
-                if (navbar) navbar.classList.remove('hidden'); // Exibe a navbar
-                const searchInp = document.getElementById('search-input');
-                if (searchInp) searchInp.focus();
-            } else if (tabName === 'filtro') {
-                if (headerTitle) headerTitle.innerHTML = 'Match<span class="text-primary-container">Flix</span>';
-                setVisible(headerBackBtn, true);
-                setVisible(headerMenuBtn, false);
-                setVisible(globalFilterBtn, false);
-                setVisible(headerSettingsBtn, false);
-                if (navbar) navbar.classList.remove('hidden'); // Exibe a navbar
-                if (typeof initFilters === 'function') initFilters();
-            } else if (tabName === 'configuracoes') {
-                if (headerTitle) headerTitle.innerHTML = 'Match<span class="text-primary-container">Flix</span>';
-                setVisible(headerBackBtn, true);
-                setVisible(headerMenuBtn, false);
-                setVisible(globalFilterBtn, false);
-                setVisible(headerSettingsBtn, false);
-                if (navbar) navbar.classList.remove('hidden'); // Exibe a navbar
-                if (typeof loadUserProfile === 'function' && !isUserLoaded) {
-                    loadUserProfile();
-                    isUserLoaded = true;
-                }
-                if (typeof initAvatarUpload === 'function') initAvatarUpload();
-            } else {
-                if (headerTitle) headerTitle.innerHTML = 'Match<span class="text-primary-container">Flix</span>';
-                setVisible(headerBackBtn, false);
-                setVisible(headerSearchBtn, false);
-                setVisible(headerMenuBtn, true);
-                setVisible(globalFilterBtn, true);
-                setVisible(headerSettingsBtn, false); // Garante que some na home e outras abas
-                if (navbar) navbar.classList.remove('hidden');
+            // 4. Configuração Específica por Aba
+            switch(tabName) {
+                case 'descobrir':
+                    setVisible(headerMenuBtn, true);
+                    setVisible(globalFilterBtn, true);
+                    break;
+
+                case 'trending':
+                    setVisible(headerBackBtn, true);
+                    headerBackBtn.onclick = () => goToTab('descobrir');
+                    setVisible(headerSearchBtn, true);
+                    if (!isTrendingLoaded) fetchTrending();
+                    break;
+
+                case 'busca':
+                    setVisible(headerBackBtn, true);
+                    headerBackBtn.onclick = () => goToTab('trending');
+                    const searchInp = document.getElementById('search-input');
+                    if (searchInp) setTimeout(() => searchInp.focus(), 400);
+                    break;
+
+                case 'meusmatches':
+                    setVisible(headerMenuBtn, true);
+                    setVisible(globalFilterBtn, true);
+                    if (!isMatchesLoaded || matchesDirty) {
+                        fetchMatches();
+                        matchesDirty = false;
+                        isMatchesLoaded = true;
+                    }
+                    // Badge logic (Mostrar apenas nesta aba)
+                    if (typeof globalCountBadges !== 'undefined') {
+                        globalCountBadges.forEach(b => {
+                            if (matchCount > 0) {
+                                b.classList.remove('hidden');
+                                b.style.display = 'flex';
+                                b.textContent = matchCount;
+                            }
+                        });
+                    }
+                    break;
+
+                case 'colecoes':
+                    setVisible(headerMenuBtn, true);
+                    setVisible(globalFilterBtn, true);
+                    setVisible(headerSettingsBtn, true);
+                    if (!isCollectionLoaded || collectionDirty) {
+                        fetchCollection();
+                        isCollectionLoaded = true;
+                        collectionDirty = false;
+                    }
+                    break;
+
+                case 'filtro':
+                    setVisible(headerBackBtn, true);
+                    headerBackBtn.onclick = () => goToTab('descobrir');
+                    if (typeof initFilters === 'function') initFilters();
+                    break;
+
+                case 'configuracoes':
+                    if (headerTitle) headerTitle.innerHTML = 'Configurações';
+                    setVisible(headerBackBtn, true);
+                    headerBackBtn.onclick = () => goToTab('colecoes');
+                    if (typeof loadUserProfile === 'function' && !isUserLoaded) {
+                        loadUserProfile();
+                        isUserLoaded = true;
+                    }
+                    if (typeof initAvatarUpload === 'function') initAvatarUpload();
+                    break;
             }
 
             if (navbar) navbar.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-10');
-
-            if(tabName === 'meusmatches') {
-                if (!isMatchesLoaded || matchesDirty) {
-                    fetchMatches();
-                    matchesDirty = false;
-                    isMatchesLoaded = true;
-                }
-                setVisible(globalFilterBtn, false);
-                setVisible(headerSettingsBtn, false);
-                setVisible(headerMenuBtn, false);
-                
-                if (typeof globalCountBadges !== 'undefined') {
-                    globalCountBadges.forEach(b => {
-                        if (matchCount > 0) {
-                            b.classList.remove('hidden');
-                            b.style.display = 'flex';
-                            b.textContent = matchCount;
-                        } else {
-                            b.classList.add('hidden');
-                        }
-                    });
-                }
-            } else if (tabName === 'colecoes') {
-                if (!isCollectionLoaded || collectionDirty) {
-                    fetchCollection();
-                    collectionDirty = false;
-                    isCollectionLoaded = true;
-                }
-                setVisible(globalFilterBtn, false);
-                setVisible(headerSettingsBtn, true); // MOSTRA APENAS AQUI
-                if (typeof globalCountBadges !== 'undefined') {
-                    globalCountBadges.forEach(b => { b.classList.add('hidden'); b.style.display = 'none'; });
-                }
-            } else if (tabName === 'descobrir') {
-                setVisible(globalFilterBtn, true);
-                setVisible(headerSettingsBtn, false);
-                setVisible(headerMenuBtn, true);
-                if (typeof globalCountBadges !== 'undefined') {
-                    globalCountBadges.forEach(b => { b.classList.add('hidden'); b.style.display = 'none'; });
-                }
-            } else if (tabName === 'filtro') {
-                setVisible(globalFilterBtn, false);
-                setVisible(headerSettingsBtn, false);
-                if (typeof globalCountBadges !== 'undefined') {
-                    globalCountBadges.forEach(b => { b.classList.add('hidden'); b.style.display = 'none'; });
-                }
-            } else if (tabName === 'configuracoes') {
-                if (headerTitle) headerTitle.innerHTML = 'Configurações';
-                setVisible(headerBackBtn, true);
-                if (headerBackBtn) headerBackBtn.onclick = () => goToTab('colecoes');
-                setVisible(headerMenuBtn, false);
-                setVisible(globalFilterBtn, false);
-                setVisible(headerSettingsBtn, false);
-                if (typeof globalCountBadges !== 'undefined') {
-                    globalCountBadges.forEach(b => { b.classList.add('hidden'); b.style.display = 'none'; });
-                }
-                if (!isUserLoaded && typeof loadUserProfile === 'function') {
-                    loadUserProfile();
-                    isUserLoaded = true;
-                }
-                if (typeof initAvatarUpload === 'function') initAvatarUpload();
-            }
         }
 
         // Listener para o botão de busca
@@ -1551,14 +1506,16 @@
             const threshold = window.innerWidth * 0.2;
             
             if(Math.abs(diffX) > threshold) {
-                // Filtramos apenas as abas principais para o swipe
+                // Filtramos apenas as abas principais para o swipe (em ordem)
                 const swipableTabs = ['descobrir', 'trending', 'busca', 'meusmatches', 'colecoes'];
                 const currentIndex = swipableTabs.indexOf(activeTab);
                 
                 if (currentIndex !== -1) {
                     if(diffX > 0 && currentIndex > 0) {
+                        // Swipe para a DIREITA (volta)
                         goToTab(swipableTabs[currentIndex - 1]);
                     } else if(diffX < 0 && currentIndex < swipableTabs.length - 1) {
+                        // Swipe para a ESQUERDA (avança)
                         goToTab(swipableTabs[currentIndex + 1]);
                     }
                 }
@@ -1566,9 +1523,9 @@
             isSwipingTabs = false;
         }, { passive: true });
 
-        // Navbar Clicks
+        // Navbar Clicks - Usando 'click' para mais estabilidade
         navItems.forEach(item => {
-            item.addEventListener('pointerdown', (e) => {
+            item.addEventListener('click', (e) => {
                 e.preventDefault();
                 goToTab(item.dataset.page);
             });
