@@ -2433,6 +2433,12 @@
                 if (isPreviewPlaying || isAutoPreviewCancelled) return;
                 isPreviewPlaying = true;
                 
+                // Mostra o botão de Play IMEDIATAMENTE (preparado para clique manual caso autoplay falhe)
+                if (playBtn) {
+                    playBtn.classList.remove('pointer-events-none');
+                    gsap.to(playBtn, { opacity: 1, scale: 1, duration: 0.3 });
+                }
+
                 const playerId = `player-${movie.id}-${Math.floor(Math.random() * 1000)}`;
                 // Injeta o iframe diretamente com 'allow=autoplay' e 'mute=1' explicitamente na URL para contornar políticas de bloqueio
                 previewContainer.innerHTML = `
@@ -2465,11 +2471,19 @@
                                     try {
                                         const state = event.target.getPlayerState();
                                         // 1 = Playing, 3 = Buffering
-                                        if (state !== 1 && state !== 3) {
-                                            console.warn(`[Preview] Autoplay bloqueado pelo navegador (Estado: ${state}). Mostrando Play manual.`);
+                                        if (state === 1 || state === 3) {
+                                            // Autoplay funcionou! Revela o vídeo e esconde o botão de play
+                                            gsap.to(previewContainer, { opacity: 1, duration: 0.8 });
+                                            const posterImg = frontEl.querySelector('.card-poster-img');
+                                            if (posterImg) gsap.to(posterImg, { opacity: 0, duration: 1 });
+                                            
                                             if (playBtn) {
-                                                playBtn.classList.remove('pointer-events-none');
-                                                gsap.to(playBtn, { opacity: 1, scale: 1, duration: 0.5 });
+                                                gsap.to(playBtn, { opacity: 0, scale: 0.5, duration: 0.3 });
+                                                playBtn.classList.add('pointer-events-none');
+                                            }
+                                            if (volumeBtn) {
+                                                volumeBtn.classList.remove('pointer-events-none');
+                                                gsap.to(volumeBtn, { opacity: 1, scale: 1, duration: 0.5 });
                                             }
                                             return;
                                         }
