@@ -847,6 +847,21 @@
         /* Blindagem contra FOUC (Flash of Unstyled Content) */
         .opacity-0 { opacity: 0 !important; }
         
+        /* Estilo do Botão Play Central (Glassmorphic) */
+        .play-card-btn {
+            background: rgba(255, 255, 255, 0.1) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5), inset 0 0 15px rgba(255,255,255,0.1);
+            animation: play-pulse 3s infinite ease-in-out;
+        }
+        
+        @keyframes play-pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 15px 35px rgba(0,0,0,0.5); }
+            50% { transform: translate(-50%, -50%) scale(1.05); box-shadow: 0 20px 45px rgba(229,9,20,0.3); }
+        }
+
         /* Evita que ícones apareçam como texto antes da fonte carregar */
         .material-symbols-outlined {
             font-display: block;
@@ -2465,15 +2480,15 @@
                 ${statusBadgesHTML}
 
                 <!-- Botões de Controle de Vídeo (Refinados) -->
-                <!-- Play no centro para máxima visibilidade -->
-                <!-- Play no centro (Refinado com 3D para visibilidade garantida) -->
-                <button class="play-preview-btn absolute top-1/2 left-1/2 z-[1100] w-24 h-24 rounded-full bg-primary-container flex items-center justify-center text-white opacity-0 pointer-events-none scale-75 active:scale-90 border-4 border-white/40 shadow-[0_0_80px_rgba(229,9,20,0.6)] transition-all duration-300 group" style="transform: translate3d(-50%, -50%, 150px);">
-                    <div class="absolute inset-0 rounded-full bg-white/30 animate-ping opacity-40 group-hover:opacity-60"></div>
-                    <span class="material-symbols-outlined text-6xl translate-x-1 drop-shadow-2xl relative z-10" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
-                </button>
                 <!-- Volume no canto superior direito -->
-                <button class="volume-preview-btn absolute top-6 right-6 z-[100] w-12 h-12 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white opacity-0 pointer-events-none scale-75 active:scale-90 border border-white/10 shadow-lg transition-all duration-300">
+                <button class="volume-preview-btn absolute top-6 right-6 z-[100] w-12 h-12 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white opacity-0 pointer-events-none scale-75 active:scale-90 border border-white/5 shadow-lg transition-all duration-300">
                     <span class="material-symbols-outlined text-2xl">volume_off</span>
+                </button>
+
+                <!-- Botão Play Central (Translúcido/Premium) -->
+                <button class="play-card-btn absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-20 h-20 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center text-white shadow-2xl active:scale-90 transition-all duration-300 group">
+                    <div class="absolute inset-0 bg-primary-container/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-full"></div>
+                    <span class="material-symbols-outlined text-5xl drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] relative z-10" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
                 </button>
             `;
             
@@ -2854,27 +2869,63 @@
 
             const previewContainer = frontEl.querySelector('.preview-surface-element');
             const volumeBtn = frontEl.querySelector('.volume-preview-btn');
-            const playBtn = frontEl.querySelector('.play-preview-btn');
+            const playBtn = frontEl.querySelector('.play-card-btn');
 
             const btnAcaoOverlay = element.querySelector('.btn-acao-overlay');
             const heartIcon = overlayEl.querySelector('.bg-primary-container'); // O coração no canto superior da sinopse
 
-            // Quando der like (Match) - Exibe toast e auto-avança em paralelo
+            // Quando der like (Match) - Animação cinematográfica de Match
             function triggerMatch() {
                 if (isMatched) return;
                 isMatched = true;
                 
-                // 1. Salva no banco instantaneamente (async background)
+                // 1. Efeito visual de impacto no Card
+                const rect = element.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+
+                // Cria explosão de corações
+                for(let i=0; i<12; i++) {
+                    const heart = document.createElement('div');
+                    heart.innerHTML = '<span class="material-symbols-outlined" style="font-variation-settings: \'FILL\' 1;">favorite</span>';
+                    heart.className = 'fixed pointer-events-none text-primary-container z-[2000]';
+                    heart.style.left = centerX + 'px';
+                    heart.style.top = centerY + 'px';
+                    document.body.appendChild(heart);
+
+                    const angle = (i / 12) * Math.PI * 2;
+                    const velocity = 100 + Math.random() * 150;
+                    const tx = Math.cos(angle) * velocity;
+                    const ty = Math.sin(angle) * velocity - 100;
+
+                    gsap.to(heart, {
+                        x: tx,
+                        y: ty,
+                        rotation: Math.random() * 360,
+                        scale: 0.5 + Math.random(),
+                        opacity: 0,
+                        duration: 1 + Math.random(),
+                        ease: "power2.out",
+                        onComplete: () => heart.remove()
+                    });
+                }
+
+                // Flash sutil na tela
+                const flash = document.createElement('div');
+                flash.className = 'fixed inset-0 bg-white z-[1999] pointer-events-none opacity-0';
+                document.body.appendChild(flash);
+                gsap.to(flash, { opacity: 0.15, duration: 0.1, yoyo: true, repeat: 1, onComplete: () => flash.remove() });
+
+                // 2. Salva no banco (background)
                 saveActionToSupabase(movie, true);
 
-                // 2. Dispara o toast sem bloquear a animação do card
+                // 3. Exibe o toast premium
                 showMatchToast(movie.title);
 
-                // 3. Marca abas como sujas para atualizar na próxima visita
                 matchesDirty = true;
                 collectionDirty = true;
 
-                // 4. Joga o card para fora imediatamente
+                // 4. Joga o card pra fora com velocidade
                 throwOut(1);
             }
 
@@ -2935,7 +2986,7 @@
             }
 
             function injectPreviewVideo(key, unmuted = false) {
-                // Se já estiver tocando e NÃO for pedido de som, ignoramos
+                isAutoPreviewCancelled = false;
                 if (isPreviewPlaying && !unmuted) return;
                 
                 isPreviewPlaying = true;
@@ -2943,40 +2994,35 @@
                 const muteParam = unmuted ? '0' : '1';
                 const controlsParam = unmuted ? '1' : '0';
 
-                console.log(`[Preview] Injetando trailer (Unmuted: ${unmuted}): ${key}`);
-                
-                if (playBtn) {
-                    if (unmuted) {
-                        gsap.to(playBtn, { opacity: 0, scale: 1.5, duration: 0.3 });
-                        playBtn.classList.add('pointer-events-none');
-                    } else {
-                        playBtn.classList.remove('pointer-events-none');
-                        playBtn.style.opacity = "1";
-                        gsap.to(playBtn, { opacity: 1, scale: 1, duration: 0.3 });
-                        
-                        // Configura o clique para entrar em modo foco
-                        playBtn.onclick = (e) => {
-                            e.stopPropagation();
-                            const dimmer = document.getElementById('app-focus-dimmer');
-                            if (dimmer) {
-                                dimmer.classList.remove('hidden');
-                                gsap.to(dimmer, { opacity: 1, duration: 0.4 });
-                                dimmer.onclick = () => {
-                                    gsap.to(dimmer, { opacity: 0, duration: 0.3, onComplete: () => dimmer.classList.add('hidden') });
-                                    element.style.zIndex = "";
-                                    stopAutoPreview();
-                                };
-                            }
-                            element.style.zIndex = "1000";
-                            injectPreviewVideo(key, true);
-                        };
+                // NOVA ABORDAGEM: Revelação agressiva para corrigir "Som sem imagem"
+                if (unmuted) {
+                    // 1. Removemos temporariamente o preserve-3d do card para forçar o browser a renderizar os pixels do iframe
+                    element.style.transformStyle = 'flat';
+                    frontEl.style.transformStyle = 'flat';
+                    
+                    // 2. Subimos o container do vídeo acima de qualquer overlay ou sombra (z-60)
+                    gsap.set(previewContainer, { 
+                        opacity: 1, 
+                        zIndex: 60,
+                        visibility: 'visible',
+                        display: 'block'
+                    });
+                    previewContainer.classList.remove('pointer-events-none');
+                    
+                    // 3. Escondemos o poster imediatamente
+                    const posterImg = frontEl.querySelector('.card-poster-img');
+                    if (posterImg) posterImg.style.display = 'none';
+
+                    if (playBtn) {
+                        gsap.to(playBtn, { opacity: 0, scale: 0.5, duration: 0.3, pointerEvents: 'none' });
                     }
                 }
 
+                // Iframe com domínio padrão e parâmetros mínimos para estabilidade
                 previewContainer.innerHTML = `
                     <iframe id="${playerId}" 
                         class="absolute inset-0 w-full h-full ${unmuted ? '' : 'pointer-events-none'}" 
-                        src="https://www.youtube-nocookie.com/embed/${key}?enablejsapi=1&autoplay=1&mute=${muteParam}&controls=${controlsParam}&loop=1&playlist=${key}&playsinline=1&modestbranding=1&iv_load_policy=3&origin=${encodeURIComponent(window.location.origin)}" 
+                        src="https://www.youtube.com/embed/${key}?enablejsapi=1&autoplay=1&mute=${muteParam}&controls=${controlsParam}&loop=1&playlist=${key}&playsinline=1&rel=0" 
                         frameborder="0" 
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                         allowfullscreen>
@@ -2985,72 +3031,37 @@
                 
                 const initPlayer = () => {
                     if (isAutoPreviewCancelled) return;
-                    
                     ytPlayer = new YT.Player(playerId, {
                         events: {
                             'onReady': (event) => {
                                 if (!unmuted) {
-                                    event.target.mute();
-                                } else {
-                                    event.target.unMute();
-                                    event.target.setVolume(100);
+                                    // No auto-preview, ainda usamos a revelação suave baseada em estado
+                                    let checkCount = 0;
+                                    const checkInterval = setInterval(() => {
+                                        if (isAutoPreviewCancelled || !ytPlayer) { clearInterval(checkInterval); return; }
+                                        try {
+                                            if (event.target.getPlayerState() === 1) { 
+                                                clearInterval(checkInterval);
+                                                gsap.to(previewContainer, { opacity: 1, duration: 0.5 });
+                                                const posterImg = frontEl.querySelector('.card-poster-img');
+                                                if (posterImg) gsap.to(posterImg, { opacity: 0, duration: 0.8 });
+                                            }
+                                            if (++checkCount > 25) clearInterval(checkInterval);
+                                        } catch (e) { clearInterval(checkInterval); }
+                                    }, 200);
                                 }
-                                event.target.playVideo();
-                                
-                                // Monitoramento agressivo: polling a cada 200ms para revelar o vídeo assim que der play
-                                let checkCount = 0;
-                                const checkInterval = setInterval(() => {
-                                    if (isAutoPreviewCancelled || !ytPlayer) {
-                                        clearInterval(checkInterval);
-                                        return;
-                                    }
-                                    checkCount++;
-                                    try {
-                                        const state = event.target.getPlayerState();
-                                        if (state === 1) { // PLAYING
-                                            clearInterval(checkInterval);
-                                            // Revela o vídeo e oculta o pôster
-                                            gsap.to(previewContainer, { opacity: 1, duration: 0.5 });
-                                            const posterImg = frontEl.querySelector('.card-poster-img');
-                                            if (posterImg) gsap.to(posterImg, { opacity: 0, duration: 0.8 });
-                                            
-                                            // Se estivermos em preview normal (silencioso), mantemos o botão de play
-                                            if (playBtn && !unmuted) {
-                                                gsap.to(playBtn, { opacity: 0.8, scale: 0.9, duration: 0.3 });
-                                                playBtn.classList.remove('pointer-events-none');
-                                            }
-                                            
-                                            // Mostra botão de volume apenas no preview silencioso
-                                            if (volumeBtn && !unmuted) {
-                                                volumeBtn.classList.remove('pointer-events-none');
-                                                gsap.to(volumeBtn, { opacity: 1, scale: 1, duration: 0.5 });
-                                            }
-                                        }
-                                        if (checkCount > 25) clearInterval(checkInterval); // 5 segundos de tentativa
-                                    } catch (e) { clearInterval(checkInterval); }
-                                }, 200);
                             },
                             'onStateChange': (event) => {
                                 if (event.data === YT.PlayerState.ENDED) event.target.playVideo();
-                                if (event.data === YT.PlayerState.PLAYING) {
-                                    gsap.to(previewContainer, { opacity: 1, duration: 0.5 });
-                                    const posterImg = frontEl.querySelector('.card-poster-img');
-                                    if (posterImg) gsap.to(posterImg, { opacity: 0, duration: 0.8 });
-                                }
                             },
-                            'onError': () => {
-                                console.warn("Erro no player do YouTube. Fallback para pôster.");
-                                stopAutoPreview();
-                            }
+                            'onError': () => stopAutoPreview()
                         }
                     });
                 };
 
-                if (isYouTubeAPIReady) {
-                    initPlayer();
-                } else {
-                    ytAPIQueue.push(initPlayer);
-                }
+                if (isYouTubeAPIReady) initPlayer();
+                else ytAPIQueue.push(initPlayer);
+            }
 
                 // Clique do volume usando a API oficial
                 if (volumeBtn) {
@@ -3071,7 +3082,6 @@
                         }
                     };
                 }
-            }
 
             function stopAutoPreview() {
                 isAutoPreviewCancelled = true;
@@ -3079,15 +3089,24 @@
                 
                 if (isPreviewPlaying) {
                     const posterImg = frontEl.querySelector('.card-poster-img');
-                    if (posterImg) gsap.to(posterImg, { opacity: 1, duration: 0.3 });
+                    if (posterImg) {
+                        posterImg.style.display = 'block';
+                        gsap.to(posterImg, { opacity: 1, duration: 0.3 });
+                    }
+                    
+                    // Restaura o 3D para o próximo card ou swipe
+                    element.style.transformStyle = 'preserve-3d';
+                    frontEl.style.transformStyle = 'preserve-3d';
+                    element.style.zIndex = "";
                     
                     if (volumeBtn) {
                         gsap.to(volumeBtn, { opacity: 0, scale: 0.5, duration: 0.2 });
                         volumeBtn.classList.add('pointer-events-none');
                     }
                     if (playBtn) {
-                        gsap.to(playBtn, { opacity: 0, scale: 0.5, duration: 0.2 });
-                        playBtn.classList.add('pointer-events-none');
+                        gsap.to(playBtn, { opacity: 1, scale: 1, duration: 0.2 });
+                        playBtn.classList.remove('bg-primary-container/20', 'border-primary-container/40');
+                        playBtn.style.pointerEvents = 'auto';
                     }
 
                     if (ytPlayer && ytPlayer.destroy) {
@@ -3104,7 +3123,6 @@
                     if (dimmer) {
                         gsap.to(dimmer, { opacity: 0, duration: 0.3, onComplete: () => dimmer.classList.add('hidden') });
                     }
-                    element.style.zIndex = "";
                 }
             }
 
@@ -3176,6 +3194,49 @@
                 e.preventDefault();
                 if (!isMatched) triggerDislike();
             };
+
+            // Função centralizada para disparar o trailer no Modo Foco
+            async function playTrailerFocusMode() {
+                if (isAnimating || isMatched || isInfoOpen) return;
+                
+                // Feedback visual imediato: ativa o dimmer
+                const dimmer = document.getElementById('app-focus-dimmer');
+                if (dimmer) {
+                    dimmer.classList.remove('hidden');
+                    gsap.to(dimmer, { opacity: 1, duration: 0.4 });
+                    dimmer.onclick = () => {
+                        gsap.to(dimmer, { opacity: 0, duration: 0.3, onComplete: () => dimmer.classList.add('hidden') });
+                        element.style.zIndex = "";
+                        stopAutoPreview();
+                    };
+                }
+                element.style.zIndex = "1000";
+
+                let currentKey = trailersCache.get(movie.id);
+                if (!currentKey) {
+                    // Se não tiver no cache, busca agora mesmo (usuário clicou antes do auto-preview)
+                    currentKey = await getTrailerKey(movie.id);
+                }
+
+                if (currentKey) {
+                    injectPreviewVideo(currentKey, true);
+                } else {
+                    console.warn("Nenhum trailer disponível para este filme.");
+                    // Fecha o dimmer se não houver vídeo
+                    if (dimmer) {
+                        gsap.to(dimmer, { opacity: 0, duration: 0.3, onComplete: () => dimmer.classList.add('hidden') });
+                    }
+                    element.style.zIndex = "";
+                }
+            }
+
+            if (playBtn) {
+                playBtn.onpointerdown = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    playTrailerFocusMode();
+                };
+            }
 
             // Botão interno do Overlay ("Finalizar Match" ou "Fechar Sinopse")
             if (btnAcaoOverlay) {
@@ -3584,18 +3645,7 @@
             card.className = 'film-card aspect-[2/3] relative group';
             card.innerHTML = `
                 <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title}" loading="lazy">
-                <div class="match-card-trailer-layer"></div>
                 <div class="card-overlay"></div>
-                <button type="button" class="match-card-play-btn" aria-label="Reproduzir trailer">
-                    <span class="material-symbols-outlined text-[30px] translate-x-[1px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
-                </button>
-                <button type="button" class="match-card-close-btn" aria-label="Fechar trailer">
-                    <span class="material-symbols-outlined text-[18px]">close</span>
-                </button>
-                <div class="match-card-trailer-badge">
-                    <span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">movie</span>
-                    Trailer no card
-                </div>
                 <div class="card-info">
                     <h3 class="text-white font-bold text-[10px] line-clamp-1 uppercase tracking-tight">${movie.title}</h3>
                 </div>
