@@ -299,15 +299,160 @@
             position: fixed;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%) scale(0.6);
+            transform: translate(-50%, -50%) scale(0.78);
             z-index: 100;
             pointer-events: none;
             opacity: 0;
             display: flex;
-            flex-direction: column;
             align-items: center;
-            gap: 16px;
+            justify-content: center;
+            width: min(88vw, 380px);
+            perspective: 1200px;
+            will-change: transform, opacity;
+        }
+        #match-toast .toast-shell {
+            position: relative;
+            width: 100%;
+            padding: 34px 24px 28px;
+            border-radius: 34px;
+            overflow: hidden;
             text-align: center;
+            background:
+                linear-gradient(145deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02)),
+                radial-gradient(circle at top, rgba(229, 9, 20, 0.34), rgba(124, 58, 237, 0.08) 45%, rgba(5, 5, 5, 0.9) 72%);
+            border: 1px solid rgba(255,255,255,0.12);
+            box-shadow:
+                0 30px 100px rgba(229, 9, 20, 0.22),
+                inset 0 1px 0 rgba(255,255,255,0.08),
+                inset 0 -30px 60px rgba(0,0,0,0.35);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            transform-style: preserve-3d;
+        }
+        #match-toast .toast-shell::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, transparent 20%, rgba(255,255,255,0.16) 50%, transparent 80%);
+            opacity: 0.35;
+            transform: translateX(-120%);
+        }
+        #match-toast .toast-shell.glint-run::before {
+            animation: glint-sweep 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        @keyframes glint-sweep {
+            0% { transform: translateX(-120%) skewX(-15deg); }
+            100% { transform: translateX(120%) skewX(-15deg); }
+        }
+        #match-toast .toast-noise {
+            position: absolute;
+            inset: 0;
+            opacity: 0.08;
+            mix-blend-mode: screen;
+            background-image:
+                radial-gradient(circle at 20% 20%, rgba(255,255,255,0.6) 0 1px, transparent 1px),
+                radial-gradient(circle at 80% 35%, rgba(255,255,255,0.5) 0 1px, transparent 1px),
+                radial-gradient(circle at 55% 80%, rgba(255,255,255,0.3) 0 1px, transparent 1px);
+            background-size: 26px 26px, 34px 34px, 22px 22px;
+            pointer-events: none;
+        }
+        #match-toast .toast-aura {
+            position: absolute;
+            inset: 10% 12%;
+            border-radius: 9999px;
+            background: radial-gradient(circle, rgba(229, 9, 20, 0.42) 0%, rgba(229, 9, 20, 0.12) 38%, rgba(124, 58, 237, 0.08) 62%, rgba(0,0,0,0) 74%);
+            filter: blur(24px);
+            opacity: 0.7;
+            pointer-events: none;
+        }
+        #match-toast .toast-rings {
+            position: relative;
+            width: 152px;
+            height: 152px;
+            margin: 0 auto 20px;
+            display: grid;
+            place-items: center;
+        }
+        #match-toast .toast-ring-outer,
+        #match-toast .toast-ring-middle,
+        #match-toast .toast-ring-core {
+            position: absolute;
+            border-radius: 9999px;
+        }
+        #match-toast .toast-ring-outer {
+            inset: 0;
+            border: 1px solid rgba(255,255,255,0.14);
+            box-shadow: 0 0 50px rgba(229, 9, 20, 0.18);
+        }
+        #match-toast .toast-ring-middle {
+            inset: 16px;
+            border: 1px solid rgba(255,255,255,0.22);
+            background: radial-gradient(circle, rgba(229,9,20,0.12) 0%, rgba(229,9,20,0) 70%);
+        }
+        #match-toast .toast-ring-core {
+            inset: 34px;
+            background: linear-gradient(145deg, rgba(255,255,255,0.18), rgba(255,255,255,0.04));
+            border: 1px solid rgba(255,255,255,0.12);
+            box-shadow:
+                0 0 40px rgba(229, 9, 20, 0.45),
+                inset 0 0 40px rgba(229, 9, 20, 0.28);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #match-toast .toast-heart {
+            font-size: 3.6rem;
+            color: #fff;
+            text-shadow: 0 0 30px rgba(255,255,255,0.2), 0 0 40px rgba(229,9,20,0.85);
+        }
+        #match-toast .toast-beam {
+            position: absolute;
+            top: -12%;
+            left: 50%;
+            width: 140%;
+            height: 58%;
+            transform: translateX(-50%);
+            background: linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0));
+            filter: blur(14px);
+            opacity: 0.32;
+            pointer-events: none;
+        }
+        #match-toast .toast-copy {
+            position: relative;
+            z-index: 1;
+        }
+        #match-toast .toast-kicker {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.32em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.58);
+            margin-bottom: 10px;
+        }
+        #match-toast .toast-title {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 900;
+            font-size: clamp(2.1rem, 7vw, 3.1rem);
+            letter-spacing: -0.06em;
+            line-height: 0.92;
+            color: #ffffff;
+            text-shadow: 0 0 26px rgba(229,9,20,0.28);
+        }
+        #match-toast .toast-title-accent {
+            color: #ff5a63;
+        }
+        #match-toast .toast-film-name {
+            margin-top: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.86rem;
+            color: rgba(255,255,255,0.68);
+            letter-spacing: 0.03em;
+            line-height: 1.4;
+        }
+        #match-toast .toast-film-name strong {
+            color: #ffffff;
+            font-weight: 700;
         }
 
         .preview-surface-element iframe {
@@ -320,26 +465,6 @@
             border: none !important;
         }
 
-        #match-toast .toast-ring {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(229,9,20,0.3) 0%, rgba(229,9,20,0) 70%);
-            border: 2px solid rgba(229, 9, 20, 0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 40px rgba(229, 9, 20, 0.6), inset 0 0 20px rgba(229, 9, 20, 0.2);
-        }
-        #match-toast .toast-text {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            font-weight: 800;
-            font-size: 1.1rem;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: #ffffff;
-            text-shadow: 0 0 30px rgba(229, 9, 20, 0.8);
-        }
         body {
             background-color: #0e0e0e;
             color: white;
@@ -357,22 +482,18 @@
             width: 100%;
             overflow: hidden;
         }
-        #match-toast .toast-sub {
-            font-family: 'Inter', sans-serif;
-            font-size: 0.8rem;
-            color: rgba(255,255,255,0.5);
-            letter-spacing: 0.05em;
-            margin-top: -10px;
-        }
         /* Screen flash on match */
         #match-flash {
             position: fixed;
             inset: 0;
-            background: radial-gradient(ellipse at center, rgba(229,9,20,0.25) 0%, transparent 70%);
+            background:
+                radial-gradient(circle at center, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 24%),
+                radial-gradient(ellipse at center, rgba(229,9,20,0.34) 0%, rgba(124,58,237,0.12) 42%, transparent 74%);
             z-index: 99;
             pointer-events: none;
             opacity: 0;
-            will-change: opacity;
+            will-change: opacity, transform;
+            filter: blur(8px);
         }
         /* ── Page Transition ── */
         @keyframes pageEnter {
@@ -459,6 +580,202 @@
             width: 24px;
             height: 24px;
             object-fit: contain;
+        }
+        .match-card-trailer-layer {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.35s ease;
+            z-index: 8;
+            background: #000;
+            overflow: hidden;
+            border-radius: inherit;
+        }
+        .match-card-trailer-layer iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+        .match-card-trailer-frame {
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transition: opacity 0.35s ease;
+            background: #000;
+        }
+        .match-card-trailer-frame.is-ready {
+            opacity: 1;
+        }
+        .match-card-trailer-loader {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: radial-gradient(circle, rgba(229, 9, 20, 0.18) 0%, rgba(0, 0, 0, 0.92) 72%);
+            z-index: 2;
+            text-align: center;
+            padding: 18px;
+        }
+        .match-card-trailer-spinner {
+            width: 34px;
+            height: 34px;
+            border-radius: 9999px;
+            border: 3px solid rgba(255, 255, 255, 0.14);
+            border-top-color: rgba(229, 9, 20, 0.95);
+            animation: spin 0.8s linear infinite;
+        }
+        .match-card-trailer-fallback {
+            position: absolute;
+            inset-inline: 16px;
+            bottom: 16px;
+            z-index: 3;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 42px;
+            padding: 10px 12px;
+            border-radius: 9999px;
+            color: #fff;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            background: rgba(0, 0, 0, 0.72);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        .match-card-trailer-fallback.visible {
+            display: flex;
+        }
+        .film-card.is-playing .match-card-trailer-layer {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .match-card-play-btn,
+        .match-card-close-btn {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9999px;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: transform 0.25s ease, opacity 0.25s ease, background 0.25s ease, border-color 0.25s ease;
+        }
+        .match-card-play-btn {
+            top: 50%;
+            left: 50%;
+            width: 72px;
+            height: 72px;
+            z-index: 12;
+            color: #fff;
+            background: rgba(229, 9, 20, 0.58);
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            box-shadow: 0 18px 40px rgba(229, 9, 20, 0.34);
+            transform: translate(-50%, -50%);
+        }
+        .match-card-play-btn:hover {
+            transform: translate(-50%, -50%) scale(1.08);
+            background: rgba(229, 9, 20, 0.74);
+            border-color: rgba(255, 255, 255, 0.28);
+        }
+        .match-card-play-btn:active {
+            transform: translate(-50%, -50%) scale(0.94);
+        }
+        .match-card-close-btn:active {
+            transform: scale(0.94);
+        }
+        .match-card-play-btn::before {
+            content: "";
+            position: absolute;
+            inset: -10px;
+            border-radius: 9999px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            background: radial-gradient(circle, rgba(229, 9, 20, 0.18) 0%, rgba(229, 9, 20, 0) 72%);
+            animation: matchPlayPulse 1.8s ease-out infinite;
+        }
+        .match-card-play-btn > * {
+            position: relative;
+            z-index: 1;
+        }
+        .match-card-close-btn {
+            top: 14px;
+            left: 14px;
+            width: 38px;
+            height: 38px;
+            z-index: 13;
+            color: rgba(255, 255, 255, 0.92);
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .film-card.is-playing .match-card-close-btn {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .film-card.is-playing .match-card-play-btn {
+            opacity: 0;
+            pointer-events: none;
+            transform: translate(-50%, -50%) scale(0.8);
+        }
+        .match-card-trailer-badge {
+            position: absolute;
+            left: 14px;
+            right: 14px;
+            bottom: 42px;
+            z-index: 11;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 10px;
+            border-radius: 9999px;
+            color: rgba(255, 255, 255, 0.92);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            background: linear-gradient(90deg, rgba(229, 9, 20, 0.72), rgba(8, 8, 8, 0.3));
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            pointer-events: none;
+        }
+        .film-card.has-trailer .match-card-trailer-badge {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .film-card.is-playing .match-card-trailer-badge {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        @keyframes matchPlayPulse {
+            0% {
+                transform: scale(0.9);
+                opacity: 0.9;
+            }
+            70% {
+                transform: scale(1.08);
+                opacity: 0.2;
+            }
+            100% {
+                transform: scale(1.14);
+                opacity: 0;
+            }
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         /* ── Modern Badge System (Cyber-Noir) ── */
@@ -754,7 +1071,6 @@
                     <h2 class="font-headline font-black text-3xl tracking-tighter text-white leading-none">Sua <span class="text-white/30">Coleção</span></h2>
                 </div>
                 <main class="flex-grow overflow-y-auto px-4 pb-40" id="collection-scroll">
-                    <!-- Categorias e Listas -->
                     <div id="collection-content" class="space-y-6"></div>
                     <div id="collection-empty" class="hidden flex-col items-center justify-center h-full py-20 text-center">
                         <div class="w-20 h-20 rounded-full bg-primary-container/10 flex items-center justify-center mb-6 mx-auto border border-primary-container/20">
@@ -1054,12 +1370,27 @@
         </button>
     </nav>
     <!-- Match Toast (global overlay) -->
-    <div id="match-flash" class="fixed inset-0 bg-primary-container pointer-events-none opacity-0 z-[200]"></div>
-    <div id="match-toast" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[210] opacity-0 scale-50 pointer-events-none flex flex-col items-center">
-        <div class="w-32 h-32 rounded-full bg-primary-container flex items-center justify-center shadow-[0_0_50px_rgba(229,9,20,0.8)] mb-6">
-            <span class="material-symbols-outlined text-white text-6xl" style="font-variation-settings: 'FILL' 1;">favorite</span>
+    <div id="match-flash"></div>
+    <div id="match-toast">
+        <div class="toast-shell">
+            <div class="toast-noise"></div>
+            <div class="toast-aura"></div>
+            <div class="toast-beam"></div>
+            
+            <div class="toast-rings">
+                <div class="toast-ring-outer"></div>
+                <div class="toast-ring-middle"></div>
+                <div class="toast-ring-core">
+                    <span class="material-symbols-outlined toast-heart" style="font-variation-settings: 'FILL' 1;">favorite</span>
+                </div>
+            </div>
+
+            <div class="toast-copy">
+                <p class="toast-kicker">Descoberta Especial</p>
+                <h2 class="toast-title">É UM <span class="toast-title-accent">MATCH!</span></h2>
+                <p class="toast-film-name" id="match-film-name-display"></p>
+            </div>
         </div>
-        <h2 class="font-headline font-black text-4xl text-white tracking-tighter text-center leading-none">É UM<br><span class="text-primary-container">MATCH!</span></h2>
     </div>
 
     <!-- Universal Modal (Synopsis) -->
@@ -1123,6 +1454,9 @@
             <div id="video-container" class="w-full h-full"></div>
         </div>
     </div>
+
+    <!-- Overlay de Esmaecimento para Trailers (Modo Foco) -->
+    <div id="app-focus-dimmer" class="fixed inset-0 bg-black/80 z-[900] opacity-0 hidden pointer-events-auto backdrop-blur-sm transition-all duration-500"></div>
 
     <script type="module">
         import { supabase } from './js/supabase.js';
@@ -1593,36 +1927,108 @@
 
         // Animação elegante de Match (sem abrir a sinopse)
         function showMatchToast(movieTitle, onComplete) {
-            const tl = gsap.timeline({ defaults: { force3D: true } });
+            const filmDisplay = document.getElementById('match-film-name-display');
+            if (filmDisplay) filmDisplay.innerHTML = `Você combinou com <strong>${movieTitle}</strong>`;
 
-            // 1. Flash vermelho na tela
+            const tl = gsap.timeline({ 
+                defaults: { force3D: true, ease: "power3.out" },
+                onComplete: () => {
+                    if (onComplete) onComplete();
+                }
+            });
+            
+            // 1. Reset & Prepare
+            gsap.set([matchFlash, matchToast], { opacity: 0 });
+            gsap.set(matchToast, { 
+                scale: 0.6, 
+                y: 30, 
+                xPercent: -50, 
+                yPercent: -50, 
+                rotationX: 15,
+                left: "50%",
+                top: "50%"
+            });
+            gsap.set('.toast-ring-outer, .toast-ring-middle, .toast-ring-core', { scale: 0, opacity: 0 });
+            gsap.set('.toast-kicker, .toast-title, .toast-film-name', { opacity: 0, y: 15 });
+            gsap.set('.toast-aura', { opacity: 0, scale: 0.8 });
+            
+            // 2. Flash Inicial (Impacto)
             tl.to(matchFlash, {
-                opacity: 1, duration: 0.15, ease: "power2.in"
+                opacity: 1,
+                duration: 0.2,
+                ease: "power2.inOut"
             })
-            .to(matchFlash, {
-                opacity: 0, duration: 0.5, ease: "power2.out"
-            }, ">-0.05")
-
-            // 2. Toast sobe com escala e opacidade
+            
+            // 3. Entrada do Shell (Efeito Elástico)
             .to(matchToast, {
                 opacity: 1,
                 scale: 1,
-                duration: 0.4,
-                ease: "back.out(1.7)"
+                y: 0,
+                rotationX: 0,
+                duration: 0.8,
+                ease: "elastic.out(1, 0.75)"
             }, "<")
 
-            // 3. Fica visível por um momento
+            // 4. Explosão dos Anéis (Staggered)
+            .to(['.toast-ring-outer', '.toast-ring-middle', '.toast-ring-core'], {
+                scale: 1,
+                opacity: 1,
+                duration: 0.6,
+                stagger: 0.1,
+                ease: "back.out(1.8)"
+            }, "-=0.5")
+
+            // 5. Brilho do Shell (Glint)
+            .add(() => {
+                const shell = document.querySelector('.toast-shell');
+                if(shell) shell.classList.add('glint-run');
+            }, "-=0.8")
+
+            // 6. Revelação da Cópia (Texto)
+            .to(['.toast-kicker', '.toast-title', '.toast-film-name'], {
+                opacity: 1,
+                y: 0,
+                duration: 0.5,
+                stagger: 0.12,
+                ease: "power2.out"
+            }, "-=0.4")
+
+            // 7. Aura e Brilho Ambiente
+            .to('.toast-aura', {
+                opacity: 0.7,
+                scale: 1.2,
+                duration: 1,
+                ease: "sine.inOut"
+            }, "-=0.8")
+
+            // 8. Pulsação do Coração (Looping enquanto visível)
+            .to('.toast-heart', {
+                scale: 1.2,
+                duration: 0.6,
+                repeat: 3,
+                yoyo: true,
+                ease: "sine.inOut"
+            }, "-=0.5")
+
+            // 9. Saída Elegante (Sumindo para longe)
             .to(matchToast, {
                 opacity: 0,
-                scale: 0.8,
-                y: -20,
-                duration: 0.35,
-                ease: "power2.in",
-                delay: 0.9,
-                onComplete: () => {
-                    gsap.set(matchToast, { y: 0, scale: 0.6 }); // reset
-                    if (onComplete) onComplete();
-                }
+                scale: 1.05,
+                y: -10,
+                duration: 0.5,
+                ease: "power2.inOut",
+                delay: 1.5
+            })
+            .to(matchFlash, {
+                opacity: 0,
+                duration: 0.4
+            }, "<")
+            
+            // Cleanup
+            .add(() => {
+                const shell = document.querySelector('.toast-shell');
+                if(shell) shell.classList.remove('glint-run');
+                gsap.set([matchFlash, matchToast], { opacity: 0 });
             });
         }
 
@@ -1985,7 +2391,7 @@
 
             // Frente (Poster)
             const front = document.createElement("div");
-            front.className = "front-content absolute inset-0 bg-surface-container-highest flex flex-col justify-end";
+            front.className = "front-content absolute inset-0 rounded-2xl bg-neutral-900 border border-white/5 shadow-2xl preserve-3d";
             front.style.zIndex = "30";
             
             let badgeHTML = '';
@@ -2060,8 +2466,10 @@
 
                 <!-- Botões de Controle de Vídeo (Refinados) -->
                 <!-- Play no centro para máxima visibilidade -->
-                <button class="play-preview-btn absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-20 h-20 rounded-full bg-primary/80 backdrop-blur-md flex items-center justify-center text-white opacity-0 pointer-events-none scale-75 active:scale-90 border-2 border-white/30 shadow-[0_0_40px_rgba(229,9,20,0.6)] transition-all duration-300">
-                    <span class="material-symbols-outlined text-5xl" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+                <!-- Play no centro (Refinado com 3D para visibilidade garantida) -->
+                <button class="play-preview-btn absolute top-1/2 left-1/2 z-[1100] w-24 h-24 rounded-full bg-primary-container flex items-center justify-center text-white opacity-0 pointer-events-none scale-75 active:scale-90 border-4 border-white/40 shadow-[0_0_80px_rgba(229,9,20,0.6)] transition-all duration-300 group" style="transform: translate3d(-50%, -50%, 150px);">
+                    <div class="absolute inset-0 rounded-full bg-white/30 animate-ping opacity-40 group-hover:opacity-60"></div>
+                    <span class="material-symbols-outlined text-6xl translate-x-1 drop-shadow-2xl relative z-10" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
                 </button>
                 <!-- Volume no canto superior direito -->
                 <button class="volume-preview-btn absolute top-6 right-6 z-[100] w-12 h-12 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white opacity-0 pointer-events-none scale-75 active:scale-90 border border-white/10 shadow-lg transition-all duration-300">
@@ -2199,6 +2607,144 @@
                 }
             } catch (err) {
                 console.error("Erro ao carregar trailer:", err);
+            }
+        }
+
+        async function getTrailerKey(movieId) {
+            let trailer = trailersCache.get(movieId);
+
+            if (trailer !== undefined) {
+                return trailer;
+            }
+
+            try {
+                const res = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${API_KEY}&language=pt-BR`);
+                const data = await res.json();
+
+                let video = data.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
+                if (!video) video = data.results.find(v => (v.type === 'Teaser' || v.type === 'Clip') && v.site === 'YouTube');
+
+                if (!video) {
+                    const resEn = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${API_KEY}&language=en-US`);
+                    const dataEn = await resEn.json();
+                    video = dataEn.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
+                    if (!video) video = dataEn.results.find(v => (v.type === 'Teaser' || v.type === 'Clip') && v.site === 'YouTube');
+                }
+
+                trailer = video ? video.key : null;
+                trailersCache.set(movieId, trailer);
+                return trailer;
+            } catch (e) {
+                console.error("Erro ao buscar trailer:", e);
+                trailersCache.set(movieId, null);
+                return null;
+            }
+        }
+
+        function stopMatchCardTrailer(card) {
+            if (!card) return;
+
+            const trailerLayer = card.querySelector('.match-card-trailer-layer');
+            if (trailerLayer) {
+                if (trailerLayer._fallbackTimer) {
+                    clearTimeout(trailerLayer._fallbackTimer);
+                    trailerLayer._fallbackTimer = null;
+                }
+                trailerLayer.innerHTML = '';
+            }
+
+            card.classList.remove('is-playing');
+        }
+
+        function playMatchCardTrailer(card, trailerKey) {
+            if (!card || !trailerKey) return;
+
+            document.querySelectorAll('#matches-grid .film-card.is-playing').forEach(activeCard => {
+                if (activeCard !== card) {
+                    stopMatchCardTrailer(activeCard);
+                }
+            });
+
+            const trailerLayer = card.querySelector('.match-card-trailer-layer');
+            if (!trailerLayer) return;
+
+            const embedUrl = `https://www.youtube.com/embed/${trailerKey}?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1&controls=1&origin=${encodeURIComponent(window.location.origin)}`;
+            const watchUrl = `https://www.youtube.com/watch?v=${trailerKey}`;
+
+            trailerLayer.innerHTML = `
+                <div class="match-card-trailer-loader">
+                    <div class="match-card-trailer-spinner"></div>
+                    <p class="text-[10px] font-black tracking-[0.18em] uppercase text-white/85">Carregando trailer</p>
+                    <p class="text-[10px] text-white/45">Se demorar, toque em abrir no YouTube.</p>
+                </div>
+                <iframe
+                    class="match-card-trailer-frame"
+                    src="${embedUrl}"
+                    title="Trailer"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerpolicy="strict-origin-when-cross-origin"
+                    allowfullscreen>
+                </iframe>
+                <a
+                    href="${watchUrl}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="match-card-trailer-fallback">
+                    <span class="material-symbols-outlined text-[16px]">open_in_new</span>
+                    Abrir no YouTube
+                </a>
+            `;
+
+            const iframe = trailerLayer.querySelector('.match-card-trailer-frame');
+            const loader = trailerLayer.querySelector('.match-card-trailer-loader');
+            const fallback = trailerLayer.querySelector('.match-card-trailer-fallback');
+
+            if (trailerLayer._fallbackTimer) {
+                clearTimeout(trailerLayer._fallbackTimer);
+            }
+
+            trailerLayer._fallbackTimer = setTimeout(() => {
+                if (fallback) fallback.classList.add('visible');
+                if (loader) loader.style.opacity = '0';
+            }, 2500);
+
+            if (iframe) {
+                iframe.addEventListener('load', () => {
+                    iframe.classList.add('is-ready');
+                    if (loader) loader.remove();
+                }, { once: true });
+            }
+
+            card.classList.add('is-playing');
+        }
+
+        async function setupMatchCardTrailer(card, movie) {
+            if (!card || !movie?.id) return;
+
+            const playBtn = card.querySelector('.match-card-play-btn');
+            const closeBtn = card.querySelector('.match-card-close-btn');
+
+            if (playBtn) {
+                playBtn.setAttribute('aria-label', `Reproduzir trailer de ${movie.title}`);
+                playBtn.addEventListener('click', async (event) => {
+                    event.stopPropagation();
+                    const trailerKey = await getTrailerKey(movie.id);
+                    if (!trailerKey) {
+                        playBtn.classList.add('animate-pulse');
+                        setTimeout(() => playBtn.classList.remove('animate-pulse'), 800);
+                        return;
+                    }
+                    card.classList.add('has-trailer');
+                    playMatchCardTrailer(card, trailerKey);
+                });
+            }
+
+            if (closeBtn) {
+                closeBtn.setAttribute('aria-label', `Fechar trailer de ${movie.title}`);
+                closeBtn.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    stopMatchCardTrailer(card);
+                });
             }
         }
 
@@ -2388,22 +2934,49 @@
                 injectPreviewVideo(trailerKey);
             }
 
-            function injectPreviewVideo(key) {
-                if (isPreviewPlaying || isAutoPreviewCancelled) return;
-                isPreviewPlaying = true;
+            function injectPreviewVideo(key, unmuted = false) {
+                // Se já estiver tocando e NÃO for pedido de som, ignoramos
+                if (isPreviewPlaying && !unmuted) return;
                 
-                // Mostra o botão de Play IMEDIATAMENTE (preparado para clique manual caso autoplay falhe)
+                isPreviewPlaying = true;
+                const playerId = `player-${movie.id}-${Math.floor(Math.random() * 1000)}`;
+                const muteParam = unmuted ? '0' : '1';
+                const controlsParam = unmuted ? '1' : '0';
+
+                console.log(`[Preview] Injetando trailer (Unmuted: ${unmuted}): ${key}`);
+                
                 if (playBtn) {
-                    playBtn.classList.remove('pointer-events-none');
-                    gsap.to(playBtn, { opacity: 1, scale: 1, duration: 0.3 });
+                    if (unmuted) {
+                        gsap.to(playBtn, { opacity: 0, scale: 1.5, duration: 0.3 });
+                        playBtn.classList.add('pointer-events-none');
+                    } else {
+                        playBtn.classList.remove('pointer-events-none');
+                        playBtn.style.opacity = "1";
+                        gsap.to(playBtn, { opacity: 1, scale: 1, duration: 0.3 });
+                        
+                        // Configura o clique para entrar em modo foco
+                        playBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            const dimmer = document.getElementById('app-focus-dimmer');
+                            if (dimmer) {
+                                dimmer.classList.remove('hidden');
+                                gsap.to(dimmer, { opacity: 1, duration: 0.4 });
+                                dimmer.onclick = () => {
+                                    gsap.to(dimmer, { opacity: 0, duration: 0.3, onComplete: () => dimmer.classList.add('hidden') });
+                                    element.style.zIndex = "";
+                                    stopAutoPreview();
+                                };
+                            }
+                            element.style.zIndex = "1000";
+                            injectPreviewVideo(key, true);
+                        };
+                    }
                 }
 
-                const playerId = `player-${movie.id}-${Math.floor(Math.random() * 1000)}`;
-                // Injeta o iframe diretamente com 'allow=autoplay' e 'mute=1' explicitamente na URL para contornar políticas de bloqueio
                 previewContainer.innerHTML = `
                     <iframe id="${playerId}" 
-                        class="absolute inset-0 w-full h-full pointer-events-none" 
-                        src="https://www.youtube-nocookie.com/embed/${key}?enablejsapi=1&autoplay=1&mute=1&controls=0&loop=1&playlist=${key}&playsinline=1&modestbranding=1&iv_load_policy=3&origin=${encodeURIComponent(window.location.origin)}" 
+                        class="absolute inset-0 w-full h-full ${unmuted ? '' : 'pointer-events-none'}" 
+                        src="https://www.youtube-nocookie.com/embed/${key}?enablejsapi=1&autoplay=1&mute=${muteParam}&controls=${controlsParam}&loop=1&playlist=${key}&playsinline=1&modestbranding=1&iv_load_policy=3&origin=${encodeURIComponent(window.location.origin)}" 
                         frameborder="0" 
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                         allowfullscreen>
@@ -2416,7 +2989,12 @@
                     ytPlayer = new YT.Player(playerId, {
                         events: {
                             'onReady': (event) => {
-                                event.target.mute();
+                                if (!unmuted) {
+                                    event.target.mute();
+                                } else {
+                                    event.target.unMute();
+                                    event.target.setVolume(100);
+                                }
                                 event.target.playVideo();
                                 
                                 // Monitoramento agressivo: polling a cada 200ms para revelar o vídeo assim que der play
@@ -2436,13 +3014,14 @@
                                             const posterImg = frontEl.querySelector('.card-poster-img');
                                             if (posterImg) gsap.to(posterImg, { opacity: 0, duration: 0.8 });
                                             
-                                            // Esconde botão de play se ele estiver visível
-                                            if (playBtn) {
-                                                gsap.to(playBtn, { opacity: 0, scale: 0.5, duration: 0.3 });
-                                                playBtn.classList.add('pointer-events-none');
+                                            // Se estivermos em preview normal (silencioso), mantemos o botão de play
+                                            if (playBtn && !unmuted) {
+                                                gsap.to(playBtn, { opacity: 0.8, scale: 0.9, duration: 0.3 });
+                                                playBtn.classList.remove('pointer-events-none');
                                             }
-                                            // Mostra botão de volume
-                                            if (volumeBtn) {
+                                            
+                                            // Mostra botão de volume apenas no preview silencioso
+                                            if (volumeBtn && !unmuted) {
                                                 volumeBtn.classList.remove('pointer-events-none');
                                                 gsap.to(volumeBtn, { opacity: 1, scale: 1, duration: 0.5 });
                                             }
@@ -2492,30 +3071,6 @@
                         }
                     };
                 }
-
-                // Clique do Play manual (quando autoplay é bloqueado)
-                if (playBtn) {
-                    playBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        if (!ytPlayer || typeof ytPlayer.playVideo !== 'function') return;
-                        
-                        ytPlayer.playVideo(); // Permissão concedida pelo usuário
-                        
-                        // Revela o vídeo e esconde o pôster
-                        gsap.to(previewContainer, { opacity: 1, duration: 0.8 });
-                        const posterImg = frontEl.querySelector('.card-poster-img');
-                        if (posterImg) gsap.to(posterImg, { opacity: 0, duration: 1 });
-                        
-                        // Troca de botão Play -> Volume
-                        gsap.to(playBtn, { opacity: 0, scale: 0.5, duration: 0.2 });
-                        playBtn.classList.add('pointer-events-none');
-                        
-                        if (volumeBtn) {
-                            volumeBtn.classList.remove('pointer-events-none');
-                            gsap.to(volumeBtn, { opacity: 1, scale: 1, duration: 0.5 });
-                        }
-                    };
-                }
             }
 
             function stopAutoPreview() {
@@ -2543,11 +3098,18 @@
                     previewContainer.innerHTML = '';
                     previewContainer.style.opacity = "0";
                     isPreviewPlaying = false;
+
+                    // Esconde o dimmer se estiver ativo
+                    const dimmer = document.getElementById('app-focus-dimmer');
+                    if (dimmer) {
+                        gsap.to(dimmer, { opacity: 0, duration: 0.3, onComplete: () => dimmer.classList.add('hidden') });
+                    }
+                    element.style.zIndex = "";
                 }
             }
 
-            // Inicia o timer de 3 segundos
-            previewTimer = setTimeout(startAutoPreview, 3000);
+            // Inicia o timer de 800ms (reduzido para agilidade)
+            previewTimer = setTimeout(startAutoPreview, 800);
 
             // Quando for dispensado
             function triggerDislike() {
@@ -3022,12 +3584,24 @@
             card.className = 'film-card aspect-[2/3] relative group';
             card.innerHTML = `
                 <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title}" loading="lazy">
+                <div class="match-card-trailer-layer"></div>
                 <div class="card-overlay"></div>
+                <button type="button" class="match-card-play-btn" aria-label="Reproduzir trailer">
+                    <span class="material-symbols-outlined text-[30px] translate-x-[1px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+                </button>
+                <button type="button" class="match-card-close-btn" aria-label="Fechar trailer">
+                    <span class="material-symbols-outlined text-[18px]">close</span>
+                </button>
+                <div class="match-card-trailer-badge">
+                    <span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">movie</span>
+                    Trailer no card
+                </div>
                 <div class="card-info">
                     <h3 class="text-white font-bold text-[10px] line-clamp-1 uppercase tracking-tight">${movie.title}</h3>
                 </div>
             `;
             card.addEventListener('click', () => openSynopsis(movie, 'match', card));
+            setupMatchCardTrailer(card, movie);
             matchesGrid.appendChild(card);
             // Se já carregamos antes, aparece instantâneo, senão escalona
             if (isMatchesLoaded) card.classList.add('visible');
