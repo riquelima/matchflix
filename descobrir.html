@@ -608,14 +608,14 @@
 
                     <!-- Swiping FABs -->
                     <div class="relative w-full flex justify-center items-center gap-6 z-40 py-2" id="controls">
-                        <button id="btn-dislike" class="w-16 h-16 rounded-full glass-panel border border-error/20 flex items-center justify-center text-error shadow-lg active:scale-90 transition-transform duration-200 leading-none">
-                            <span class="material-symbols-outlined text-3xl font-bold leading-none block text-center flex items-center justify-center" data-icon="close">close</span>
+                        <button id="btn-dislike" class="w-16 h-16 rounded-full glass-panel border border-error/20 flex items-center justify-center text-error shadow-lg active:scale-90 transition-transform duration-200 p-0">
+                            <span class="material-symbols-outlined text-3xl font-bold leading-none block text-center" data-icon="close">close</span>
                         </button>
-                        <button id="btn-info" class="w-14 h-14 rounded-full glass-panel border border-on-surface/10 flex items-center justify-center text-white active:scale-90 transition-transform duration-200 leading-none">
-                            <span class="material-symbols-outlined text-2xl leading-none block text-center flex items-center justify-center" data-icon="info">info</span>
+                        <button id="btn-info" class="w-14 h-14 rounded-full glass-panel border border-on-surface/10 flex items-center justify-center text-white active:scale-90 transition-transform duration-200 p-0">
+                            <span class="material-symbols-outlined text-2xl leading-none block text-center" data-icon="info">info</span>
                         </button>
-                        <button id="btn-like" class="w-16 h-16 rounded-full bg-gradient-to-br from-primary-container to-secondary-container shadow-[0_0_25px_rgba(229,9,20,0.5)] flex items-center justify-center text-white active:scale-90 transition-transform duration-200 leading-none">
-                            <span class="material-symbols-outlined text-3xl leading-none block text-center flex items-center justify-center" data-icon="favorite" style="font-variation-settings: 'FILL' 1;">favorite</span>
+                        <button id="btn-like" class="w-16 h-16 rounded-full bg-gradient-to-br from-primary-container to-secondary-container shadow-[0_0_25px_rgba(229,9,20,0.5)] flex items-center justify-center text-white active:scale-90 transition-transform duration-200 p-0">
+                            <span class="material-symbols-outlined text-3xl leading-none block text-center" data-icon="favorite" style="font-variation-settings: 'FILL' 1;">favorite</span>
                         </button>
                     </div>
                 </main>
@@ -735,7 +735,7 @@
                     <p class="text-[10px] tracking-[0.3em] uppercase text-primary-container/70 font-bold font-headline mb-1">Seus Matches</p>
                     <h2 class="font-headline font-black text-3xl tracking-tighter text-white leading-none">Novos <span class="text-white/30">Matches</span></h2>
                 </div>
-                <main class="flex-grow overflow-y-auto px-4 pb-24" id="matches-scroll">
+                <main class="flex-grow overflow-y-auto px-4 pb-40 no-scrollbar" id="matches-scroll">
                     <div id="matches-empty" class="hidden flex-col items-center justify-center h-full py-20 text-center">
                         <div class="w-20 h-20 rounded-full bg-primary-container/10 flex items-center justify-center mb-6 mx-auto border border-primary-container/20">
                             <span class="material-symbols-outlined text-primary-container text-4xl" style="font-variation-settings: 'FILL' 1;">favorite</span>
@@ -753,7 +753,7 @@
                     <p class="text-[10px] tracking-[0.3em] uppercase text-primary-container/70 font-bold font-headline mb-1">Biblioteca</p>
                     <h2 class="font-headline font-black text-3xl tracking-tighter text-white leading-none">Sua <span class="text-white/30">Coleção</span></h2>
                 </div>
-                <main class="flex-grow overflow-y-auto px-4 pb-20" id="collection-scroll">
+                <main class="flex-grow overflow-y-auto px-4 pb-40" id="collection-scroll">
                     <!-- Categorias e Listas -->
                     <div id="collection-content" class="space-y-6"></div>
                     <div id="collection-empty" class="hidden flex-col items-center justify-center h-full py-20 text-center">
@@ -1402,7 +1402,7 @@
 
                 case 'meusmatches':
                     setVisible(headerMenuBtn, true);
-                    setVisible(globalFilterBtn, true);
+                    setVisible(globalFilterBtn, false);
                     if (!isMatchesLoaded || matchesDirty) {
                         fetchMatches();
                         matchesDirty = false;
@@ -1422,7 +1422,7 @@
 
                 case 'colecoes':
                     setVisible(headerMenuBtn, true);
-                    setVisible(globalFilterBtn, true);
+                    setVisible(globalFilterBtn, false);
                     setVisible(headerSettingsBtn, true);
                     if (!isCollectionLoaded || collectionDirty) {
                         fetchCollection();
@@ -2058,12 +2058,14 @@
                 ${badgeHTML}
                 ${statusBadgesHTML}
 
-                <!-- Botões de Controle de Vídeo (z-index alto) -->
-                <button class="play-preview-btn absolute bottom-32 right-6 z-[100] w-14 h-14 rounded-full bg-primary-container/90 backdrop-blur-md flex items-center justify-center text-white opacity-0 pointer-events-none scale-75 active:scale-90 border border-primary/50 shadow-2xl shadow-primary/30">
-                    <span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+                <!-- Botões de Controle de Vídeo (Refinados) -->
+                <!-- Play no centro para máxima visibilidade -->
+                <button class="play-preview-btn absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-20 h-20 rounded-full bg-primary/80 backdrop-blur-md flex items-center justify-center text-white opacity-0 pointer-events-none scale-75 active:scale-90 border-2 border-white/30 shadow-[0_0_40px_rgba(229,9,20,0.6)] transition-all duration-300">
+                    <span class="material-symbols-outlined text-5xl" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
                 </button>
-                <button class="volume-preview-btn absolute bottom-32 right-6 z-[100] w-14 h-14 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white opacity-0 pointer-events-none scale-75 active:scale-90 border border-white/20 shadow-2xl shadow-black/50">
-                    <span class="material-symbols-outlined text-3xl">volume_off</span>
+                <!-- Volume no canto superior direito -->
+                <button class="volume-preview-btn absolute top-6 right-6 z-[100] w-12 h-12 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white opacity-0 pointer-events-none scale-75 active:scale-90 border border-white/10 shadow-lg transition-all duration-300">
+                    <span class="material-symbols-outlined text-2xl">volume_off</span>
                 </button>
             `;
             
@@ -2414,55 +2416,48 @@
                     ytPlayer = new YT.Player(playerId, {
                         events: {
                             'onReady': (event) => {
-                                if (isAutoPreviewCancelled) {
-                                    event.target.destroy();
-                                    return;
-                                }
-                                console.log(`[Preview] Player pronto: "${movie.title}"`);
-                                event.target.mute(); // Força o mudo para garantir o autoplay
+                                event.target.mute();
                                 event.target.playVideo();
                                 
-                                // Validação Rigorosa: Espera 1.2s para garantir que o autoplay não foi barrado
-                                setTimeout(() => {
-                                    if (isAutoPreviewCancelled || !ytPlayer) return;
+                                // Monitoramento agressivo: polling a cada 200ms para revelar o vídeo assim que der play
+                                let checkCount = 0;
+                                const checkInterval = setInterval(() => {
+                                    if (isAutoPreviewCancelled || !ytPlayer) {
+                                        clearInterval(checkInterval);
+                                        return;
+                                    }
+                                    checkCount++;
                                     try {
                                         const state = event.target.getPlayerState();
-                                        // 1 = Playing, 3 = Buffering
-                                        if (state === 1 || state === 3) {
-                                            // Autoplay funcionou! Revela o vídeo e esconde o botão de play
-                                            gsap.to(previewContainer, { opacity: 1, duration: 0.8 });
+                                        if (state === 1) { // PLAYING
+                                            clearInterval(checkInterval);
+                                            // Revela o vídeo e oculta o pôster
+                                            gsap.to(previewContainer, { opacity: 1, duration: 0.5 });
                                             const posterImg = frontEl.querySelector('.card-poster-img');
-                                            if (posterImg) gsap.to(posterImg, { opacity: 0, duration: 1 });
+                                            if (posterImg) gsap.to(posterImg, { opacity: 0, duration: 0.8 });
                                             
+                                            // Esconde botão de play se ele estiver visível
                                             if (playBtn) {
                                                 gsap.to(playBtn, { opacity: 0, scale: 0.5, duration: 0.3 });
                                                 playBtn.classList.add('pointer-events-none');
                                             }
+                                            // Mostra botão de volume
                                             if (volumeBtn) {
                                                 volumeBtn.classList.remove('pointer-events-none');
                                                 gsap.to(volumeBtn, { opacity: 1, scale: 1, duration: 0.5 });
                                             }
-                                            return;
                                         }
-
-                                        // Revela o vídeo e esconde o pôster apenas com certeza de play
-                                        gsap.to(previewContainer, { opacity: 1, duration: 0.8 });
-                                        const posterImg = frontEl.querySelector('.card-poster-img');
-                                        if (posterImg) gsap.to(posterImg, { opacity: 0, duration: 1 });
-                                        
-                                        // Mostra botão de volume
-                                        if (volumeBtn) {
-                                            volumeBtn.classList.remove('pointer-events-none');
-                                            gsap.to(volumeBtn, { opacity: 1, scale: 1, duration: 0.5 });
-                                        }
-                                    } catch (e) {
-                                        console.error("[Preview] Erro ao checar estado do player:", e);
-                                        stopAutoPreview();
-                                    }
-                                }, 1200);
+                                        if (checkCount > 25) clearInterval(checkInterval); // 5 segundos de tentativa
+                                    } catch (e) { clearInterval(checkInterval); }
+                                }, 200);
                             },
                             'onStateChange': (event) => {
                                 if (event.data === YT.PlayerState.ENDED) event.target.playVideo();
+                                if (event.data === YT.PlayerState.PLAYING) {
+                                    gsap.to(previewContainer, { opacity: 1, duration: 0.5 });
+                                    const posterImg = frontEl.querySelector('.card-poster-img');
+                                    if (posterImg) gsap.to(posterImg, { opacity: 0, duration: 0.8 });
+                                }
                             },
                             'onError': () => {
                                 console.warn("Erro no player do YouTube. Fallback para pôster.");
