@@ -2184,8 +2184,8 @@
                 const maxAttempts = 5; // Tenta até 5 páginas se não encontrar nada novo
 
                 while (combined.length === 0 && attempts < maxAttempts) {
-                    let matches = [];
-                    let discoveries = [];
+                    matches = [];
+                    discoveries = [];
                     
                     queryParams.set('page', currentPage);
                     const baseUrl = `https://api.themoviedb.org/3/discover/movie?${queryParams.toString()}`;
@@ -2233,7 +2233,7 @@
 
                 // Fallback Supremo (Popular) - Tenta até 3 páginas de populares se a fila continuar vazia
                 if (combined.length === 0 && moviesQueue.length === 0) {
-                    console.log("[Fetch] Discover vazio. Iniciando Fallback Supremo...");
+                    console.warn("[Fetch] Discover vazio. Tentando Fallback com Populares...");
                     for (let p = 1; p <= 3; p++) {
                         const resGlobal = await fetch(`https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}&language=pt-BR&page=${p}`);
                         const dataGlobal = await resGlobal.json();
@@ -2244,6 +2244,16 @@
                                 break;
                             }
                         }
+                    }
+                }
+
+                // FAIL-SAFE DE EMERGÊNCIA: Se ainda estiver vazio, ignora interactedMovieIds (melhor repetir do que tela vazia)
+                if (combined.length === 0 && moviesQueue.length === 0) {
+                    console.error("[Fetch] Nenhum filme novo disponível. Ignorando histórico de interações para evitar tela morta.");
+                    const resPanic = await fetch(`https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}&language=pt-BR&page=1`);
+                    const dataPanic = await resPanic.json();
+                    if (dataPanic.results) {
+                        combined = dataPanic.results;
                     }
                 }
 
@@ -2309,6 +2319,9 @@
 
         // Renderizar a fila (Otimizado estilo Tinder)
         function renderTopCards() {
+            const stackContainer = document.getElementById('card-stack');
+            if (!stackContainer) return;
+
             if (moviesQueue.length < 5 && !isFetching) {
                 fetchMovies();
             }
@@ -2342,7 +2355,8 @@
                     const scale = 1 - (Math.min(i, 2) * 0.05);
                     const yOffset = i * 20;
                     // Cards a partir do 4º ficam no DOM (pre-loaded) mas totalmente invisíveis
-                    const opacity = i === 0 ? 1 : (i === 1 ? 0.6 : (i === 2 ? 0.3 : 0));
+                    // Cards da frente são sólidos (1 e 0.95) para evitar translucidez durante o swipe
+                    const opacity = i === 0 ? 1 : (i === 1 ? 0.95 : (i === 2 ? 0.5 : 0));
                     const zIndex = 100 - i;
                     
                     // Atualiza apenas o Z-index e classes funcionais, preservando o conteúdo
@@ -2350,14 +2364,19 @@
                     existing.classList.remove('z-20', 'z-19', 'z-18'); // Limpa z-indexes antigos
                     existing.classList.add(`z-${zIndex}`);
                     
-                    gsap.to(existing, {
-                        scale: scale,
-                        y: yOffset,
-                        opacity: opacity,
-                        duration: 0.4,
-                        ease: "power2.out",
-                        overwrite: "auto"
-                    });
+                    if (i === 0) {
+                        // Card atual é sempre 100% sólido e sem transição de opacidade para evitar visual translúcido
+                        gsap.set(existing, { opacity: 1, scale: 1, y: 0 });
+                    } else {
+                        gsap.to(existing, {
+                            scale: scale,
+                            y: yOffset,
+                            opacity: opacity,
+                            duration: 0.4,
+                            ease: "power2.out",
+                            overwrite: "auto"
+                        });
+                    }
                     
                     if (i === 0 && !existing.classList.contains('active-drag')) {
                         currentCardDOM = existing; 
@@ -2459,13 +2478,13 @@
             }
 
             front.innerHTML = `
-                <!-- Surface Element (TikTok Style) -->
-                <div class="preview-surface-element absolute inset-0 z-20 opacity-0 pointer-events-none overflow-hidden bg-black"></div>
+                <!-- Surface Element (TikTok Style) - Z-INDEX AUMENTADO PARA COBRIR TUDO NO PLAY -->
+                <div class="preview-surface-element absolute inset-0 z-40 opacity-0 pointer-events-none overflow-hidden bg-black"></div>
                 
-                <img src="${posterUrl}" alt="${movie.title}" class="card-poster-img absolute inset-0 w-full h-full object-cover select-none pointer-events-none z-10 transition-opacity duration-1000">
+                <img src="${posterUrl}" alt="${movie.title}" class="card-poster-img absolute inset-0 w-full h-full object-cover select-none pointer-events-none z-10">
                 <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent opacity-90 pointer-events-none z-15"></div>
                 
-                <div class="relative z-30 p-6 pt-20">
+                <div class="card-info-content relative z-30 p-6 pt-20 transition-opacity duration-300">
                     <div class="flex items-center gap-3 mb-2">
                         <span class="badge-rating-hud">
                             <span class="material-symbols-outlined text-primary-container text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
@@ -3009,9 +3028,12 @@
                     });
                     previewContainer.classList.remove('pointer-events-none');
                     
-                    // 3. Escondemos o poster imediatamente
+                    // 3. Escondemos o poster e a info imediatamente para evitar sobreposição (bug das fotos)
                     const posterImg = frontEl.querySelector('.card-poster-img');
                     if (posterImg) posterImg.style.display = 'none';
+                    
+                    const cardInfo = frontEl.querySelector('.card-info-content');
+                    if (cardInfo) cardInfo.style.opacity = '0';
 
                     if (playBtn) {
                         gsap.to(playBtn, { opacity: 0, scale: 0.5, duration: 0.3, pointerEvents: 'none' });
@@ -3083,16 +3105,21 @@
                     };
                 }
 
-            function stopAutoPreview() {
+            function stopAutoPreview(isTemporary = false) {
                 isAutoPreviewCancelled = true;
                 clearTimeout(previewTimer);
                 
                 if (isPreviewPlaying) {
                     const posterImg = frontEl.querySelector('.card-poster-img');
+                    const cardInfo = frontEl.querySelector('.card-info-content');
+                    
                     if (posterImg) {
+                        gsap.killTweensOf(posterImg); // Interrompe qualquer fade em curso
                         posterImg.style.display = 'block';
-                        gsap.to(posterImg, { opacity: 1, duration: 0.3 });
+                        // Restauração instantânea sempre, para evitar qualquer translucidez no swipe
+                        posterImg.style.opacity = "1";
                     }
+                    if (cardInfo) cardInfo.style.opacity = '1';
                     
                     // Restaura o 3D para o próximo card ou swipe
                     element.style.transformStyle = 'preserve-3d';
@@ -3109,14 +3136,23 @@
                         playBtn.style.pointerEvents = 'auto';
                     }
 
-                    if (ytPlayer && ytPlayer.destroy) {
-                        try { ytPlayer.destroy(); } catch(e) {}
-                        ytPlayer = null;
+                    if (isTemporary) {
+                        // Para o arrasto: apenas pausa e esconde para evitar lag (stutter) de destruição de DOM
+                        if (ytPlayer && ytPlayer.pauseVideo) {
+                            try { ytPlayer.pauseVideo(); } catch(e) {}
+                        }
+                        previewContainer.style.opacity = "0";
+                    } else {
+                        // Destruição total
+                        if (ytPlayer && ytPlayer.destroy) {
+                            try { ytPlayer.destroy(); } catch(e) {}
+                            ytPlayer = null;
+                        }
+                        previewContainer.innerHTML = '';
+                        previewContainer.style.opacity = "0";
+                        isPreviewPlaying = false;
+                        isUnmuted = false;
                     }
-                    
-                    previewContainer.innerHTML = '';
-                    previewContainer.style.opacity = "0";
-                    isPreviewPlaying = false;
 
                     // Esconde o dimmer se estiver ativo
                     const dimmer = document.getElementById('app-focus-dimmer');
@@ -3131,15 +3167,14 @@
 
             // Quando for dispensado
             function triggerDislike() {
-                if (isAnimating) return;
-                isAnimating = true;
                 throwOut(-1);
             }
 
             function throwOut(direction) {
+                isAnimating = true;
                 stopAutoPreview(); 
                 
-                // REMOÇÃO SEGURA POR ID: Removemos exatamente o filme deste card.
+                element.classList.add('is-throwing');
                 // Isso evita o bug onde o swipe pra direita removia 2 filmes (um pelo save e outro pelo pop)
                 moviesQueue = moviesQueue.filter(m => m.id !== movie.id);
                 interactedMovieIds.add(movie.id);
@@ -3148,8 +3183,8 @@
                     saveActionToSupabase(movie, false);
                 }
 
-                // A pilha de trás já começa a se mover para frente agora
-                renderTopCards();
+                // Micro-delay para garantir que o frame inicial da animação de saída seja fluido
+                requestAnimationFrame(() => renderTopCards());
 
                 // Animação de saída do card atual
                 const windowWidth = window.innerWidth;
@@ -3164,7 +3199,7 @@
                     rotation: rotation,
                     scale: 0.8,
                     opacity: 0,
-                    duration: 0.6,
+                    duration: 0.45,
                     force3D: true,
                     ease: "power2.in",
                     onComplete: () => {
@@ -3182,8 +3217,15 @@
                 e.preventDefault();
                 if (isAnimating || moviesQueue.length === 0) return;
                 isAnimating = true;
-                // Não limpamos tweens aqui para deixar a transição suave
-                triggerMatch();
+                
+                // Simulação de swipe: Pequeno impulso preparatório antes do match
+                gsap.to(element, {
+                    x: 60,
+                    rotation: 10,
+                    duration: 0.12,
+                    ease: "power2.out",
+                    onComplete: () => triggerMatch()
+                });
             };
 
             btnInfo.onpointerdown = (e) => {
@@ -3192,14 +3234,66 @@
             };
             btnDislike.onpointerdown = (e) => {
                 e.preventDefault();
-                if (!isMatched) triggerDislike();
+                if (isAnimating || moviesQueue.length === 0) return;
+                isAnimating = true;
+
+                // Simulação de swipe: Pequeno impulso preparatório antes do dislike
+                gsap.to(element, {
+                    x: -60,
+                    rotation: -10,
+                    duration: 0.12,
+                    ease: "power2.out",
+                    onComplete: () => triggerDislike()
+                });
             };
 
             // Função centralizada para disparar o trailer no Modo Foco
             async function playTrailerFocusMode() {
                 if (isAnimating || isMatched || isInfoOpen) return;
                 
-                // Feedback visual imediato: ativa o dimmer
+                // REUTILIZAÇÃO DE PLAYER: Se o auto-preview já carregou o iframe silenciosamente, 
+                // apenas unmutamos e revelamos. Isso contorna o bloqueio de autoplay no mobile.
+                if (isPreviewPlaying && ytPlayer && typeof ytPlayer.unMute === 'function') {
+                    isUnmuted = true;
+                    ytPlayer.unMute();
+                    ytPlayer.setVolume(100);
+                    
+                    // Transição visual agressiva para o modo foco (flat rendering)
+                    element.style.transformStyle = 'flat';
+                    frontEl.style.transformStyle = 'flat';
+                    element.style.zIndex = "1000";
+                    
+                    gsap.set(previewContainer, { 
+                        opacity: 1, 
+                        zIndex: 60,
+                        visibility: 'visible',
+                        display: 'block'
+                    });
+                    previewContainer.classList.remove('pointer-events-none');
+                    
+                    const posterImg = frontEl.querySelector('.card-poster-img');
+                    if (posterImg) posterImg.style.display = 'none';
+                    
+                    if (playBtn) {
+                        gsap.to(playBtn, { opacity: 0, scale: 0.5, duration: 0.3, pointerEvents: 'none' });
+                    }
+                    
+                    // Ativa o dimmer
+                    const dimmer = document.getElementById('app-focus-dimmer');
+                    if (dimmer) {
+                        dimmer.classList.remove('hidden');
+                        gsap.to(dimmer, { opacity: 1, duration: 0.4 });
+                        dimmer.onclick = (event) => {
+                            event.stopPropagation();
+                            gsap.to(dimmer, { opacity: 0, duration: 0.3, onComplete: () => dimmer.classList.add('hidden') });
+                            element.style.zIndex = "";
+                            stopAutoPreview(false); // Destruição total ao sair do foco
+                        };
+                    }
+                    return;
+                }
+
+                // Fluxo fallback: Carrega do zero se ainda não existir iframe
                 const dimmer = document.getElementById('app-focus-dimmer');
                 if (dimmer) {
                     dimmer.classList.remove('hidden');
@@ -3207,14 +3301,13 @@
                     dimmer.onclick = () => {
                         gsap.to(dimmer, { opacity: 0, duration: 0.3, onComplete: () => dimmer.classList.add('hidden') });
                         element.style.zIndex = "";
-                        stopAutoPreview();
+                        stopAutoPreview(false);
                     };
                 }
                 element.style.zIndex = "1000";
 
                 let currentKey = trailersCache.get(movie.id);
                 if (!currentKey) {
-                    // Se não tiver no cache, busca agora mesmo (usuário clicou antes do auto-preview)
                     currentKey = await getTrailerKey(movie.id);
                 }
 
@@ -3222,7 +3315,6 @@
                     injectPreviewVideo(currentKey, true);
                 } else {
                     console.warn("Nenhum trailer disponível para este filme.");
-                    // Fecha o dimmer se não houver vídeo
                     if (dimmer) {
                         gsap.to(dimmer, { opacity: 0, duration: 0.3, onComplete: () => dimmer.classList.add('hidden') });
                     }
@@ -3263,7 +3355,8 @@
                 // Se o toque/clique foi no botão de volume, ignorar para não parar o preview
                 if (e.target.closest('button') === volumeBtn) return;
                 
-                stopAutoPreview(); // Para o trailer assim que o usuário toca no card
+                // Pausa temporária em vez de destruição total evita o engasgo (stutter) no início do deslize
+                stopAutoPreview(true); 
                 isDragging = true;
                 
                 const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
@@ -3274,10 +3367,11 @@
                 
                 element.style.transition = 'none';
                 element.style.willChange = 'transform';
+                window.addEventListener('touchmove', dragMove, { passive: false });
+                window.addEventListener('mousemove', dragMove);
+                window.addEventListener('touchend', dragEnd);
+                window.addEventListener('mouseup', dragEnd);
             }
-
-            window.addEventListener('touchmove', dragMove, { passive: false });
-            window.addEventListener('mousemove', dragMove);
 
             function dragMove(e) {
                 if (!isDragging) return;
@@ -3302,9 +3396,6 @@
                     });
                 }
             }
-
-            window.addEventListener('touchend', dragEnd);
-            window.addEventListener('mouseup', dragEnd);
 
             function dragEnd(e) {
                 if (!isDragging) return;
@@ -3332,11 +3423,33 @@
                         y: 0,
                         rotation: 0,
                         duration: 0.5,
-                        ease: "elastic.out(1, 0.5)"
+                        ease: "elastic.out(1, 0.5)",
+                        onComplete: () => {
+                            // Retoma o trailer se o deslize foi cancelado
+                            if (isPreviewPlaying && ytPlayer && typeof ytPlayer.playVideo === 'function') {
+                                try {
+                                    ytPlayer.playVideo();
+                                    if (isUnmuted) {
+                                        // Se estava no modo foco, restaura a visão do vídeo
+                                        element.style.transformStyle = 'flat';
+                                        frontEl.style.transformStyle = 'flat';
+                                        previewContainer.style.opacity = "1";
+                                        const posterImg = frontEl.querySelector('.card-poster-img');
+                                        if (posterImg) posterImg.style.display = 'none';
+                                    }
+                                } catch(e) {}
+                            }
+                        }
                     });
                     currentX = 0;
                     currentY = 0;
                 }
+
+                // Limpeza de listeners globais para performance
+                window.removeEventListener('touchmove', dragMove);
+                window.removeEventListener('mousemove', dragMove);
+                window.removeEventListener('touchend', dragEnd);
+                window.removeEventListener('mouseup', dragEnd);
             }
         }
         // --- ABA 2: TENDÊNCIAS LOGIC ---
