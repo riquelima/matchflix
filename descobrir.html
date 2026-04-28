@@ -314,19 +314,12 @@
             position: relative;
             width: 100%;
             padding: 34px 24px 28px;
-            border-radius: 34px;
-            overflow: hidden;
             text-align: center;
-            background:
-                linear-gradient(145deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02)),
-                radial-gradient(circle at top, rgba(229, 9, 20, 0.34), rgba(124, 58, 237, 0.08) 45%, rgba(5, 5, 5, 0.9) 72%);
-            border: 1px solid rgba(255,255,255,0.12);
-            box-shadow:
-                0 30px 100px rgba(229, 9, 20, 0.22),
-                inset 0 1px 0 rgba(255,255,255,0.08),
-                inset 0 -30px 60px rgba(0,0,0,0.35);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
             transform-style: preserve-3d;
         }
         #match-toast .toast-shell::before {
@@ -381,21 +374,14 @@
         }
         #match-toast .toast-ring-outer {
             inset: 0;
-            border: 1px solid rgba(255,255,255,0.14);
-            box-shadow: 0 0 50px rgba(229, 9, 20, 0.18);
+            border: 1px solid rgba(255,255,255,0.05);
         }
         #match-toast .toast-ring-middle {
             inset: 16px;
-            border: 1px solid rgba(255,255,255,0.22);
-            background: radial-gradient(circle, rgba(229,9,20,0.12) 0%, rgba(229,9,20,0) 70%);
+            background: radial-gradient(circle, rgba(229,9,20,0.08) 0%, rgba(229,9,20,0) 70%);
         }
         #match-toast .toast-ring-core {
             inset: 34px;
-            background: linear-gradient(145deg, rgba(255,255,255,0.18), rgba(255,255,255,0.04));
-            border: 1px solid rgba(255,255,255,0.12);
-            box-shadow:
-                0 0 40px rgba(229, 9, 20, 0.45),
-                inset 0 0 40px rgba(229, 9, 20, 0.28);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -412,9 +398,9 @@
             width: 140%;
             height: 58%;
             transform: translateX(-50%);
-            background: linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0));
-            filter: blur(14px);
-            opacity: 0.32;
+            background: radial-gradient(circle, rgba(229, 9, 20, 0.2) 0%, transparent 70%);
+            filter: blur(20px);
+            opacity: 0.5;
             pointer-events: none;
         }
         #match-toast .toast-copy {
@@ -2181,7 +2167,7 @@
 
                 let combined = [];
                 let attempts = 0;
-                const maxAttempts = 5; // Tenta até 5 páginas se não encontrar nada novo
+                const maxAttempts = 10; // Aumentado para 10 páginas para garantir busca profunda por inéditos
 
                 while (combined.length === 0 && attempts < maxAttempts) {
                     matches = [];
@@ -2247,13 +2233,20 @@
                     }
                 }
 
-                // FAIL-SAFE DE EMERGÊNCIA: Se ainda estiver vazio, ignora interactedMovieIds (melhor repetir do que tela vazia)
+                // FAIL-SAFE DE EMERGÊNCIA: Se ainda estiver vazio, tenta Populares MAS AINDA FILTRA HISTÓRICO
                 if (combined.length === 0 && moviesQueue.length === 0) {
-                    console.error("[Fetch] Nenhum filme novo disponível. Ignorando histórico de interações para evitar tela morta.");
+                    console.warn("[Fetch] Nenhum filme novo nos filtros. Tentando Populares Inéditos...");
                     const resPanic = await fetch(`https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}&language=pt-BR&page=1`);
                     const dataPanic = await resPanic.json();
                     if (dataPanic.results) {
-                        combined = dataPanic.results;
+                        const filteredPanic = dataPanic.results.filter(v => !interactedMovieIds.has(Number(v.id)));
+                        if (filteredPanic.length > 0) {
+                            combined = filteredPanic;
+                        } else {
+                            // ÚLTIMO RECURSO ABSOLUTO: Se até os populares já foram todos vistos, aí sim libera repetidos
+                            console.error("[Fetch] Usuário já interagiu com TUDO o que é popular. Liberando repetições para evitar tela morta.");
+                            combined = dataPanic.results;
+                        }
                     }
                 }
 
@@ -2889,6 +2882,7 @@
             const previewContainer = frontEl.querySelector('.preview-surface-element');
             const volumeBtn = frontEl.querySelector('.volume-preview-btn');
             const playBtn = frontEl.querySelector('.play-card-btn');
+            let isTrailerLoading = false; // Trava para evitar múltiplos cliques no play
 
             const btnAcaoOverlay = element.querySelector('.btn-acao-overlay');
             const heartIcon = overlayEl.querySelector('.bg-primary-container'); // O coração no canto superior da sinopse
@@ -3249,76 +3243,88 @@
 
             // Função centralizada para disparar o trailer no Modo Foco
             async function playTrailerFocusMode() {
-                if (isAnimating || isMatched || isInfoOpen) return;
+                if (isAnimating || isMatched || isInfoOpen || isTrailerLoading) return;
+                isTrailerLoading = true;
                 
-                // REUTILIZAÇÃO DE PLAYER: Se o auto-preview já carregou o iframe silenciosamente, 
-                // apenas unmutamos e revelamos. Isso contorna o bloqueio de autoplay no mobile.
-                if (isPreviewPlaying && ytPlayer && typeof ytPlayer.unMute === 'function') {
-                    isUnmuted = true;
-                    ytPlayer.unMute();
-                    ytPlayer.setVolume(100);
-                    
-                    // Transição visual agressiva para o modo foco (flat rendering)
-                    element.style.transformStyle = 'flat';
-                    frontEl.style.transformStyle = 'flat';
-                    element.style.zIndex = "1000";
-                    
-                    gsap.set(previewContainer, { 
-                        opacity: 1, 
-                        zIndex: 60,
-                        visibility: 'visible',
-                        display: 'block'
-                    });
-                    previewContainer.classList.remove('pointer-events-none');
-                    
-                    const posterImg = frontEl.querySelector('.card-poster-img');
-                    if (posterImg) posterImg.style.display = 'none';
-                    
-                    if (playBtn) {
-                        gsap.to(playBtn, { opacity: 0, scale: 0.5, duration: 0.3, pointerEvents: 'none' });
+                try {
+                    // REUTILIZAÇÃO DE PLAYER: Se o auto-preview já carregou o iframe silenciosamente, 
+                    // apenas unmutamos e revelamos. Isso contorna o bloqueio de autoplay no mobile.
+                    if (isPreviewPlaying && ytPlayer && typeof ytPlayer.unMute === 'function') {
+                        isUnmuted = true;
+                        ytPlayer.unMute();
+                        ytPlayer.setVolume(100);
+                        
+                        // Transição visual agressiva para o modo foco (flat rendering)
+                        element.style.transformStyle = 'flat';
+                        frontEl.style.transformStyle = 'flat';
+                        element.style.zIndex = "1000";
+                        
+                        gsap.set(previewContainer, { 
+                            opacity: 1, 
+                            zIndex: 60,
+                            visibility: 'visible',
+                            display: 'block'
+                        });
+                        previewContainer.classList.remove('pointer-events-none');
+                        
+                        const posterImg = frontEl.querySelector('.card-poster-img');
+                        if (posterImg) posterImg.style.display = 'none';
+                        
+                        if (playBtn) {
+                            gsap.to(playBtn, { opacity: 0, scale: 0.5, duration: 0.3, pointerEvents: 'none' });
+                        }
+                        
+                        // Ativa o dimmer
+                        const dimmer = document.getElementById('app-focus-dimmer');
+                        if (dimmer) {
+                            dimmer.classList.remove('hidden');
+                            gsap.to(dimmer, { opacity: 1, duration: 0.4 });
+                            dimmer.onclick = (event) => {
+                                if (event) event.stopPropagation();
+                                gsap.to(dimmer, { opacity: 0, duration: 0.3, onComplete: () => dimmer.classList.add('hidden') });
+                                element.style.zIndex = "";
+                                stopAutoPreview(false); // Destruição total ao sair do foco
+                            };
+                        }
+                        return;
                     }
-                    
-                    // Ativa o dimmer
+
+                    // Fluxo fallback: Carrega do zero se ainda não existir iframe
                     const dimmer = document.getElementById('app-focus-dimmer');
                     if (dimmer) {
                         dimmer.classList.remove('hidden');
                         gsap.to(dimmer, { opacity: 1, duration: 0.4 });
-                        dimmer.onclick = (event) => {
-                            event.stopPropagation();
+                        dimmer.onclick = () => {
                             gsap.to(dimmer, { opacity: 0, duration: 0.3, onComplete: () => dimmer.classList.add('hidden') });
                             element.style.zIndex = "";
-                            stopAutoPreview(false); // Destruição total ao sair do foco
+                            stopAutoPreview(false);
                         };
                     }
-                    return;
-                }
+                    element.style.zIndex = "1000";
 
-                // Fluxo fallback: Carrega do zero se ainda não existir iframe
-                const dimmer = document.getElementById('app-focus-dimmer');
-                if (dimmer) {
-                    dimmer.classList.remove('hidden');
-                    gsap.to(dimmer, { opacity: 1, duration: 0.4 });
-                    dimmer.onclick = () => {
-                        gsap.to(dimmer, { opacity: 0, duration: 0.3, onComplete: () => dimmer.classList.add('hidden') });
+                    let currentKey = trailersCache.get(movie.id);
+                    if (!currentKey) {
+                        currentKey = await getTrailerKey(movie.id);
+                    }
+
+                    if (currentKey) {
+                        injectPreviewVideo(currentKey, true);
+                    } else {
+                        console.warn("Nenhum trailer disponível para este filme.");
+                        if (dimmer) {
+                            gsap.to(dimmer, { opacity: 0, duration: 0.3, onComplete: () => dimmer.classList.add('hidden') });
+                        }
                         element.style.zIndex = "";
-                        stopAutoPreview(false);
-                    };
-                }
-                element.style.zIndex = "1000";
-
-                let currentKey = trailersCache.get(movie.id);
-                if (!currentKey) {
-                    currentKey = await getTrailerKey(movie.id);
-                }
-
-                if (currentKey) {
-                    injectPreviewVideo(currentKey, true);
-                } else {
-                    console.warn("Nenhum trailer disponível para este filme.");
+                    }
+                } catch (err) {
+                    console.error("Erro ao reproduzir trailer no modo foco:", err);
+                    const dimmer = document.getElementById('app-focus-dimmer');
                     if (dimmer) {
-                        gsap.to(dimmer, { opacity: 0, duration: 0.3, onComplete: () => dimmer.classList.add('hidden') });
+                        gsap.to(dimmer, { opacity: 0, duration: 0.2, onComplete: () => dimmer.classList.add('hidden') });
                     }
                     element.style.zIndex = "";
+                } finally {
+                    isTrailerLoading = false;
                 }
             }
 
