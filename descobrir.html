@@ -445,9 +445,7 @@
             position: absolute !important;
             top: 0 !important;
             left: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-            pointer-events: none !important;
+            /* Dimensões controladas via JS para efeito Zoom/Fill */
             border: none !important;
         }
 
@@ -1416,7 +1414,7 @@
                     </div>
                     
                     <p class="text-primary-container text-[10px] font-black tracking-widest uppercase mb-2">Sinopse</p>
-                    <p id="modal-synopsis" class="text-white/70 leading-relaxed font-body text-sm mb-4"></p>
+                    <p id="modal-synopsis" class="text-white/90 leading-relaxed font-body text-sm mb-4"></p>
 
                     <div id="modal-trailer-section" class="trailer-section hidden mb-6">
                         <p class="text-primary-container text-[10px] font-black tracking-widest uppercase mb-2">Trailer</p>
@@ -1516,16 +1514,33 @@
 
         let currentUser = null;
         let currentCardDOM = null;
+        let matchesDirty = true;
+        let collectionDirty = true;
+
+        // Botões Globais de Controle (Delegados para o card do topo)
+        document.addEventListener('DOMContentLoaded', () => {
+            const btnLike = document.getElementById('btn-like');
+            const btnDislike = document.getElementById('btn-dislike');
+            const btnInfo = document.getElementById('btn-info');
+
+            if (btnLike) btnLike.onpointerdown = (e) => {
+                e.preventDefault();
+                if (currentCardDOM && currentCardDOM._triggerLike) currentCardDOM._triggerLike();
+            };
+            if (btnDislike) btnDislike.onpointerdown = (e) => {
+                e.preventDefault();
+                if (currentCardDOM && currentCardDOM._triggerDislike) currentCardDOM._triggerDislike();
+            };
+        });
+        
         let isAnimating = false;
         let interactedMovieIds = new Set();
         let watchedMovieIds = new Set();
         let currentPage = 1; // Rastreador de página para scroll infinito
+        let currentPopularFallbackPage = 1; // Rastreador persistente para fallback de populares
+        let currentTrendingFallbackPage = 1; // Rastreador persistente para fallback de tendências
         
         let activeTab = 'descobrir';
-        let isMatchesLoaded = false;
-        let isCollectionLoaded = false;
-        let matchesDirty = true;
-        let collectionDirty = true;
         let isUserLoaded = false; // descobrir, meusmatches, colecoes
         const viewSlider = document.getElementById('view-slider');
         const navItems = document.querySelectorAll('.nav-item');
@@ -1542,6 +1557,8 @@
         let matchCount = 0;
         let likedMoviesLocal = []; // Cache local para matches da sessão atual (tempo real)
         let isFetchingMatches = false; 
+        let isMatchesLoaded = false;
+        let isCollectionLoaded = false;
 
         // Definição única e global das abas para evitar erros de índice
         const APP_TABS = ['descobrir', 'trending', 'busca', 'meusmatches', 'colecoes', 'filtro', 'configuracoes'];
@@ -1955,74 +1972,74 @@
             
             // 2. Flash Inicial (Impacto)
             tl.to(matchFlash, {
-                opacity: 1,
-                duration: 0.2,
-                ease: "power2.inOut"
+                opacity: 0.8,
+                duration: 0.1,
+                ease: "power2.in"
             })
             
-            // 3. Entrada do Shell (Efeito Elástico)
+            // 3. Entrada do Shell (Mais rápida e direta)
             .to(matchToast, {
                 opacity: 1,
                 scale: 1,
                 y: 0,
                 rotationX: 0,
-                duration: 0.8,
-                ease: "elastic.out(1, 0.75)"
+                duration: 0.4,
+                ease: "back.out(1.5)"
             }, "<")
 
-            // 4. Explosão dos Anéis (Staggered)
+            // 4. Explosão dos Anéis (Acelerada)
             .to(['.toast-ring-outer', '.toast-ring-middle', '.toast-ring-core'], {
                 scale: 1,
                 opacity: 1,
-                duration: 0.6,
-                stagger: 0.1,
-                ease: "back.out(1.8)"
-            }, "-=0.5")
+                duration: 0.3,
+                stagger: 0.05,
+                ease: "back.out(2)"
+            }, "-=0.25")
 
             // 5. Brilho do Shell (Glint)
             .add(() => {
                 const shell = document.querySelector('.toast-shell');
                 if(shell) shell.classList.add('glint-run');
-            }, "-=0.8")
+            }, "-=0.3")
 
-            // 6. Revelação da Cópia (Texto)
+            // 6. Revelação da Cópia (Texto mais ágil)
             .to(['.toast-kicker', '.toast-title', '.toast-film-name'], {
                 opacity: 1,
                 y: 0,
-                duration: 0.5,
-                stagger: 0.12,
+                duration: 0.3,
+                stagger: 0.08,
                 ease: "power2.out"
-            }, "-=0.4")
+            }, "-=0.2")
 
             // 7. Aura e Brilho Ambiente
             .to('.toast-aura', {
                 opacity: 0.7,
-                scale: 1.2,
-                duration: 1,
+                scale: 1.1,
+                duration: 0.5,
                 ease: "sine.inOut"
-            }, "-=0.8")
+            }, "-=0.4")
 
-            // 8. Pulsação do Coração (Looping enquanto visível)
+            // 8. Pulsação do Coração (Apenas um pulso rápido)
             .to('.toast-heart', {
                 scale: 1.2,
-                duration: 0.6,
-                repeat: 3,
+                duration: 0.3,
+                repeat: 1,
                 yoyo: true,
                 ease: "sine.inOut"
-            }, "-=0.5")
+            }, "-=0.3")
 
-            // 9. Saída Elegante (Sumindo para longe)
+            // 9. Saída (Mais cedo e mais rápida)
             .to(matchToast, {
                 opacity: 0,
-                scale: 1.05,
+                scale: 0.95,
                 y: -10,
-                duration: 0.5,
+                duration: 0.3,
                 ease: "power2.inOut",
-                delay: 1.5
+                delay: 0.8
             })
             .to(matchFlash, {
                 opacity: 0,
-                duration: 0.4
+                duration: 0.2
             }, "<")
             
             // Cleanup
@@ -2217,37 +2234,31 @@
                 
                 currentPage++;
 
-                // Fallback Supremo (Popular) - Tenta até 3 páginas de populares se a fila continuar vazia
+                // Fallback Supremo (Popular) - Tenta buscar em páginas profundas de populares se a fila continuar vazia
                 if (combined.length === 0 && moviesQueue.length === 0) {
-                    console.warn("[Fetch] Discover vazio. Tentando Fallback com Populares...");
-                    for (let p = 1; p <= 3; p++) {
-                        const resGlobal = await fetch(`https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}&language=pt-BR&page=${p}`);
+                    console.warn("[Fetch] Discover vazio. Tentando Fallback com Populares Inéditos...");
+                    let fallbackAttempts = 0;
+                    while (combined.length === 0 && fallbackAttempts < 5) { // Tenta até 5 páginas de populares
+                        const resGlobal = await fetch(`https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}&language=pt-BR&page=${currentPopularFallbackPage}`);
                         const dataGlobal = await resGlobal.json();
                         if (dataGlobal.results) {
-                            const filtered = dataGlobal.results.filter(v => !interactedMovieIds.has(Number(v.id)));
+                            const queueIds = new Set(moviesQueue.map(m => Number(m.id)));
+                            const filtered = dataGlobal.results.filter(v => !interactedMovieIds.has(Number(v.id)) && !queueIds.has(Number(v.id)));
                             if (filtered.length > 0) {
                                 combined = filtered;
+                                console.log(`[Fetch] Encontrados ${filtered.length} filmes populares inéditos na página ${currentPopularFallbackPage}.`);
                                 break;
                             }
                         }
+                        currentPopularFallbackPage++;
+                        fallbackAttempts++;
                     }
                 }
 
-                // FAIL-SAFE DE EMERGÊNCIA: Se ainda estiver vazio, tenta Populares MAS AINDA FILTRA HISTÓRICO
+                // FAIL-SAFE DE EMERGÊNCIA: Se ainda estiver vazio após buscas profundas
                 if (combined.length === 0 && moviesQueue.length === 0) {
-                    console.warn("[Fetch] Nenhum filme novo nos filtros. Tentando Populares Inéditos...");
-                    const resPanic = await fetch(`https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}&language=pt-BR&page=1`);
-                    const dataPanic = await resPanic.json();
-                    if (dataPanic.results) {
-                        const filteredPanic = dataPanic.results.filter(v => !interactedMovieIds.has(Number(v.id)));
-                        if (filteredPanic.length > 0) {
-                            combined = filteredPanic;
-                        } else {
-                            // ÚLTIMO RECURSO ABSOLUTO: Se até os populares já foram todos vistos, aí sim libera repetidos
-                            console.error("[Fetch] Usuário já interagiu com TUDO o que é popular. Liberando repetições para evitar tela morta.");
-                            combined = dataPanic.results;
-                        }
-                    }
+                    console.warn("[Fetch] Nenhum filme novo encontrado após buscas exaustivas.");
+                    // Não liberamos repetições. Se o código chegar aqui, combined continuará vazio e mostrará a tela de "Filtros específicos"
                 }
 
                 loadingIndicator.style.display = "none";
@@ -2347,20 +2358,15 @@
                     // Escalonamento visual: Apenas os 3 primeiros são realmente visíveis e empilhados
                     const scale = 1 - (Math.min(i, 2) * 0.05);
                     const yOffset = i * 20;
-                    // Cards a partir do 4º ficam no DOM (pre-loaded) mas totalmente invisíveis
-                    // Cards da frente são sólidos (1 e 0.95) para evitar translucidez durante o swipe
                     const opacity = i === 0 ? 1 : (i === 1 ? 0.95 : (i === 2 ? 0.5 : 0));
                     const zIndex = 100 - i;
                     
-                    // Atualiza apenas o Z-index e classes funcionais, preservando o conteúdo
-                    existing.style.zIndex = zIndex;
-                    existing.classList.remove('z-20', 'z-19', 'z-18'); // Limpa z-indexes antigos
-                    existing.classList.add(`z-${zIndex}`);
+                    // SEGURANÇA: Se o card já é o atual e está sendo arrastado ou está em foco (trailer), 
+                    // NÃO resetamos o Z-Index nem forçamos animações de posição para não bugar o swipe.
+                    const isCardActive = existing.classList.contains('active-drag') || existing.style.zIndex === "1000";
                     
-                    if (i === 0) {
-                        // Card atual é sempre 100% sólido e sem transição de opacidade para evitar visual translúcido
-                        gsap.set(existing, { opacity: 1, scale: 1, y: 0 });
-                    } else {
+                    if (!isCardActive) {
+                        existing.style.zIndex = zIndex;
                         gsap.to(existing, {
                             scale: scale,
                             y: yOffset,
@@ -2471,13 +2477,16 @@
             }
 
             front.innerHTML = `
-                <!-- Surface Element (TikTok Style) - Z-INDEX AUMENTADO PARA COBRIR TUDO NO PLAY -->
+                <!-- Touch Shield: Garante que o swipe funcione mesmo com vídeo/iframe carregado -->
+                <div class="touch-shield absolute inset-0 z-50 cursor-grab active:cursor-grabbing"></div>
+
+                <!-- Surface Element (TikTok Style) -->
                 <div class="preview-surface-element absolute inset-0 z-40 opacity-0 pointer-events-none overflow-hidden bg-black"></div>
                 
                 <img src="${posterUrl}" alt="${movie.title}" class="card-poster-img absolute inset-0 w-full h-full object-cover select-none pointer-events-none z-10">
                 <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent opacity-90 pointer-events-none z-15"></div>
                 
-                <div class="card-info-content relative z-30 p-6 pt-20 transition-opacity duration-300">
+                <div class="card-info-content absolute bottom-0 left-0 right-0 z-30 p-8 pb-12 transition-opacity duration-300">
                     <div class="flex items-center gap-3 mb-2">
                         <span class="badge-rating-hud">
                             <span class="material-symbols-outlined text-primary-container text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
@@ -2509,7 +2518,7 @@
             matchOverlay.className = "match-overlay p-6 border-2 border-primary-container/50 shadow-[inset_0_0_50px_rgba(229,9,20,0.15)] rounded-2xl";
             matchOverlay.innerHTML = `
                 <div class="absolute inset-0 opacity-20 bg-cover bg-center" style="background-image: url('${backdropUrl}')"></div>
-                <div class="absolute inset-0 bg-gradient-to-b from-black/90 via-black/80 to-black"></div>
+                <div class="absolute inset-0 bg-gradient-to-b from-black via-black to-black"></div>
                 
                 <div class="relative z-10 flex flex-col h-full">
                     <div class="flex items-center justify-between border-b border-white/10 pb-4 mb-4 shrink-0">
@@ -2887,6 +2896,32 @@
             const btnAcaoOverlay = element.querySelector('.btn-acao-overlay');
             const heartIcon = overlayEl.querySelector('.bg-primary-container'); // O coração no canto superior da sinopse
 
+            // Expondo métodos para os botões globais
+            element._triggerLike = () => {
+                if (isAnimating || moviesQueue.length === 0) return;
+                isAnimating = true;
+                gsap.to(element, { x: 60, rotation: 10, duration: 0.12, ease: "power2.out", onComplete: () => triggerMatch() });
+            };
+            element._triggerDislike = () => {
+                if (isAnimating || moviesQueue.length === 0) return;
+                isAnimating = true;
+                gsap.to(element, { x: -60, rotation: -10, duration: 0.12, ease: "power2.out", onComplete: () => triggerDislike() });
+            };
+            element._toggleSynopsis = toggleSynopsis;
+
+            // Expondo métodos para os botões globais (Corrigindo bug de closure)
+            element._triggerLike = () => {
+                if (isAnimating || moviesQueue.length === 0) return;
+                isAnimating = true;
+                gsap.to(element, { x: 60, rotation: 10, duration: 0.12, ease: "power2.out", onComplete: () => triggerMatch() });
+            };
+            element._triggerDislike = () => {
+                if (isAnimating || moviesQueue.length === 0) return;
+                isAnimating = true;
+                gsap.to(element, { x: -60, rotation: -10, duration: 0.12, ease: "power2.out", onComplete: () => triggerDislike() });
+            };
+            element._toggleSynopsis = toggleSynopsis;
+
             // Quando der like (Match) - Animação cinematográfica de Match
             function triggerMatch() {
                 if (isMatched) return;
@@ -2917,7 +2952,7 @@
                         rotation: Math.random() * 360,
                         scale: 0.5 + Math.random(),
                         opacity: 0,
-                        duration: 1 + Math.random(),
+                        duration: 0.6 + Math.random() * 0.4,
                         ease: "power2.out",
                         onComplete: () => heart.remove()
                     });
@@ -3009,9 +3044,8 @@
 
                 // NOVA ABORDAGEM: Revelação agressiva para corrigir "Som sem imagem"
                 if (unmuted) {
-                    // 1. Removemos temporariamente o preserve-3d do card para forçar o browser a renderizar os pixels do iframe
-                    element.style.transformStyle = 'flat';
-                    frontEl.style.transformStyle = 'flat';
+                    // Mantemos preserve-3d para evitar que o card 'fuja' para trás da pilha
+                    // mas garantimos que o container do vídeo esteja visível.
                     
                     // 2. Subimos o container do vídeo acima de qualquer overlay ou sombra (z-60)
                     gsap.set(previewContainer, { 
@@ -3034,11 +3068,13 @@
                     }
                 }
 
-                // Iframe com domínio padrão e parâmetros mínimos para estabilidade
+                // Iframe com domínio nocookie e parâmetros para Efeito Zoom (Fill)
+                // Proporção Card 2:3 vs Vídeo 16:9 -> Largura de 268% centrada para cobrir tudo
                 previewContainer.innerHTML = `
                     <iframe id="${playerId}" 
-                        class="absolute inset-0 w-full h-full ${unmuted ? '' : 'pointer-events-none'}" 
-                        src="https://www.youtube.com/embed/${key}?enablejsapi=1&autoplay=1&mute=${muteParam}&controls=${controlsParam}&loop=1&playlist=${key}&playsinline=1&rel=0" 
+                        class="absolute ${unmuted ? '' : 'pointer-events-none'}" 
+                        style="width: 268%; height: 100%; left: -84%; top: 0; object-fit: cover;"
+                        src="https://www.youtube-nocookie.com/embed/${key}?enablejsapi=1&autoplay=1&mute=${muteParam}&controls=${controlsParam}&loop=1&playlist=${key}&playsinline=1&rel=0&modestbranding=1" 
                         frameborder="0" 
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                         allowfullscreen>
@@ -3050,7 +3086,10 @@
                     ytPlayer = new YT.Player(playerId, {
                         events: {
                             'onReady': (event) => {
-                                if (!unmuted) {
+                                // Forçamos exibição imediata se for unmuted (clique no play)
+                                if (unmuted) {
+                                    gsap.to(previewContainer, { opacity: 1, duration: 0.3 });
+                                } else {
                                     // No auto-preview, ainda usamos a revelação suave baseada em estado
                                     let checkCount = 0;
                                     const checkInterval = setInterval(() => {
@@ -3062,7 +3101,11 @@
                                                 const posterImg = frontEl.querySelector('.card-poster-img');
                                                 if (posterImg) gsap.to(posterImg, { opacity: 0, duration: 0.8 });
                                             }
-                                            if (++checkCount > 25) clearInterval(checkInterval);
+                                            if (++checkCount > 25) {
+                                                // Fallback: se demorar muito mas estiver tocando (som), forçamos a opacidade
+                                                clearInterval(checkInterval);
+                                                gsap.to(previewContainer, { opacity: 1, duration: 0.5 });
+                                            }
                                         } catch (e) { clearInterval(checkInterval); }
                                     }, 200);
                                 }
@@ -3115,9 +3158,7 @@
                     }
                     if (cardInfo) cardInfo.style.opacity = '1';
                     
-                    // Restaura o 3D para o próximo card ou swipe
-                    element.style.transformStyle = 'preserve-3d';
-                    frontEl.style.transformStyle = 'preserve-3d';
+                    // Removemos a necessidade de restaurar transformStyle pois não alteramos mais
                     element.style.zIndex = "";
                     
                     if (volumeBtn) {
@@ -3170,8 +3211,8 @@
                 
                 element.classList.add('is-throwing');
                 // Isso evita o bug onde o swipe pra direita removia 2 filmes (um pelo save e outro pelo pop)
-                moviesQueue = moviesQueue.filter(m => m.id !== movie.id);
-                interactedMovieIds.add(movie.id);
+                moviesQueue = moviesQueue.filter(m => Number(m.id) !== Number(movie.id));
+                interactedMovieIds.add(Number(movie.id));
                 
                 if (direction === -1) {
                     saveActionToSupabase(movie, false);
@@ -3205,41 +3246,9 @@
                 });
             }
 
-            // Mapeando botões do layout com onpointerdown para garantir que APENAS o card atual responda
-            // (Isso evita o acúmulo de listeners que causava a abertura de sinopses de filmes errados)
-            btnLike.onpointerdown = (e) => {
-                e.preventDefault();
-                if (isAnimating || moviesQueue.length === 0) return;
-                isAnimating = true;
-                
-                // Simulação de swipe: Pequeno impulso preparatório antes do match
-                gsap.to(element, {
-                    x: 60,
-                    rotation: 10,
-                    duration: 0.12,
-                    ease: "power2.out",
-                    onComplete: () => triggerMatch()
-                });
-            };
-
-            btnInfo.onpointerdown = (e) => {
-                e.preventDefault();
-                toggleSynopsis();
-            };
-            btnDislike.onpointerdown = (e) => {
-                e.preventDefault();
-                if (isAnimating || moviesQueue.length === 0) return;
-                isAnimating = true;
-
-                // Simulação de swipe: Pequeno impulso preparatório antes do dislike
-                gsap.to(element, {
-                    x: -60,
-                    rotation: -10,
-                    duration: 0.12,
-                    ease: "power2.out",
-                    onComplete: () => triggerDislike()
-                });
-            };
+            // Removemos os listeners manuais dos botões globais de dentro da initDrag
+            // pois agora eles são controlados via as referências element._trigger... vinculadas ao currentCardDOM.
+            // Isso previne o bug de abrir sinopses de filmes que já saíram ou estão atrás na pilha.
 
             // Função centralizada para disparar o trailer no Modo Foco
             async function playTrailerFocusMode() {
@@ -3247,6 +3256,19 @@
                 isTrailerLoading = true;
                 
                 try {
+                    // Ativa o dimmer imediatamente para feedback visual
+                    const dimmer = document.getElementById('app-focus-dimmer');
+                    if (dimmer) {
+                        dimmer.classList.remove('hidden');
+                        gsap.to(dimmer, { opacity: 1, duration: 0.4 });
+                        dimmer.onclick = (event) => {
+                            if (event) event.stopPropagation();
+                            gsap.to(dimmer, { opacity: 0, duration: 0.3, onComplete: () => dimmer.classList.add('hidden') });
+                            element.style.zIndex = "";
+                            stopAutoPreview(false); // Destruição total ao sair do foco
+                        };
+                    }
+
                     // REUTILIZAÇÃO DE PLAYER: Se o auto-preview já carregou o iframe silenciosamente, 
                     // apenas unmutamos e revelamos. Isso contorna o bloqueio de autoplay no mobile.
                     if (isPreviewPlaying && ytPlayer && typeof ytPlayer.unMute === 'function') {
@@ -3254,9 +3276,7 @@
                         ytPlayer.unMute();
                         ytPlayer.setVolume(100);
                         
-                        // Transição visual agressiva para o modo foco (flat rendering)
-                        element.style.transformStyle = 'flat';
-                        frontEl.style.transformStyle = 'flat';
+                        // Transição visual agressiva para o modo foco
                         element.style.zIndex = "1000";
                         
                         gsap.set(previewContainer, { 
@@ -3273,33 +3293,10 @@
                         if (playBtn) {
                             gsap.to(playBtn, { opacity: 0, scale: 0.5, duration: 0.3, pointerEvents: 'none' });
                         }
-                        
-                        // Ativa o dimmer
-                        const dimmer = document.getElementById('app-focus-dimmer');
-                        if (dimmer) {
-                            dimmer.classList.remove('hidden');
-                            gsap.to(dimmer, { opacity: 1, duration: 0.4 });
-                            dimmer.onclick = (event) => {
-                                if (event) event.stopPropagation();
-                                gsap.to(dimmer, { opacity: 0, duration: 0.3, onComplete: () => dimmer.classList.add('hidden') });
-                                element.style.zIndex = "";
-                                stopAutoPreview(false); // Destruição total ao sair do foco
-                            };
-                        }
                         return;
                     }
 
                     // Fluxo fallback: Carrega do zero se ainda não existir iframe
-                    const dimmer = document.getElementById('app-focus-dimmer');
-                    if (dimmer) {
-                        dimmer.classList.remove('hidden');
-                        gsap.to(dimmer, { opacity: 1, duration: 0.4 });
-                        dimmer.onclick = () => {
-                            gsap.to(dimmer, { opacity: 0, duration: 0.3, onComplete: () => dimmer.classList.add('hidden') });
-                            element.style.zIndex = "";
-                            stopAutoPreview(false);
-                        };
-                    }
                     element.style.zIndex = "1000";
 
                     let currentKey = trailersCache.get(movie.id);
@@ -3437,8 +3434,6 @@
                                     ytPlayer.playVideo();
                                     if (isUnmuted) {
                                         // Se estava no modo foco, restaura a visão do vídeo
-                                        element.style.transformStyle = 'flat';
-                                        frontEl.style.transformStyle = 'flat';
                                         previewContainer.style.opacity = "1";
                                         const posterImg = frontEl.querySelector('.card-poster-img');
                                         if (posterImg) posterImg.style.display = 'none';
@@ -3745,6 +3740,7 @@
                         renderMatchItemFromObject(item, i);
                     }
                 });
+                isMatchesLoaded = true;
             } catch (e) {
                 console.error("Erro ao buscar matches", e);
             } finally {
@@ -3883,6 +3879,7 @@
 
                 renderCollectionGrid(pending, gridPending, sectionPending);
                 renderCollectionGrid(watched, gridWatched, sectionWatched);
+                isCollectionLoaded = true;
 
                 if (pending.length === 0 && watched.length === 0) {
                     collectionEmpty.classList.remove('hidden');
@@ -4223,7 +4220,10 @@
         
         // Connect existing btn-info to open current movie
         document.getElementById('btn-info').addEventListener('click', () => {
-            if(moviesQueue.length > 0) openSynopsis(moviesQueue[0], 'discover');
+            if(moviesQueue.length > 0) {
+                const topMovie = moviesQueue[moviesQueue.length - 1];
+                openSynopsis(topMovie, 'discover');
+            }
         });
         // --- Filtros Inteligentes Logic (SPA) ---
         // (Variáveis já declaradas no topo do script)
