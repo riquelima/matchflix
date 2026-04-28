@@ -441,13 +441,6 @@
             font-weight: 700;
         }
 
-        .preview-surface-element iframe {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            /* Dimensões controladas via JS para efeito Zoom/Fill */
-            border: none !important;
-        }
 
         body {
             background-color: #0e0e0e;
@@ -564,146 +557,6 @@
             width: 24px;
             height: 24px;
             object-fit: contain;
-        }
-        .match-card-trailer-layer {
-            position: absolute;
-            inset: 0;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.35s ease;
-            z-index: 8;
-            background: #000;
-            overflow: hidden;
-            border-radius: inherit;
-        }
-        .match-card-trailer-layer iframe {
-            width: 100%;
-            height: 100%;
-            border: 0;
-        }
-        .match-card-trailer-frame {
-            width: 100%;
-            height: 100%;
-            opacity: 0;
-            transition: opacity 0.35s ease;
-            background: #000;
-        }
-        .match-card-trailer-frame.is-ready {
-            opacity: 1;
-        }
-        .match-card-trailer-loader {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            background: radial-gradient(circle, rgba(229, 9, 20, 0.18) 0%, rgba(0, 0, 0, 0.92) 72%);
-            z-index: 2;
-            text-align: center;
-            padding: 18px;
-        }
-        .match-card-trailer-spinner {
-            width: 34px;
-            height: 34px;
-            border-radius: 9999px;
-            border: 3px solid rgba(255, 255, 255, 0.14);
-            border-top-color: rgba(229, 9, 20, 0.95);
-            animation: spin 0.8s linear infinite;
-        }
-        .match-card-trailer-fallback {
-            position: absolute;
-            inset-inline: 16px;
-            bottom: 16px;
-            z-index: 3;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            min-height: 42px;
-            padding: 10px 12px;
-            border-radius: 9999px;
-            color: #fff;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            font-size: 10px;
-            font-weight: 800;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            background: rgba(0, 0, 0, 0.72);
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-        }
-        .match-card-trailer-fallback.visible {
-            display: flex;
-        }
-        .film-card.is-playing .match-card-trailer-layer {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        .match-card-play-btn,
-        .match-card-close-btn {
-            position: absolute;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 9999px;
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            transition: transform 0.25s ease, opacity 0.25s ease, background 0.25s ease, border-color 0.25s ease;
-        }
-        .match-card-play-btn {
-            top: 50%;
-            left: 50%;
-            width: 72px;
-            height: 72px;
-            z-index: 12;
-            color: #fff;
-            background: rgba(229, 9, 20, 0.58);
-            border: 1px solid rgba(255, 255, 255, 0.24);
-            box-shadow: 0 18px 40px rgba(229, 9, 20, 0.34);
-            transform: translate(-50%, -50%);
-        }
-        .match-card-play-btn:hover {
-            transform: translate(-50%, -50%) scale(1.08);
-            background: rgba(229, 9, 20, 0.74);
-            border-color: rgba(255, 255, 255, 0.28);
-        }
-        .match-card-play-btn:active {
-            transform: translate(-50%, -50%) scale(0.94);
-        }
-        .match-card-close-btn:active {
-            transform: scale(0.94);
-        }
-        .match-card-play-btn::before {
-            content: "";
-            position: absolute;
-            inset: -10px;
-            border-radius: 9999px;
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            background: radial-gradient(circle, rgba(229, 9, 20, 0.18) 0%, rgba(229, 9, 20, 0) 72%);
-            animation: matchPlayPulse 1.8s ease-out infinite;
-        }
-        .match-card-play-btn > * {
-            position: relative;
-            z-index: 1;
-        }
-        .match-card-close-btn {
-            top: 14px;
-            left: 14px;
-            width: 38px;
-            height: 38px;
-            z-index: 13;
-            color: rgba(255, 255, 255, 0.92);
-            background: rgba(0, 0, 0, 0.55);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            opacity: 0;
-            pointer-events: none;
-        }
-        .film-card.is-playing .match-card-close-btn {
-            opacity: 1;
-            pointer-events: auto;
         }
         .film-card.is-playing .match-card-play-btn {
             opacity: 0;
@@ -831,20 +684,6 @@
         /* Blindagem contra FOUC (Flash of Unstyled Content) */
         .opacity-0 { opacity: 0 !important; }
         
-        /* Estilo do Botão Play Central (Glassmorphic) */
-        .play-card-btn {
-            background: rgba(255, 255, 255, 0.1) !important;
-            backdrop-filter: blur(20px) !important;
-            -webkit-backdrop-filter: blur(20px) !important;
-            border: 1px solid rgba(255, 255, 255, 0.2) !important;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.5), inset 0 0 15px rgba(255,255,255,0.1);
-            animation: play-pulse 3s infinite ease-in-out;
-        }
-        
-        @keyframes play-pulse {
-            0%, 100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 15px 35px rgba(0,0,0,0.5); }
-            50% { transform: translate(-50%, -50%) scale(1.05); box-shadow: 0 20px 45px rgba(229,9,20,0.3); }
-        }
 
         /* Evita que ícones apareçam como texto antes da fonte carregar */
         .material-symbols-outlined {
@@ -1455,7 +1294,6 @@
     </div>
 
     <!-- Overlay de Esmaecimento para Trailers (Modo Foco) -->
-    <div id="app-focus-dimmer" class="fixed inset-0 bg-black/80 z-[900] opacity-0 hidden pointer-events-auto backdrop-blur-sm transition-all duration-500"></div>
 
     <script type="module">
         import { supabase } from './js/supabase.js';
@@ -1525,11 +1363,18 @@
 
             if (btnLike) btnLike.onpointerdown = (e) => {
                 e.preventDefault();
+                if (isAnimating) return; 
                 if (currentCardDOM && currentCardDOM._triggerLike) currentCardDOM._triggerLike();
             };
             if (btnDislike) btnDislike.onpointerdown = (e) => {
                 e.preventDefault();
+                if (isAnimating) return;
                 if (currentCardDOM && currentCardDOM._triggerDislike) currentCardDOM._triggerDislike();
+            };
+            if (btnInfo) btnInfo.onclick = (e) => {
+                e.preventDefault();
+                if (isAnimating) return;
+                if (currentCardDOM && currentCardDOM._toggleSynopsis) currentCardDOM._toggleSynopsis();
             };
         });
         
@@ -2331,6 +2176,7 @@
             }
 
             if (moviesQueue.length === 0) {
+                currentCardDOM = null;
                 if (!isFetching) {
                     loadingIndicator.style.display = "flex";
                     fetchMovies();
@@ -2364,8 +2210,19 @@
                     // SEGURANÇA: Se o card já é o atual e está sendo arrastado ou está em foco (trailer), 
                     // NÃO resetamos o Z-Index nem forçamos animações de posição para não bugar o swipe.
                     const isCardActive = existing.classList.contains('active-drag') || existing.style.zIndex === "1000";
+                    const isTop = (i === 0);
                     
-                    if (!isCardActive) {
+                    if (isTop) {
+                        currentCardDOM = existing; // Garante que os botões globais sempre apontem para o topo
+                        if (existing.style.zIndex === "1000") {
+                            existing.classList.add('active-drag'); // Protege card em modo trailer
+                        }
+                    }
+
+                    if (!isCardActive || !isTop) {
+                        // Se não é o card do topo ou não está ativo, garantimos que ele siga o layout da pilha
+                        if (!isTop) existing.classList.remove('active-drag');
+                        
                         existing.style.zIndex = zIndex;
                         gsap.to(existing, {
                             scale: scale,
@@ -2377,8 +2234,7 @@
                         });
                     }
                     
-                    if (i === 0 && !existing.classList.contains('active-drag')) {
-                        currentCardDOM = existing; 
+                    if (isTop && !existing.classList.contains('active-drag')) {
                         existing.classList.add('active-drag');
                         const front = existing.querySelector('.front-content');
                         const overlay = existing.querySelector('.match-overlay');
@@ -2477,12 +2333,6 @@
             }
 
             front.innerHTML = `
-                <!-- Touch Shield: Garante que o swipe funcione mesmo com vídeo/iframe carregado -->
-                <div class="touch-shield absolute inset-0 z-50 cursor-grab active:cursor-grabbing"></div>
-
-                <!-- Surface Element (TikTok Style) -->
-                <div class="preview-surface-element absolute inset-0 z-40 opacity-0 pointer-events-none overflow-hidden bg-black"></div>
-                
                 <img src="${posterUrl}" alt="${movie.title}" class="card-poster-img absolute inset-0 w-full h-full object-cover select-none pointer-events-none z-10">
                 <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent opacity-90 pointer-events-none z-15"></div>
                 
@@ -2499,18 +2349,6 @@
 
                 ${badgeHTML}
                 ${statusBadgesHTML}
-
-                <!-- Botões de Controle de Vídeo (Refinados) -->
-                <!-- Volume no canto superior direito -->
-                <button class="volume-preview-btn absolute top-6 right-6 z-[100] w-12 h-12 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white opacity-0 pointer-events-none scale-75 active:scale-90 border border-white/5 shadow-lg transition-all duration-300">
-                    <span class="material-symbols-outlined text-2xl">volume_off</span>
-                </button>
-
-                <!-- Botão Play Central (Translúcido/Premium) -->
-                <button class="play-card-btn absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-20 h-20 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center text-white shadow-2xl active:scale-90 transition-all duration-300 group">
-                    <div class="absolute inset-0 bg-primary-container/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-full"></div>
-                    <span class="material-symbols-outlined text-5xl drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] relative z-10" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
-                </button>
             `;
             
             // Verso (Sinopse Animada do Match overlay)
@@ -2573,8 +2411,6 @@
             // Carregar provedores para o card
             fetchAndRenderProviders(movie.id, wrapper.querySelector('.providers-list'), wrapper.querySelector('.providers-section-card'));
             
-            // Carregar trailer para o card
-            fetchAndRenderTrailer(movie.id, wrapper.querySelector('.trailer-container'), wrapper.querySelector('.trailer-section-card'));
 
             // Animação das Badges com GSAP (Cyber-Noir Entrada - apenas se for novo no topo)
             const badges = wrapper.querySelectorAll('.badge-container-gsap > div');
@@ -2677,113 +2513,6 @@
             }
         }
 
-        function stopMatchCardTrailer(card) {
-            if (!card) return;
-
-            const trailerLayer = card.querySelector('.match-card-trailer-layer');
-            if (trailerLayer) {
-                if (trailerLayer._fallbackTimer) {
-                    clearTimeout(trailerLayer._fallbackTimer);
-                    trailerLayer._fallbackTimer = null;
-                }
-                trailerLayer.innerHTML = '';
-            }
-
-            card.classList.remove('is-playing');
-        }
-
-        function playMatchCardTrailer(card, trailerKey) {
-            if (!card || !trailerKey) return;
-
-            document.querySelectorAll('#matches-grid .film-card.is-playing').forEach(activeCard => {
-                if (activeCard !== card) {
-                    stopMatchCardTrailer(activeCard);
-                }
-            });
-
-            const trailerLayer = card.querySelector('.match-card-trailer-layer');
-            if (!trailerLayer) return;
-
-            const embedUrl = `https://www.youtube.com/embed/${trailerKey}?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1&controls=1&origin=${encodeURIComponent(window.location.origin)}`;
-            const watchUrl = `https://www.youtube.com/watch?v=${trailerKey}`;
-
-            trailerLayer.innerHTML = `
-                <div class="match-card-trailer-loader">
-                    <div class="match-card-trailer-spinner"></div>
-                    <p class="text-[10px] font-black tracking-[0.18em] uppercase text-white/85">Carregando trailer</p>
-                    <p class="text-[10px] text-white/45">Se demorar, toque em abrir no YouTube.</p>
-                </div>
-                <iframe
-                    class="match-card-trailer-frame"
-                    src="${embedUrl}"
-                    title="Trailer"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    referrerpolicy="strict-origin-when-cross-origin"
-                    allowfullscreen>
-                </iframe>
-                <a
-                    href="${watchUrl}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="match-card-trailer-fallback">
-                    <span class="material-symbols-outlined text-[16px]">open_in_new</span>
-                    Abrir no YouTube
-                </a>
-            `;
-
-            const iframe = trailerLayer.querySelector('.match-card-trailer-frame');
-            const loader = trailerLayer.querySelector('.match-card-trailer-loader');
-            const fallback = trailerLayer.querySelector('.match-card-trailer-fallback');
-
-            if (trailerLayer._fallbackTimer) {
-                clearTimeout(trailerLayer._fallbackTimer);
-            }
-
-            trailerLayer._fallbackTimer = setTimeout(() => {
-                if (fallback) fallback.classList.add('visible');
-                if (loader) loader.style.opacity = '0';
-            }, 2500);
-
-            if (iframe) {
-                iframe.addEventListener('load', () => {
-                    iframe.classList.add('is-ready');
-                    if (loader) loader.remove();
-                }, { once: true });
-            }
-
-            card.classList.add('is-playing');
-        }
-
-        async function setupMatchCardTrailer(card, movie) {
-            if (!card || !movie?.id) return;
-
-            const playBtn = card.querySelector('.match-card-play-btn');
-            const closeBtn = card.querySelector('.match-card-close-btn');
-
-            if (playBtn) {
-                playBtn.setAttribute('aria-label', `Reproduzir trailer de ${movie.title}`);
-                playBtn.addEventListener('click', async (event) => {
-                    event.stopPropagation();
-                    const trailerKey = await getTrailerKey(movie.id);
-                    if (!trailerKey) {
-                        playBtn.classList.add('animate-pulse');
-                        setTimeout(() => playBtn.classList.remove('animate-pulse'), 800);
-                        return;
-                    }
-                    card.classList.add('has-trailer');
-                    playMatchCardTrailer(card, trailerKey);
-                });
-            }
-
-            if (closeBtn) {
-                closeBtn.setAttribute('aria-label', `Fechar trailer de ${movie.title}`);
-                closeBtn.addEventListener('click', (event) => {
-                    event.stopPropagation();
-                    stopMatchCardTrailer(card);
-                });
-            }
-        }
-
         window.openVideoTrailer = function(key) {
             console.log("Abrindo trailer via modal:", key);
             const overlay = document.getElementById('video-overlay');
@@ -2880,36 +2609,11 @@
             let currentY = 0;
             let isMatched = false; // Flag for match
             let isInfoOpen = false; // Flag for info toggle
-            
-            // Auto-Preview State
-            let previewTimer = null;
-            let isPreviewPlaying = false;
-            let isUnmuted = false; 
-            let ytPlayer = null; 
-            let isAutoPreviewCancelled = false; 
-
-            const previewContainer = frontEl.querySelector('.preview-surface-element');
-            const volumeBtn = frontEl.querySelector('.volume-preview-btn');
-            const playBtn = frontEl.querySelector('.play-card-btn');
-            let isTrailerLoading = false; // Trava para evitar múltiplos cliques no play
 
             const btnAcaoOverlay = element.querySelector('.btn-acao-overlay');
             const heartIcon = overlayEl.querySelector('.bg-primary-container'); // O coração no canto superior da sinopse
 
             // Expondo métodos para os botões globais
-            element._triggerLike = () => {
-                if (isAnimating || moviesQueue.length === 0) return;
-                isAnimating = true;
-                gsap.to(element, { x: 60, rotation: 10, duration: 0.12, ease: "power2.out", onComplete: () => triggerMatch() });
-            };
-            element._triggerDislike = () => {
-                if (isAnimating || moviesQueue.length === 0) return;
-                isAnimating = true;
-                gsap.to(element, { x: -60, rotation: -10, duration: 0.12, ease: "power2.out", onComplete: () => triggerDislike() });
-            };
-            element._toggleSynopsis = toggleSynopsis;
-
-            // Expondo métodos para os botões globais (Corrigindo bug de closure)
             element._triggerLike = () => {
                 if (isAnimating || moviesQueue.length === 0) return;
                 isAnimating = true;
@@ -2980,7 +2684,6 @@
             // Alternar a Sinopse (Modo Leitura)
             function toggleSynopsis() {
                 if (isAnimating || isMatched) return;
-                stopAutoPreview(); // Para o vídeo ao abrir a sinopse
                 
                 if (isInfoOpen) {
                     // Fechar Sinopse
@@ -2998,208 +2701,6 @@
                 }
             }
 
-            async function startAutoPreview() {
-                isAutoPreviewCancelled = false;
-                console.log(`[Preview] Agendando trailer para: "${movie.title}"`);
-                
-                if (isMatched || isDragging || isAnimating || isInfoOpen) return;
-                
-                let trailerKey = trailersCache.get(movie.id);
-                
-                if (trailerKey === undefined) {
-                    try {
-                        const res = await fetch(`https://api.themoviedb.org/3/movie/${movie.id}/videos?api_key=${API_KEY}&language=pt-BR`);
-                        const data = await res.json();
-                        let video = data.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
-                        if (!video) video = data.results.find(v => (v.type === 'Teaser' || v.type === 'Clip') && v.site === 'YouTube');
-                        
-                        if (!video) {
-                            const resEn = await fetch(`https://api.themoviedb.org/3/movie/${movie.id}/videos?api_key=${API_KEY}&language=en-US`);
-                            const dataEn = await resEn.json();
-                            video = dataEn.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
-                            if (!video) video = dataEn.results.find(v => (v.type === 'Teaser' || v.type === 'Clip') && v.site === 'YouTube');
-                        }
-                        
-                        trailerKey = video ? video.key : null;
-                        trailersCache.set(movie.id, trailerKey);
-                    } catch (e) {
-                        console.error("Erro no fetch do trailer:", e);
-                    }
-                }
-
-                // Se o usuário já deu swipe enquanto o fetch rolava, abortamos
-                if (isAutoPreviewCancelled || !trailerKey) return;
-
-                injectPreviewVideo(trailerKey);
-            }
-
-            function injectPreviewVideo(key, unmuted = false) {
-                isAutoPreviewCancelled = false;
-                if (isPreviewPlaying && !unmuted) return;
-                
-                isPreviewPlaying = true;
-                const playerId = `player-${movie.id}-${Math.floor(Math.random() * 1000)}`;
-                const muteParam = unmuted ? '0' : '1';
-                const controlsParam = unmuted ? '1' : '0';
-
-                // NOVA ABORDAGEM: Revelação agressiva para corrigir "Som sem imagem"
-                if (unmuted) {
-                    // Mantemos preserve-3d para evitar que o card 'fuja' para trás da pilha
-                    // mas garantimos que o container do vídeo esteja visível.
-                    
-                    // 2. Subimos o container do vídeo acima de qualquer overlay ou sombra (z-60)
-                    gsap.set(previewContainer, { 
-                        opacity: 1, 
-                        zIndex: 60,
-                        visibility: 'visible',
-                        display: 'block'
-                    });
-                    previewContainer.classList.remove('pointer-events-none');
-                    
-                    // 3. Escondemos o poster e a info imediatamente para evitar sobreposição (bug das fotos)
-                    const posterImg = frontEl.querySelector('.card-poster-img');
-                    if (posterImg) posterImg.style.display = 'none';
-                    
-                    const cardInfo = frontEl.querySelector('.card-info-content');
-                    if (cardInfo) cardInfo.style.opacity = '0';
-
-                    if (playBtn) {
-                        gsap.to(playBtn, { opacity: 0, scale: 0.5, duration: 0.3, pointerEvents: 'none' });
-                    }
-                }
-
-                // Iframe com domínio nocookie e parâmetros para Efeito Zoom (Fill)
-                // Proporção Card 2:3 vs Vídeo 16:9 -> Largura de 268% centrada para cobrir tudo
-                previewContainer.innerHTML = `
-                    <iframe id="${playerId}" 
-                        class="absolute ${unmuted ? '' : 'pointer-events-none'}" 
-                        style="width: 268%; height: 100%; left: -84%; top: 0; object-fit: cover;"
-                        src="https://www.youtube-nocookie.com/embed/${key}?enablejsapi=1&autoplay=1&mute=${muteParam}&controls=${controlsParam}&loop=1&playlist=${key}&playsinline=1&rel=0&modestbranding=1" 
-                        frameborder="0" 
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                        allowfullscreen>
-                    </iframe>
-                `;
-                
-                const initPlayer = () => {
-                    if (isAutoPreviewCancelled) return;
-                    ytPlayer = new YT.Player(playerId, {
-                        events: {
-                            'onReady': (event) => {
-                                // Forçamos exibição imediata se for unmuted (clique no play)
-                                if (unmuted) {
-                                    gsap.to(previewContainer, { opacity: 1, duration: 0.3 });
-                                } else {
-                                    // No auto-preview, ainda usamos a revelação suave baseada em estado
-                                    let checkCount = 0;
-                                    const checkInterval = setInterval(() => {
-                                        if (isAutoPreviewCancelled || !ytPlayer) { clearInterval(checkInterval); return; }
-                                        try {
-                                            if (event.target.getPlayerState() === 1) { 
-                                                clearInterval(checkInterval);
-                                                gsap.to(previewContainer, { opacity: 1, duration: 0.5 });
-                                                const posterImg = frontEl.querySelector('.card-poster-img');
-                                                if (posterImg) gsap.to(posterImg, { opacity: 0, duration: 0.8 });
-                                            }
-                                            if (++checkCount > 25) {
-                                                // Fallback: se demorar muito mas estiver tocando (som), forçamos a opacidade
-                                                clearInterval(checkInterval);
-                                                gsap.to(previewContainer, { opacity: 1, duration: 0.5 });
-                                            }
-                                        } catch (e) { clearInterval(checkInterval); }
-                                    }, 200);
-                                }
-                            },
-                            'onStateChange': (event) => {
-                                if (event.data === YT.PlayerState.ENDED) event.target.playVideo();
-                            },
-                            'onError': () => stopAutoPreview()
-                        }
-                    });
-                };
-
-                if (isYouTubeAPIReady) initPlayer();
-                else ytAPIQueue.push(initPlayer);
-            }
-
-                // Clique do volume usando a API oficial
-                if (volumeBtn) {
-                    volumeBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        if (!ytPlayer || typeof ytPlayer.unMute !== 'function') return;
-                        
-                        isUnmuted = !isUnmuted;
-                        if (isUnmuted) {
-                            ytPlayer.unMute();
-                            ytPlayer.setVolume(100);
-                            volumeBtn.innerHTML = `<span class="material-symbols-outlined text-3xl text-primary-container">volume_up</span>`;
-                            volumeBtn.classList.add('bg-primary-container/20', 'border-primary-container/40');
-                        } else {
-                            ytPlayer.mute();
-                            volumeBtn.innerHTML = `<span class="material-symbols-outlined text-3xl">volume_off</span>`;
-                            volumeBtn.classList.remove('bg-primary-container/20', 'border-primary-container/40');
-                        }
-                    };
-                }
-
-            function stopAutoPreview(isTemporary = false) {
-                isAutoPreviewCancelled = true;
-                clearTimeout(previewTimer);
-                
-                if (isPreviewPlaying) {
-                    const posterImg = frontEl.querySelector('.card-poster-img');
-                    const cardInfo = frontEl.querySelector('.card-info-content');
-                    
-                    if (posterImg) {
-                        gsap.killTweensOf(posterImg); // Interrompe qualquer fade em curso
-                        posterImg.style.display = 'block';
-                        // Restauração instantânea sempre, para evitar qualquer translucidez no swipe
-                        posterImg.style.opacity = "1";
-                    }
-                    if (cardInfo) cardInfo.style.opacity = '1';
-                    
-                    // Removemos a necessidade de restaurar transformStyle pois não alteramos mais
-                    element.style.zIndex = "";
-                    
-                    if (volumeBtn) {
-                        gsap.to(volumeBtn, { opacity: 0, scale: 0.5, duration: 0.2 });
-                        volumeBtn.classList.add('pointer-events-none');
-                    }
-                    if (playBtn) {
-                        gsap.to(playBtn, { opacity: 1, scale: 1, duration: 0.2 });
-                        playBtn.classList.remove('bg-primary-container/20', 'border-primary-container/40');
-                        playBtn.style.pointerEvents = 'auto';
-                    }
-
-                    if (isTemporary) {
-                        // Para o arrasto: apenas pausa e esconde para evitar lag (stutter) de destruição de DOM
-                        if (ytPlayer && ytPlayer.pauseVideo) {
-                            try { ytPlayer.pauseVideo(); } catch(e) {}
-                        }
-                        previewContainer.style.opacity = "0";
-                    } else {
-                        // Destruição total
-                        if (ytPlayer && ytPlayer.destroy) {
-                            try { ytPlayer.destroy(); } catch(e) {}
-                            ytPlayer = null;
-                        }
-                        previewContainer.innerHTML = '';
-                        previewContainer.style.opacity = "0";
-                        isPreviewPlaying = false;
-                        isUnmuted = false;
-                    }
-
-                    // Esconde o dimmer se estiver ativo
-                    const dimmer = document.getElementById('app-focus-dimmer');
-                    if (dimmer) {
-                        gsap.to(dimmer, { opacity: 0, duration: 0.3, onComplete: () => dimmer.classList.add('hidden') });
-                    }
-                }
-            }
-
-            // Inicia o timer de 800ms (reduzido para agilidade)
-            previewTimer = setTimeout(startAutoPreview, 800);
-
             // Quando for dispensado
             function triggerDislike() {
                 throwOut(-1);
@@ -3207,7 +2708,6 @@
 
             function throwOut(direction) {
                 isAnimating = true;
-                stopAutoPreview(); 
                 
                 element.classList.add('is-throwing');
                 // Isso evita o bug onde o swipe pra direita removia 2 filmes (um pelo save e outro pelo pop)
@@ -3246,93 +2746,6 @@
                 });
             }
 
-            // Removemos os listeners manuais dos botões globais de dentro da initDrag
-            // pois agora eles são controlados via as referências element._trigger... vinculadas ao currentCardDOM.
-            // Isso previne o bug de abrir sinopses de filmes que já saíram ou estão atrás na pilha.
-
-            // Função centralizada para disparar o trailer no Modo Foco
-            async function playTrailerFocusMode() {
-                if (isAnimating || isMatched || isInfoOpen || isTrailerLoading) return;
-                isTrailerLoading = true;
-                
-                try {
-                    // Ativa o dimmer imediatamente para feedback visual
-                    const dimmer = document.getElementById('app-focus-dimmer');
-                    if (dimmer) {
-                        dimmer.classList.remove('hidden');
-                        gsap.to(dimmer, { opacity: 1, duration: 0.4 });
-                        dimmer.onclick = (event) => {
-                            if (event) event.stopPropagation();
-                            gsap.to(dimmer, { opacity: 0, duration: 0.3, onComplete: () => dimmer.classList.add('hidden') });
-                            element.style.zIndex = "";
-                            stopAutoPreview(false); // Destruição total ao sair do foco
-                        };
-                    }
-
-                    // REUTILIZAÇÃO DE PLAYER: Se o auto-preview já carregou o iframe silenciosamente, 
-                    // apenas unmutamos e revelamos. Isso contorna o bloqueio de autoplay no mobile.
-                    if (isPreviewPlaying && ytPlayer && typeof ytPlayer.unMute === 'function') {
-                        isUnmuted = true;
-                        ytPlayer.unMute();
-                        ytPlayer.setVolume(100);
-                        
-                        // Transição visual agressiva para o modo foco
-                        element.style.zIndex = "1000";
-                        
-                        gsap.set(previewContainer, { 
-                            opacity: 1, 
-                            zIndex: 60,
-                            visibility: 'visible',
-                            display: 'block'
-                        });
-                        previewContainer.classList.remove('pointer-events-none');
-                        
-                        const posterImg = frontEl.querySelector('.card-poster-img');
-                        if (posterImg) posterImg.style.display = 'none';
-                        
-                        if (playBtn) {
-                            gsap.to(playBtn, { opacity: 0, scale: 0.5, duration: 0.3, pointerEvents: 'none' });
-                        }
-                        return;
-                    }
-
-                    // Fluxo fallback: Carrega do zero se ainda não existir iframe
-                    element.style.zIndex = "1000";
-
-                    let currentKey = trailersCache.get(movie.id);
-                    if (!currentKey) {
-                        currentKey = await getTrailerKey(movie.id);
-                    }
-
-                    if (currentKey) {
-                        injectPreviewVideo(currentKey, true);
-                    } else {
-                        console.warn("Nenhum trailer disponível para este filme.");
-                        if (dimmer) {
-                            gsap.to(dimmer, { opacity: 0, duration: 0.3, onComplete: () => dimmer.classList.add('hidden') });
-                        }
-                        element.style.zIndex = "";
-                    }
-                } catch (err) {
-                    console.error("Erro ao reproduzir trailer no modo foco:", err);
-                    const dimmer = document.getElementById('app-focus-dimmer');
-                    if (dimmer) {
-                        gsap.to(dimmer, { opacity: 0, duration: 0.2, onComplete: () => dimmer.classList.add('hidden') });
-                    }
-                    element.style.zIndex = "";
-                } finally {
-                    isTrailerLoading = false;
-                }
-            }
-
-            if (playBtn) {
-                playBtn.onpointerdown = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    playTrailerFocusMode();
-                };
-            }
-
             // Botão interno do Overlay ("Finalizar Match" ou "Fechar Sinopse")
             if (btnAcaoOverlay) {
                 btnAcaoOverlay.addEventListener('pointerdown', (e) => {
@@ -3355,11 +2768,6 @@
             function dragStart(e) {
                 if (isAnimating || isMatched || isInfoOpen) return;
                 
-                // Se o toque/clique foi no botão de volume, ignorar para não parar o preview
-                if (e.target.closest('button') === volumeBtn) return;
-                
-                // Pausa temporária em vez de destruição total evita o engasgo (stutter) no início do deslize
-                stopAutoPreview(true); 
                 isDragging = true;
                 
                 const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
@@ -4218,13 +3626,7 @@
 
         modalBackdrop.addEventListener('click', closeSynopsis);
         
-        // Connect existing btn-info to open current movie
-        document.getElementById('btn-info').addEventListener('click', () => {
-            if(moviesQueue.length > 0) {
-                const topMovie = moviesQueue[moviesQueue.length - 1];
-                openSynopsis(topMovie, 'discover');
-            }
-        });
+        // Connect existing btn-info to open current movie (MODIFICADO: Centralizado no listener do DOMContentLoaded)
         // --- Filtros Inteligentes Logic (SPA) ---
         // (Variáveis já declaradas no topo do script)
 
