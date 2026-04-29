@@ -1284,13 +1284,16 @@
     </div>
 
     <!-- Video Overlay -->
-    <div id="video-overlay" class="fixed inset-0 z-[10000] bg-black flex items-center justify-center opacity-0 pointer-events-none">
-        <div class="relative w-full max-w-4xl aspect-video bg-black rounded-2xl overflow-hidden shadow-[0_0_100px_rgba(229,9,20,0.4)] mx-4 scale-90" id="video-content">
-            <button id="close-video" class="absolute top-3 right-3 z-[510] bg-black/40 hover:bg-white/10 text-white w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-md transition-all active:scale-90 border border-white/5">
-                <span class="material-symbols-outlined text-lg">close</span>
-            </button>
-            <div id="video-container" class="w-full h-full"></div>
+    <div id="video-overlay" class="fixed inset-0 z-[2147483647] bg-black hidden flex-col items-center justify-center p-4">
+        <button id="close-video" class="absolute top-6 right-6 z-[2147483647] bg-white/10 hover:bg-white/20 text-white w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-xl transition-all active:scale-90 border border-white/10 shadow-2xl">
+            <span class="material-symbols-outlined text-2xl">close</span>
+        </button>
+        
+        <div class="relative w-full max-w-5xl shadow-[0_0_100px_rgba(229,9,20,0.3)] rounded-3xl overflow-hidden bg-neutral-900" id="video-content" style="aspect-ratio: 16/9;">
+            <div id="video-container" class="absolute inset-0 w-full h-full"></div>
         </div>
+        
+        <p class="text-white/20 text-[10px] mt-6 font-bold uppercase tracking-[0.3em] pointer-events-none">MatchFlix Cinema Mode</p>
     </div>
 
     <!-- Overlay de Esmaecimento para Trailers (Modo Foco) -->
@@ -2323,6 +2326,25 @@
             // Carregar provedores para o card
             fetchAndRenderProviders(movie.id, wrapper.querySelector('.providers-list'), wrapper.querySelector('.providers-section-card'));
             
+            // Carregar Trailer para o card (Match Overlay)
+            getTrailerKey(movie.id).then(key => {
+                if (key) {
+                    const section = wrapper.querySelector('.trailer-section-card');
+                    const container = wrapper.querySelector('.trailer-container');
+                    if (section && container) {
+                        section.classList.remove('hidden');
+                        container.innerHTML = `
+                            <button 
+                                onclick="event.stopPropagation(); window.openVideoTrailer('${key}')" 
+                                class="flex items-center justify-center gap-2 bg-primary-container text-white text-[10px] font-black py-4 px-4 rounded-xl shadow-[0_0_20px_rgba(229,9,20,0.3)] transition-all active:scale-95 w-full uppercase tracking-widest relative z-[100] pointer-events-auto"
+                            >
+                                <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+                                Assistir Trailer
+                            </button>
+                        `;
+                    }
+                }
+            });
 
             // Animação das Badges com GSAP (Cyber-Noir Entrada - apenas se for novo no topo)
             const badges = wrapper.querySelectorAll('.badge-container-gsap > div');
@@ -2433,49 +2455,48 @@
         }
 
         window.openVideoTrailer = function(key) {
-            console.log("🎬 Abrindo trailer via modal:", key);
+            console.log("🎬 Cinema Mode - Abrindo Trailer:", key);
             const overlay = document.getElementById('video-overlay');
             const content = document.getElementById('video-content');
             const container = document.getElementById('video-container');
             
-            if (!overlay || !content || !container) return;
+            if (!overlay || !content || !container) {
+                console.error("❌ Elementos do player não encontrados!");
+                return;
+            }
 
+            // Para garantir que o trailer sempre abra, mesmo com erros de animação
+            gsap.killTweensOf([overlay, content, modal]);
+            
+            overlay.style.display = 'flex';
+            overlay.classList.remove('hidden');
+            overlay.style.opacity = '1';
+            
             container.innerHTML = `
-                <div class="absolute inset-0 flex items-center justify-center bg-black/60 z-0">
+                <div class="absolute inset-0 flex items-center justify-center bg-black z-0">
                     <div class="w-12 h-12 border-4 border-primary-container/20 border-t-primary-container rounded-full animate-spin"></div>
                 </div>
                 <iframe 
                     width="100%" 
                     height="100%" 
-                    src="https://www.youtube-nocookie.com/embed/${key}?autoplay=1&rel=0&modestbranding=1" 
+                    src="https://www.youtube-nocookie.com/embed/${key}?autoplay=1&rel=0&modestbranding=1&showinfo=0&iv_load_policy=3" 
                     frameborder="0" 
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                     allowfullscreen 
-                    class="relative z-10"
+                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; border: none; background: black;"
                     onload="this.previousElementSibling.remove()">
                 </iframe>`;
             
-            // Esconde o modal de sinopse temporariamente para garantir foco total e evitar bugs de z-index
+            // Oculta modal de sinopse se estiver aberto
             if (modal) {
-                gsap.to(modal, { y: "100%", duration: 0.4, ease: "power2.in" });
+                gsap.to(modal, { y: "100%", duration: 0.3, ease: "power2.in" });
             }
 
-            overlay.classList.remove('pointer-events-none');
-            overlay.classList.add('pointer-events-auto');
-            overlay.style.display = 'flex';
-            
-            gsap.to(overlay, { 
-                opacity: 1, 
-                duration: 0.4, 
-                ease: "power2.out" 
-            });
-
-            gsap.to(content, { 
-                scale: 1, 
-                duration: 0.5, 
-                delay: 0.1,
-                ease: "back.out(1.2)" 
-            });
+            // Anima o frame do vídeo
+            gsap.fromTo(content, 
+                { scale: 0.9, opacity: 0 }, 
+                { scale: 1, opacity: 1, duration: 0.4, ease: "power2.out" }
+            );
 
             document.body.style.overflow = 'hidden';
         }
@@ -2485,7 +2506,6 @@
             const content = document.getElementById('video-content');
             const container = document.getElementById('video-container');
             
-            // Volta o modal de sinopse
             if (modal) {
                 gsap.to(modal, { y: 0, duration: 0.5, ease: "expo.out" });
             }
@@ -2493,19 +2513,12 @@
             gsap.to(overlay, { 
                 opacity: 0, 
                 duration: 0.3, 
-                ease: "power2.in",
                 onComplete: () => {
-                    overlay.classList.add('pointer-events-none');
-                    overlay.classList.remove('pointer-events-auto');
+                    overlay.classList.add('hidden');
+                    overlay.style.display = 'none';
                     container.innerHTML = '';
                     document.body.style.overflow = '';
                 }
-            });
-
-            gsap.to(content, { 
-                scale: 0.9, 
-                duration: 0.3, 
-                ease: "power2.in" 
             });
         }
 
