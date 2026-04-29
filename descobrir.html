@@ -2153,10 +2153,17 @@
                     const isTop = (i === 0);
                     
                     if (isTop) {
-                        currentCardDOM = existing; // Garante que os botões globais sempre apontem para o topo
+                        currentCardDOM = existing; 
                         existing.classList.add('active-drag');
-                        // Card do topo sempre tem o Z-index máximo garantido
                         existing.style.zIndex = "100";
+                        
+                        // GARANTIA: Se o card chegou ao topo mas ainda não tem os controles de swipe, inicializa agora
+                        if (!existing._dragInitialized) {
+                            const front = existing.querySelector('.front-content');
+                            const overlay = existing.querySelector('.match-overlay');
+                            initDrag(existing, movie, front, overlay);
+                            existing._dragInitialized = true;
+                        }
                     } else {
                         existing.classList.remove('active-drag');
                         existing.style.zIndex = zIndex;
@@ -2174,12 +2181,6 @@
                         });
                     }
                     
-                    if (isTop && !existing.classList.contains('active-drag')) {
-                        existing.classList.add('active-drag');
-                        const front = existing.querySelector('.front-content');
-                        const overlay = existing.querySelector('.match-overlay');
-                        initDrag(existing, movie, front, overlay);
-                    }
                 } else {
                     // Se não estiver no DOM, cria
                     createCardDOM(movie, i);
@@ -2348,6 +2349,7 @@
                 currentCardDOM = wrapper;
                 wrapper.classList.add('active-drag');
                 initDrag(currentCardDOM, movie, front, matchOverlay);
+                wrapper._dragInitialized = true;
             }
 
             // Carregar provedores para o card
@@ -4038,7 +4040,7 @@
             if (error) {
                 alert('Erro ao sair: ' + error.message);
             } else {
-                window.location.href = 'login.html';
+                window.location.href = 'index.html';
             }
         });
 

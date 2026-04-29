@@ -221,6 +221,69 @@
             overflow: hidden;
             /* altura dinâmica: definida por JS após montar o grid */
         }
+        /* PWA Install Prompt */
+        #pwa-install-prompt {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(150%);
+            width: calc(100% - 32px);
+            max-width: 400px;
+            z-index: 9999;
+            background: rgba(15, 15, 15, 0.9);
+            border: 1px solid rgba(229, 9, 20, 0.3);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 20px rgba(229, 9, 20, 0.1);
+            opacity: 0;
+        }
+
+        .pwa-step-indicator {
+            width: 24px;
+            height: 24px;
+            background: var(--neon-red);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 900;
+            flex-shrink: 0;
+        }
+
+        /* Tutorial Modal */
+        #pwa-tutorial-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px);
+            z-index: 200;
+            display: none;
+            opacity: 0;
+        }
+
+        .tutorial-card {
+            background: #111;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 32px;
+            max-width: 340px;
+            width: 90%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .share-icon-animate {
+            animation: pulse-red 2s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -293,11 +356,60 @@
     </section>
 
 
+
     <footer class="py-3 bg-black border-t border-white/5">
         <div class="flex justify-center items-center">
             <span class="font-headline font-extrabold text-lg tracking-tighter text-white">Match<span class="text-[#E50914]">Flix</span></span>
         </div>
     </footer>
+
+    <!-- PWA Install Prompt -->
+    <div id="pwa-install-prompt" class="p-4 flex items-center justify-between gap-4" style="visibility: hidden;">
+        <div class="flex items-center gap-3">
+            <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
+                <span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">install_mobile</span>
+            </div>
+            <div>
+                <p class="font-headline font-bold text-sm text-white">Instale o MatchFlix</p>
+                <p class="text-[10px] text-white/50 uppercase tracking-widest font-black">Experiência WebApp nativa</p>
+            </div>
+        </div>
+        <button id="btn-install-pwa" class="bg-primary hover:bg-red-600 text-white px-5 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-[0_4px_15px_rgba(229,9,20,0.3)]">
+            Instalar
+        </button>
+        <button id="btn-close-pwa" class="absolute -top-2 -right-2 w-6 h-6 bg-surface-container-high rounded-full flex items-center justify-center border border-white/10 text-white/40 hover:text-white transition-colors">
+            <span class="material-symbols-outlined text-xs">close</span>
+        </button>
+    </div>
+
+    <!-- Tutorial PWA Overlay -->
+    <div id="pwa-tutorial-overlay" class="items-center justify-center">
+        <div class="tutorial-card text-center">
+            <div class="mb-6 relative inline-block">
+                <div class="w-20 h-20 bg-primary/20 rounded-3xl flex items-center justify-center mx-auto border border-primary/30">
+                    <span class="material-symbols-outlined text-primary text-5xl share-icon-animate">ios_share</span>
+                </div>
+            </div>
+            
+            <h3 class="font-headline font-black text-2xl text-white mb-2 uppercase italic tracking-tighter">Como instalar</h3>
+            <p class="text-white/60 text-sm mb-8 leading-relaxed">Siga estes passos simples para ter o MatchFlix na sua tela inicial:</p>
+            
+            <div class="space-y-6 text-left mb-8">
+                <div class="flex items-start gap-4">
+                    <div class="pwa-step-indicator">1</div>
+                    <p class="text-sm text-white/80 font-medium">Toque no ícone de <span class="text-primary font-bold">Compartilhar</span> no seu navegador.</p>
+                </div>
+                <div class="flex items-start gap-4">
+                    <div class="pwa-step-indicator">2</div>
+                    <p class="text-sm text-white/80 font-medium">Role para baixo e selecione <span class="text-white font-bold italic">"Adicionar à Tela de Início"</span>.</p>
+                </div>
+            </div>
+
+            <button id="btn-close-tutorial" class="w-full py-4 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all">
+                Entendi, vamos lá
+            </button>
+        </div>
+    </div>
 
     <script>
         // Init Tilt
@@ -536,6 +648,71 @@
         } else {
             fetchPosters();
         }
+
+        // === Lógica PWA Install Prompt ===
+        const pwaPrompt = document.getElementById('pwa-install-prompt');
+        const pwaOverlay = document.getElementById('pwa-tutorial-overlay');
+        const btnInstall = document.getElementById('btn-install-pwa');
+        const btnClosePwa = document.getElementById('btn-close-pwa');
+        const btnCloseTutorial = document.getElementById('btn-close-tutorial');
+
+        // Detectar se já está instalado
+        const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+        console.log("PWA Logic initialized", { pwaPrompt, isPWA });
+
+        setTimeout(() => {
+            console.log("Showing PWA prompt...");
+            gsap.set(pwaPrompt, { visibility: 'visible', yPercent: 150, opacity: 0 });
+            gsap.to(pwaPrompt, {
+                yPercent: 0,
+                opacity: 1,
+                duration: 1.2,
+                ease: "power4.out"
+            });
+        }, 1000);
+
+        btnInstall.addEventListener('click', () => {
+            pwaOverlay.style.display = 'flex'; // Mudado de block para flex para centralizar
+            gsap.to(pwaOverlay, {
+                opacity: 1,
+                duration: 0.5,
+                ease: "power2.out"
+            });
+            gsap.from(".tutorial-card", {
+                scale: 0.8,
+                opacity: 0,
+                duration: 0.6,
+                ease: "back.out(1.7)"
+            });
+        });
+
+        const closeTutorial = () => {
+            gsap.to(pwaOverlay, {
+                opacity: 0,
+                duration: 0.4,
+                onComplete: () => {
+                    pwaOverlay.style.display = 'none';
+                    // Esconder o prompt original após o tutorial ser visto
+                    gsap.to(pwaPrompt, {
+                        y: 200,
+                        opacity: 0,
+                        duration: 0.8,
+                        ease: "power2.in"
+                    });
+                }
+            });
+        };
+
+        btnCloseTutorial.addEventListener('click', closeTutorial);
+        btnClosePwa.addEventListener('click', () => {
+            gsap.to(pwaPrompt, {
+                y: 200,
+                opacity: 0,
+                duration: 0.8,
+                ease: "power2.in"
+            });
+        });
     })();
     </script>
 </body>
