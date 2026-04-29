@@ -251,6 +251,7 @@
             opacity: 1;
             pointer-events: auto;
             transform: translateY(0);
+            z-index: 50;
         }
         /* Grids and Cards */
         .film-card {
@@ -1379,6 +1380,19 @@
                 if (isAnimating) return;
                 if (currentCardDOM && currentCardDOM._toggleSynopsis) currentCardDOM._toggleSynopsis();
             };
+
+            // Ouvinte Global para Trailers (Delegação de Eventos)
+            document.addEventListener('click', (e) => {
+                const trailerBtn = e.target.closest('[data-trailer-action]');
+                if (trailerBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const key = trailerBtn.getAttribute('data-trailer-action');
+                    if (key && window.openVideoTrailer) {
+                        window.openVideoTrailer(key);
+                    }
+                }
+            });
         });
         
         let isAnimating = false;
@@ -2110,6 +2124,17 @@
             for (let i = 0; i < maxVisible; i++) {
                 const movieIndex = moviesQueue.length - 1 - i;
                 const movie = moviesQueue[movieIndex];
+                
+                // FILTRO SUPREMO: Se por algum motivo o filme já foi interagido nesta sessão
+                // e ainda está na fila (ex: buffer de rede), nós o pulamos e limpamos a fila.
+                if (movie && interactedMovieIds.has(Number(movie.id))) {
+                    console.log(`[Filtro] Removendo ${movie.title} da fila pois já foi interagido.`);
+                    moviesQueue.splice(movieIndex, 1);
+                    i--; // Reajusta o loop para pegar o próximo
+                    continue;
+                }
+
+                if (!movie) continue;
                 console.log(`[Stack] Renderizando card i=${i}, index=${movieIndex}, filme="${movie.title}"`);
                 
                 // Busca direta e segura pelo ID no container (ignorando cards em animação de saída)
@@ -2129,16 +2154,16 @@
                     
                     if (isTop) {
                         currentCardDOM = existing; // Garante que os botões globais sempre apontem para o topo
-                        if (existing.style.zIndex === "1000") {
-                            existing.classList.add('active-drag'); // Protege card em modo trailer
-                        }
+                        existing.classList.add('active-drag');
+                        // Card do topo sempre tem o Z-index máximo garantido
+                        existing.style.zIndex = "100";
+                    } else {
+                        existing.classList.remove('active-drag');
+                        existing.style.zIndex = zIndex;
                     }
 
                     if (!isCardActive || !isTop) {
                         // Se não é o card do topo ou não está ativo, garantimos que ele siga o layout da pilha
-                        if (!isTop) existing.classList.remove('active-drag');
-                        
-                        existing.style.zIndex = zIndex;
                         gsap.to(existing, {
                             scale: scale,
                             y: yOffset,
@@ -2313,7 +2338,9 @@
                 stackContainer.insertBefore(wrapper, stackContainer.firstChild);
             }
 
-            // Configuração visual inicial via CSS DIRETO (evita erro de removeChild do GSAP em medições)
+            // Configuração visual inicial via CSS DIRETO
+            const initialZIndex = 100 - stackIndex;
+            wrapper.style.zIndex = initialZIndex;
             wrapper.style.transform = `translateY(${yOffset}px) scale(${scale})`;
             wrapper.style.opacity = opacity;
 
@@ -2335,7 +2362,7 @@
                         section.classList.remove('hidden');
                         container.innerHTML = `
                             <button 
-                                onclick="event.stopPropagation(); window.openVideoTrailer('${key}')" 
+                                data-trailer-action="${key}"
                                 class="flex items-center justify-center gap-2 bg-primary-container text-white text-[10px] font-black py-4 px-4 rounded-xl shadow-[0_0_20px_rgba(229,9,20,0.3)] transition-all active:scale-95 w-full uppercase tracking-widest relative z-[100] pointer-events-auto"
                             >
                                 <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
@@ -2956,10 +2983,11 @@
                     });
                 }
 
-                // 2. Renderizar Próximos Lançamentos (Horizontal)
+                // 2. Renderizar Próximos Lançamentos - Filtrando já vistos
                 if (dataUpcoming.results) {
+                    const filteredUpcoming = dataUpcoming.results.filter(m => !interactedMovieIds.has(Number(m.id)));
                     upcomingList.innerHTML = '';
-                    dataUpcoming.results.slice(0, 10).forEach(movie => {
+                    filteredUpcoming.slice(0, 10).forEach(movie => {
                         const movieDiv = document.createElement('div');
                         movieDiv.className = 'shrink-0 w-[140px] snap-start';
                         movieDiv.innerHTML = `
@@ -2977,11 +3005,12 @@
                     });
                 }
 
-                // 3. Renderizar Hall da Fama (Premiados)
-                if (dataAwarded.results && dataAwarded.results.length > 0) {
+                // 3. Renderizar Hall da Fama - Filtrando já vistos
+                if (dataAwarded.results) {
+                    const filteredAwarded = dataAwarded.results.filter(m => !interactedMovieIds.has(Number(m.id)));
                     sectionAwarded.classList.remove('hidden');
                     awardedGrid.innerHTML = '';
-                    dataAwarded.results.slice(0, 10).forEach((movie, i) => {
+                    filteredAwarded.slice(0, 10).forEach((movie, i) => {
                         const card = document.createElement('div');
                         card.className = 'film-card w-[150px] shrink-0 snap-start aspect-[2/3] relative group';
                         card.innerHTML = `
@@ -3001,11 +3030,12 @@
                     });
                 }
 
-                // 4. Renderizar Lançamentos Recentes
+                // 4. Renderizar Lançamentos Recentes - Filtrando já vistos
                 if (dataNewReleases.results) {
+                    const filteredNew = dataNewReleases.results.filter(m => !interactedMovieIds.has(Number(m.id)));
                     newReleasesList.innerHTML = '';
                     const now = new Date();
-                    dataNewReleases.results.forEach(movie => {
+                    filteredNew.forEach(movie => {
                         const relDate = new Date(movie.release_date);
                         const diffDays = Math.floor((now - relDate) / (1000 * 60 * 60 * 24));
                         
@@ -3038,8 +3068,9 @@
                     });
                 }
 
-                // 5. Renderizar Grid Principal com Ranking e Termômetro
+                // 5. Renderizar Grid Principal com Ranking e Termômetro - Filtrando já vistos
                 if (dataDay.results) {
+                    const filteredDay = dataDay.results.filter(m => !interactedMovieIds.has(Number(m.id)));
                     const weeklyResults = dataWeek.results || [];
                     trendingGrid.innerHTML = '';
                     
@@ -4045,13 +4076,17 @@
 
         function renderSearchResults(results) {
             searchResultsGrid.innerHTML = '';
-            if (!results || results.length === 0) {
-                searchPlaceholder.innerHTML = `<span class="material-symbols-outlined text-6xl mb-4">sentiment_dissatisfied</span><p class="font-headline font-bold">Nenhum filme encontrado</p>`;
+            
+            // Filtrar já vistos na busca
+            const filteredResults = results ? results.filter(m => !interactedMovieIds.has(Number(m.id))) : [];
+
+            if (filteredResults.length === 0) {
+                searchPlaceholder.innerHTML = `<span class="material-symbols-outlined text-6xl mb-4">sentiment_dissatisfied</span><p class="font-headline font-bold">Nenhum filme novo encontrado</p>`;
                 searchPlaceholder.classList.remove('hidden');
                 return;
             }
 
-            results.forEach(movie => {
+            filteredResults.forEach(movie => {
                 if (!movie.poster_path) return;
 
                 const card = document.createElement('div');
