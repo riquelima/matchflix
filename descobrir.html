@@ -270,7 +270,7 @@
         .film-card img {
             width: 100%;
             height: 100%;
-            object-cover: cover;
+            object-fit: cover;
         }
         .card-overlay {
             position: absolute;
@@ -1255,11 +1255,11 @@
                     <p class="text-primary-container text-[10px] font-black tracking-widest uppercase mb-2">Sinopse</p>
                     <p id="modal-synopsis" class="text-white/90 leading-relaxed font-body text-sm mb-4"></p>
 
-                    <div id="modal-trailer-section" class="trailer-section hidden mb-6">
-                        <p class="text-primary-container text-[10px] font-black tracking-widest uppercase mb-2">Trailer</p>
-                        <div id="modal-trailer-container"></div>
-                    </div>
-                    
+                    <button id="modal-trailer-btn" class="hidden w-full bg-primary-container text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3 active:scale-95 transition-all shadow-lg shadow-primary-container/20 mb-6">
+                        <span class="material-symbols-outlined">play_circle</span>
+                        VER TRAILER
+                    </button>
+
                     <div id="modal-providers-section" class="providers-section hidden mb-8">
                         <p class="text-primary-container text-[10px] font-black tracking-widest uppercase mb-2">Onde Assistir</p>
                         <div id="modal-providers-list" class="providers-list"></div>
@@ -1284,8 +1284,8 @@
     </div>
 
     <!-- Video Overlay -->
-    <div id="video-overlay" class="fixed inset-0 z-[500] bg-black/95 flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300 backdrop-blur-xl">
-        <div class="relative w-full max-w-4xl aspect-video bg-black rounded-2xl overflow-hidden shadow-[0_0_100px_rgba(229,9,20,0.4)] mx-4 scale-90 transition-transform duration-300" id="video-content">
+    <div id="video-overlay" class="fixed inset-0 z-[10000] bg-black flex items-center justify-center opacity-0 pointer-events-none">
+        <div class="relative w-full max-w-4xl aspect-video bg-black rounded-2xl overflow-hidden shadow-[0_0_100px_rgba(229,9,20,0.4)] mx-4 scale-90" id="video-content">
             <button id="close-video" class="absolute top-3 right-3 z-[510] bg-black/40 hover:bg-white/10 text-white w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-md transition-all active:scale-90 border border-white/5">
                 <span class="material-symbols-outlined text-lg">close</span>
             </button>
@@ -1904,33 +1904,27 @@
             if (isFetching) return;
             isFetching = true;
             loadingIndicator.style.display = "flex";
+            
             try {
-                // Recupera filtros do localStorage
                 const savedFilters = localStorage.getItem('mf_filters');
                 const filters = savedFilters ? JSON.parse(savedFilters) : null;
 
-                // Configurações Globais da API (Usando URLSearchParams para evitar duplicatas)
                 const queryParams = new URLSearchParams({
                     api_key: API_KEY,
                     language: 'pt-BR',
                     sort_by: 'popularity.desc',
-                    include_adult: 'false'
+                    include_adult: 'false',
+                    'vote_count.gte': 100 // Filtro base para qualidade
                 });
 
-                // Estratégia: Filmes Novos Sempre
-                if (filters && filters.strategy === 'new') {
-                    queryParams.set('primary_release_date.gte', '2023-01-01');
-                }
-
-                // Lógica de Mood (Mapeamento Emocional)
-                if (filters && filters.mood && filters.mood !== 'any') {
+                // 1. Filtros de Mood (Mapeamento de API mais eficaz)
+                if (filters?.mood && filters.mood !== 'any') {
                     switch(filters.mood) {
                         case 'underrated': 
-                            // Hidden Gems: Alta nota, mas volume moderado de votos
                             queryParams.set('sort_by', 'vote_average.desc');
-                            queryParams.set('vote_count.gte', 50);
-                            queryParams.set('vote_count.lte', 2000); 
-                            queryParams.set('vote_average.gte', 7.0); 
+                            queryParams.set('vote_count.gte', 150);
+                            queryParams.set('vote_count.lte', 1500); 
+                            queryParams.set('vote_average.gte', 7.2); 
                             break;
                         case 'relax': 
                             queryParams.set('with_genres', '35,10751');
@@ -1938,11 +1932,11 @@
                             break;
                         case 'intense': 
                             queryParams.set('with_genres', '53,9648,27');
-                            queryParams.set('vote_average.gte', 7);
+                            queryParams.set('vote_average.gte', 6.5);
                             break;
                         case 'cry': 
                             queryParams.set('with_genres', '18');
-                            queryParams.set('with_keywords', 'sadness,tragedy');
+                            queryParams.set('with_keywords', '208453,970,15250'); // tragedy, sadness, tear jerker
                             break;
                         case 'laugh': 
                             queryParams.set('with_genres', '35');
@@ -1950,219 +1944,137 @@
                             break;
                         case 'mind': 
                             queryParams.set('with_genres', '878,9648');
-                            queryParams.set('vote_average.gte', 7.5);
+                            queryParams.set('with_keywords', '310,2343,3035'); // philosophy, mind game, psychological thriller
                             break;
                     }
                 }
 
-                // 1. Aplica filtro de nota mínima rigoroso
-                const minVote = (filters && filters.minRating) ? parseFloat(filters.minRating) : 7.0;
-                let requiredVotes = 100;
-                if (minVote >= 9) requiredVotes = 10;
-                else if (minVote >= 8) requiredVotes = 50;
-                
-                if (!queryParams.has('vote_count.gte')) queryParams.set('vote_count.gte', requiredVotes);
-                const currentMinAvg = queryParams.get('vote_average.gte') ? parseFloat(queryParams.get('vote_average.gte')) : 0;
-                queryParams.set('vote_average.gte', Math.max(currentMinAvg, minVote));
-
-                // 2. Gêneros Excluídos
-                let globalExcluded = [];
-                if (filters && filters.excludedGenres && filters.excludedGenres.length > 0) {
-                    globalExcluded = filters.excludedGenres;
-                    queryParams.set('without_genres', globalExcluded.join(','));
+                // 2. Nota Mínima
+                if (filters?.minRating) {
+                    const min = parseFloat(filters.minRating);
+                    queryParams.set('vote_average.gte', min);
+                    if (min >= 8) queryParams.set('vote_count.gte', 50);
                 }
 
-                // 3. Filtro de Streaming
-                if (filters && filters.providers && filters.providers.length > 0) {
+                // 3. Gêneros (Lógica OR para maior volume de sugestões)
+                const activeGenres = filters?.genres?.length > 0 ? filters.genres : (favoriteGenres.length > 0 ? favoriteGenres : []);
+                if (activeGenres.length > 0) {
+                    queryParams.set('with_genres', activeGenres.join('|'));
+                }
+
+                if (filters?.excludedGenres?.length > 0) {
+                    queryParams.set('without_genres', filters.excludedGenres.join(','));
+                }
+
+                // 4. Provedores de Streaming (BR)
+                if (filters?.providers?.length > 0) {
                     queryParams.set('watch_region', 'BR');
                     queryParams.set('with_watch_providers', filters.providers.join('|'));
                     queryParams.set('with_watch_monetization_types', 'flatrate');
-                } else if (filters && filters.brOnly) {
-                    queryParams.set('watch_region', 'BR');
-                    queryParams.set('with_watch_monetization_types', 'flatrate');
                 }
 
-                // 4. Filtro de Ano
-                if (filters && filters.year && filters.year !== 'all') {
+                // 5. Filtro de Ano
+                if (filters?.year && filters.year !== 'all') {
+                    const currentYear = new Date().getFullYear();
                     if (filters.year === 'recent') {
-                        const twoYearsAgo = new Date().getFullYear() - 2;
-                        queryParams.set('primary_release_date.gte', `${twoYearsAgo}-01-01`);
+                        queryParams.set('primary_release_date.gte', `${currentYear - 3}-01-01`);
                     } else if (filters.year === 'classic') {
-                        queryParams.set('primary_release_date.lte', '1995-12-31');
+                        queryParams.set('primary_release_date.lte', '1999-12-31');
+                        queryParams.set('sort_by', 'vote_average.desc');
                     } else {
                         queryParams.set('primary_release_year', filters.year);
                     }
                 }
 
-                let matches = [];
-                let discoveries = [];
-
-                // Estratégia Preferred
-                if (filters && filters.strategy === 'preferred' && currentUser) {
-                    try {
-                        const { data: recentLikes } = await supabase
-                            .from('curtidas_filmes')
-                            .select('filme_id')
-                            .eq('usuario_id', currentUser.id)
-                            .eq('curtiu', true)
-                            .order('criado_em', { ascending: false })
-                            .limit(3);
-
-                        if (recentLikes) {
-                            for (const like of recentLikes) {
-                                const resMovie = await fetch(`https://api.themoviedb.org/3/movie/${like.filme_id}?api_key=${API_KEY}&language=pt-BR`);
-                                const parentMovie = await resMovie.json();
-                                const resRec = await fetch(`https://api.themoviedb.org/3/movie/${like.filme_id}/recommendations?api_key=${API_KEY}&language=pt-BR&page=1`);
-                                const dataRec = await resRec.json();
-                                if (dataRec.results) {
-                                    matches = [...matches, ...dataRec.results.map(m => ({
-                                        ...m, recommendationReason: parentMovie.title || parentMovie.original_title
-                                    }))];
-                                }
-                            }
-                        }
-                    } catch (e) { console.error(e); }
-                }
-
-                const activeGenres = (filters && filters.genres && filters.genres.length > 0) 
-                    ? filters.genres : (favoriteGenres.length > 0 ? favoriteGenres : []);
-
-                let combined = [];
+                let results = [];
                 let attempts = 0;
-                const maxAttempts = 10; // Aumentado para 10 páginas para garantir busca profunda por inéditos
+                let pageToFetch = currentPage;
 
-                while (combined.length === 0 && attempts < maxAttempts) {
-                    matches = [];
-                    discoveries = [];
+                // Loop de busca para garantir cards inéditos
+                while (results.length < 5 && attempts < 12) { // Aumentado para 12 tentativas
+                    queryParams.set('page', pageToFetch);
+                    const res = await fetch(`https://api.themoviedb.org/3/discover/movie?${queryParams.toString()}`);
+                    const data = await res.json();
                     
-                    queryParams.set('page', currentPage);
-                    const baseUrl = `https://api.themoviedb.org/3/discover/movie?${queryParams.toString()}`;
-
-                    if (activeGenres.length > 0) {
-                        const genresString = activeGenres.join('|');
-                        const discoveryExcluded = [...new Set([...globalExcluded, ...activeGenres])].join(',');
-                        const resMatches = await fetch(`${baseUrl}&with_genres=${genresString}`);
-                        const dataMatches = await resMatches.json();
-                        matches = dataMatches.results || [];
-                        
-                        const resDiscoveries = await fetch(`${baseUrl}&without_genres=${discoveryExcluded}`);
-                        const dataDiscoveries = await resDiscoveries.json();
-                        discoveries = dataDiscoveries.results || [];
-                    } else {
-                        const res = await fetch(baseUrl);
-                        const data = await res.json();
-                        matches = data.results || [];
+                    if (!data.results || data.results.length === 0) {
+                        // Se não tem resultados na página, talvez os filtros sejam muito estritos ou acabou as páginas
+                        // Tentamos resetar para a página 1 e mudar o sort_by para dar diversidade se necessário
+                        if (pageToFetch > 1) { 
+                            pageToFetch = 1; 
+                            queryParams.set('sort_by', attempts % 2 === 0 ? 'vote_average.desc' : 'primary_release_date.desc');
+                            attempts++; 
+                            continue; 
+                        } 
+                        break; 
                     }
 
-                    let batch = [];
-                    const tempMatches = [...matches];
-                    const tempDiscoveries = [...discoveries];
-                    while(tempMatches.length > 0 || tempDiscoveries.length > 0) {
-                        for(let i=0; i<4; i++) if(tempMatches.length > 0) batch.push(tempMatches.shift());
-                        if(tempDiscoveries.length > 0) batch.push(tempDiscoveries.shift());
-                    }
+                    const filtered = data.results.filter(m => 
+                        !interactedMovieIds.has(Number(m.id)) && 
+                        !moviesQueue.some(q => Number(q.id) === Number(m.id))
+                    );
 
-                    // Deduplicação Rigorosa
-                    const queueIds = new Set(moviesQueue.map(m => Number(m.id)));
-                    combined = batch.filter(v => !interactedMovieIds.has(Number(v.id)) && !queueIds.has(Number(v.id)));
+                    results = [...results, ...filtered];
+                    pageToFetch++;
+                    attempts++;
                     
-                    // Remove duplicatas dentro do próprio lote novo
-                    combined = combined.filter((v,i,a)=>a.findIndex(t=>(Number(t.id) === Number(v.id)))===i);
-                    
-                    // Se não achou nada nesta página, tenta a próxima
-                    if (combined.length === 0) {
-                        currentPage++;
-                        attempts++;
-                        console.log(`[Fetch] Página ${currentPage-1} esgotada por filtros/interação. Tentando página ${currentPage}...`);
-                    }
-                }
-                
-                currentPage++;
-
-                // Fallback Supremo (Popular) - Tenta buscar em páginas profundas de populares se a fila continuar vazia
-                if (combined.length === 0 && moviesQueue.length === 0) {
-                    console.warn("[Fetch] Discover vazio. Tentando Fallback com Populares Inéditos...");
-                    let fallbackAttempts = 0;
-                    while (combined.length === 0 && fallbackAttempts < 5) { // Tenta até 5 páginas de populares
-                        const resGlobal = await fetch(`https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}&language=pt-BR&page=${currentPopularFallbackPage}`);
-                        const dataGlobal = await resGlobal.json();
-                        if (dataGlobal.results) {
-                            const queueIds = new Set(moviesQueue.map(m => Number(m.id)));
-                            const filtered = dataGlobal.results.filter(v => !interactedMovieIds.has(Number(v.id)) && !queueIds.has(Number(v.id)));
-                            if (filtered.length > 0) {
-                                combined = filtered;
-                                console.log(`[Fetch] Encontrados ${filtered.length} filmes populares inéditos na página ${currentPopularFallbackPage}.`);
-                                break;
-                            }
-                        }
-                        currentPopularFallbackPage++;
-                        fallbackAttempts++;
-                    }
+                    if (results.length >= 15) break; // Buffer maior
                 }
 
-                // FAIL-SAFE DE EMERGÊNCIA: Se ainda estiver vazio após buscas profundas
-                if (combined.length === 0 && moviesQueue.length === 0) {
-                    console.warn("[Fetch] Nenhum filme novo encontrado após buscas exaustivas.");
-                    // Não liberamos repetições. Se o código chegar aqui, combined continuará vazio e mostrará a tela de "Filtros específicos"
+                currentPage = pageToFetch;
+
+                // FALLBACK INFINITO SUPREMO: Se a busca por filtros falhar ou der poucos resultados
+                if (results.length < 10) {
+                    console.log("🔄 Buscando reforço no Trending para manter fluxo infinito...");
+                    const resTrending = await fetch(`https://api.themoviedb.org/3/trending/movie/week?api_key=${API_KEY}&language=pt-BR&page=${currentTrendingFallbackPage}`);
+                    const dataTrending = await resTrending.json();
+                    
+                    if (dataTrending.results) {
+                        const trendingFiltered = dataTrending.results.filter(m => 
+                            !interactedMovieIds.has(Number(m.id)) && 
+                            !moviesQueue.some(q => Number(q.id) === Number(m.id)) &&
+                            !results.some(r => r.id === m.id)
+                        );
+                        results = [...results, ...trendingFiltered];
+                        currentTrendingFallbackPage++;
+                    }
                 }
 
                 loadingIndicator.style.display = "none";
-                
-                if (combined.length > 0) {
-                    // Limpa estado vazio se existir
-                    if (stackContainer.querySelector('.animate-fade-in')) {
-                        gsap.killTweensOf(stackContainer, true);
-                        stackContainer.innerHTML = '';
-                    }
+
+                if (results.length > 0) {
+                    // Remover duplicatas finais
+                    const finalResults = results.filter((v,i,a) => a.findIndex(t => (t.id === v.id)) === i);
                     
-                    const newMovies = combined.filter(m => !moviesQueue.some(q => Number(q.id) === Number(m.id)));
-                    if (newMovies.length > 0) {
-                        moviesQueue = [...newMovies.reverse(), ...moviesQueue];
-                        preloadMoviePosters(newMovies);
-                        if (stackContainer.querySelectorAll('.movie-card-wrapper').length === 0) {
-                            renderTopCards();
-                        }
+                    // Injetar na fila
+                    moviesQueue = [...finalResults.reverse(), ...moviesQueue];
+                    preloadMoviePosters(finalResults);
+                    
+                    // Se o container estiver vazio ou com erro, renderiza
+                    if (stackContainer.querySelectorAll('.movie-card-wrapper').length === 0) {
+                        renderTopCards();
                     }
                 } else if (moviesQueue.length === 0) {
-                        stackContainer.innerHTML = `
-                            <div class="flex flex-col items-center justify-center h-full text-center p-8 animate-fade-in">
-                                <!-- Ícone Central -->
-                                <div class="bg-primary-container/10 w-24 h-24 rounded-full flex items-center justify-center backdrop-blur-md border border-white/10 shadow-[0_0_30px_rgba(229,9,20,0.3)] mb-6">
-                                    <span class="material-symbols-outlined text-primary-container leading-none select-none" style="font-variation-settings: 'FILL' 1; font-size: 56px !important; display: block;">local_fire_department</span>
-                                </div>
-                                <h3 class="text-xl font-headline font-bold text-white mb-2">Filtros muito específicos?</h3>
-                                <p class="text-white/40 text-sm max-w-[200px] mx-auto mb-8">Não encontramos filmes com seus filtros atuais. Tente relaxar a nota ou mudar o gênero.</p>
-                                <div class="flex flex-col gap-3 w-full max-w-[200px] mx-auto">
-                                    <button onclick="localStorage.removeItem('mf_filters'); location.reload();" class="px-6 py-4 rounded-2xl bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-all active:scale-95">
-                                        Limpar Filtros
-                                    </button>
-                                    <button onclick="goToTab('filtro')" class="px-6 py-4 rounded-2xl bg-primary-container text-white text-xs font-bold shadow-lg shadow-primary-container/20 active:scale-95 transition-all">
-                                        Ajustar Filtros
-                                    </button>
-                                </div>
+                    // Se REALMENTE não tem nada, mostra tela de ajuste
+                    stackContainer.innerHTML = `
+                        <div class="flex flex-col items-center justify-center h-full text-center p-8 animate-fade-in">
+                            <div class="bg-primary-container/10 w-24 h-24 rounded-full flex items-center justify-center backdrop-blur-md border border-white/10 shadow-[0_0_30px_rgba(229,9,20,0.3)] mb-6">
+                                <span class="material-symbols-outlined text-primary-container text-5xl">filter_list_off</span>
                             </div>
-                        `;
-                    }
-
-            } catch (error) {
-                // Se for um erro de DOM/GSAP não fatal, apenas loga e tenta seguir
-                if (error.name === 'NotFoundError' || error.message.includes('removeChild')) {
-                    console.warn("Aviso de DOM (GSAP):", error.message);
-                    isFetching = false;
-                    return;
+                            <h3 class="text-xl font-headline font-bold text-white mb-2">Acabaram os filmes?</h3>
+                            <p class="text-white/40 text-sm max-w-[240px] mx-auto mb-8">Parece que você já viu tudo com esses filtros. Tente relaxar as preferências para continuar explorando.</p>
+                            <button onclick="localStorage.removeItem('mf_filters'); location.reload();" class="w-full max-w-[200px] px-6 py-4 rounded-2xl bg-primary-container text-white text-xs font-bold shadow-lg transition-all active:scale-95">
+                                Resetar Filtros
+                            </button>
+                        </div>
+                    `;
                 }
 
-                console.error("Erro crítico ao buscar filmes:", error);
-                if (loadingIndicator) loadingIndicator.style.display = "none";
-                stackContainer.innerHTML = `
-                    <div class="flex flex-col items-center justify-center h-full text-center p-8">
-                        <span class="material-symbols-outlined text-4xl text-error mb-4">error</span>
-                        <p class="text-white/60 text-sm">Erro ao carregar filmes.<br>Tente novamente mais tarde.</p>
-                        <button onclick="location.reload()" class="mt-4 px-6 py-2 bg-white/10 rounded-xl text-xs">Recarregar</button>
-                    </div>
-                `;
+            } catch (error) {
+                console.error("Erro na busca infinita:", error);
+                isFetching = false;
             } finally {
                 isFetching = false;
+                loadingIndicator.style.display = "none";
             }
         }
 
@@ -2483,6 +2395,7 @@
         }
 
         async function getTrailerKey(movieId) {
+            if (!movieId) return null;
             let trailer = trailersCache.get(movieId);
 
             if (trailer !== undefined) {
@@ -2490,54 +2403,80 @@
             }
 
             try {
-                const res = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${API_KEY}&language=pt-BR`);
+                // Busca todos os vídeos sem filtro de linguagem para máxima compatibilidade
+                const res = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${API_KEY}`);
                 const data = await res.json();
 
-                let video = data.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
-                if (!video) video = data.results.find(v => (v.type === 'Teaser' || v.type === 'Clip') && v.site === 'YouTube');
-
-                if (!video) {
-                    const resEn = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${API_KEY}&language=en-US`);
-                    const dataEn = await resEn.json();
-                    video = dataEn.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
-                    if (!video) video = dataEn.results.find(v => (v.type === 'Teaser' || v.type === 'Clip') && v.site === 'YouTube');
+                if (!data.results || data.results.length === 0) {
+                    console.warn(`Nenhum vídeo encontrado para o filme ${movieId}`);
+                    trailersCache.set(movieId, null);
+                    return null;
                 }
+
+                // Prioridade 1: Trailer oficial no YouTube
+                let video = data.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
+                
+                // Prioridade 2: Teaser no YouTube
+                if (!video) video = data.results.find(v => v.type === 'Teaser' && v.site === 'YouTube');
+                
+                // Prioridade 3: Clipe ou qualquer vídeo no YouTube
+                if (!video) video = data.results.find(v => v.site === 'YouTube');
 
                 trailer = video ? video.key : null;
                 trailersCache.set(movieId, trailer);
                 return trailer;
             } catch (e) {
-                console.error("Erro ao buscar trailer:", e);
+                console.error("Erro ao buscar trailer para ID " + movieId + ":", e);
                 trailersCache.set(movieId, null);
                 return null;
             }
         }
 
         window.openVideoTrailer = function(key) {
-            console.log("Abrindo trailer via modal:", key);
+            console.log("🎬 Abrindo trailer via modal:", key);
             const overlay = document.getElementById('video-overlay');
             const content = document.getElementById('video-content');
             const container = document.getElementById('video-container');
             
+            if (!overlay || !content || !container) return;
+
             container.innerHTML = `
-        <div class="absolute inset-0 flex items-center justify-center bg-black/60 z-0">
-            <div class="w-12 h-12 border-4 border-primary-container/20 border-t-primary-container rounded-full animate-spin"></div>
-        </div>
-        <iframe 
-            width="100%" 
-            height="100%" 
-            src="https://www.youtube-nocookie.com/embed/${key}?autoplay=1&origin=${window.location.origin}&rel=0&modestbranding=1" 
-            frameborder="0" 
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-            allowfullscreen 
-            class="relative z-10"
-            onload="this.previousElementSibling.remove()">
-        </iframe>`;
+                <div class="absolute inset-0 flex items-center justify-center bg-black/60 z-0">
+                    <div class="w-12 h-12 border-4 border-primary-container/20 border-t-primary-container rounded-full animate-spin"></div>
+                </div>
+                <iframe 
+                    width="100%" 
+                    height="100%" 
+                    src="https://www.youtube-nocookie.com/embed/${key}?autoplay=1&rel=0&modestbranding=1" 
+                    frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowfullscreen 
+                    class="relative z-10"
+                    onload="this.previousElementSibling.remove()">
+                </iframe>`;
             
+            // Esconde o modal de sinopse temporariamente para garantir foco total e evitar bugs de z-index
+            if (modal) {
+                gsap.to(modal, { y: "100%", duration: 0.4, ease: "power2.in" });
+            }
+
             overlay.classList.remove('pointer-events-none');
             overlay.classList.add('pointer-events-auto');
-            overlay.style.opacity = '1';
-            content.style.transform = 'scale(1)';
+            overlay.style.display = 'flex';
+            
+            gsap.to(overlay, { 
+                opacity: 1, 
+                duration: 0.4, 
+                ease: "power2.out" 
+            });
+
+            gsap.to(content, { 
+                scale: 1, 
+                duration: 0.5, 
+                delay: 0.1,
+                ease: "back.out(1.2)" 
+            });
+
             document.body.style.overflow = 'hidden';
         }
 
@@ -2546,13 +2485,28 @@
             const content = document.getElementById('video-content');
             const container = document.getElementById('video-container');
             
-            overlay.style.opacity = '0';
-            content.style.transform = 'scale(0.9)';
-            setTimeout(() => {
-                overlay.classList.add('pointer-events-none');
-                container.innerHTML = '';
-                document.body.style.overflow = '';
-            }, 300);
+            // Volta o modal de sinopse
+            if (modal) {
+                gsap.to(modal, { y: 0, duration: 0.5, ease: "expo.out" });
+            }
+
+            gsap.to(overlay, { 
+                opacity: 0, 
+                duration: 0.3, 
+                ease: "power2.in",
+                onComplete: () => {
+                    overlay.classList.add('pointer-events-none');
+                    overlay.classList.remove('pointer-events-auto');
+                    container.innerHTML = '';
+                    document.body.style.overflow = '';
+                }
+            });
+
+            gsap.to(content, { 
+                scale: 0.9, 
+                duration: 0.3, 
+                ease: "power2.in" 
+            });
         }
 
         document.getElementById('close-video').addEventListener('click', window.closeVideoTrailer);
@@ -2909,11 +2863,48 @@
                     .from('news')
                     .select('*')
                     .order('published_at', { ascending: false })
-                    .limit(30);
+                    .limit(60); // Aumentamos o limite para ter mais margem para filtrar
 
                 if (cachedNews && cachedNews.length > 0) {
                     newsList.innerHTML = '';
-                    cachedNews.forEach(article => {
+                    
+                    // Palavras-chave para filtro de entretenimento
+                    const movieKeywords = [
+                        'filme', 'série', 'cinema', 'movie', 'series', 'netflix', 'disney', 'hbo', 'amazon', 'prime video', 
+                        'streaming', 'trailer', 'oscar', 'emmy', 'ator', 'atriz', 'elenco', 'diretor', 'marvel', 'dc', 
+                        'star wars', 'lançamento', 'estreia', 'estréia', 'hollywood', 'teaser', 'temporada', 'episódio', 
+                        'roteiro', 'showrunner', 'blockbuster', 'bilheteria', 'globo de ouro', 'geek', 'nerd', 'fandom'
+                    ];
+
+                    // Palavras-chave para exclusão (Política, Economia, Crimes, etc)
+                    const excludeKeywords = [
+                        'política', 'governo', 'lula', 'bolsonaro', 'stf', 'congresso', 'deputado', 'senador', 'prefeitura', 
+                        'crise', 'economia', 'inflação', 'ministro', 'votação', 'crime', 'polícia', 'guerra', 'eleição', 
+                        'eleições', 'votos', 'brasil 247', 'revista fórum', 'jovem pan', 'uol notícias', 'g1 política',
+                        'prefeito', 'vereador', 'secretaria', 'militar', 'roubo', 'assalto', 'futebol', 'partida', 'gol'
+                    ];
+
+                    const filteredNews = cachedNews.filter(article => {
+                        const title = (article.title || '').toLowerCase();
+                        const source = (article.source_name || '').toLowerCase();
+                        const combined = title + ' ' + source;
+
+                        // 1. Excluir explicitamente fontes de notícias gerais/políticas conhecidas se não tiverem nada de cinema no título
+                        if (source.includes('brasil 247') || source.includes('jovem pan') || source.includes('fórum')) {
+                            return movieKeywords.some(kw => title.includes(kw));
+                        }
+
+                        // 2. Se contiver palavras de exclusão fortes, removemos (a menos que tenha uma palavra forte de entretenimento)
+                        const hasExclude = excludeKeywords.some(kw => title.includes(kw));
+                        const hasStrongMovieKw = ['filme', 'série', 'netflix', 'cinema', 'trailer'].some(kw => title.includes(kw));
+                        if (hasExclude && !hasStrongMovieKw) return false;
+
+                        // 3. Deve ter ao menos uma palavra relacionada a cinema/série
+                        return movieKeywords.some(kw => combined.includes(kw));
+                    });
+
+                    // Mostramos apenas as 20 melhores após o filtro
+                    filteredNews.slice(0, 20).forEach(article => {
                         const newsCard = document.createElement('div');
                         newsCard.className = 'shrink-0 w-[280px] snap-start relative group';
                         newsCard.innerHTML = `
@@ -3174,7 +3165,6 @@
                 </div>
             `;
             card.addEventListener('click', () => openSynopsis(movie, 'match', card));
-            setupMatchCardTrailer(card, movie);
             matchesGrid.appendChild(card);
             // Se já carregamos antes, aparece instantâneo, senão escalona
             if (isMatchesLoaded) card.classList.add('visible');
@@ -3360,6 +3350,9 @@
         const mSynopsis = document.getElementById('modal-synopsis');
         const mRemoveBtn = document.getElementById('modal-remove');
         const mWatchedBtn = document.getElementById('modal-watched');
+        const mTrailerBtn = document.getElementById('modal-trailer-btn');
+        const mProvidersSection = document.getElementById('modal-providers-section');
+        const mProvidersList = document.getElementById('modal-providers-list');
         
         let currentActiveMovie = null;
         let currentActiveType = null; // 'discover', 'match', 'collection'
@@ -3368,13 +3361,12 @@
 
         // Persistência de filmes assistidos
 
-        function openSynopsis(movie, type = 'discover', element = null) {
+        async function openSynopsis(movie, type = 'discover', element = null) {
             currentActiveMovie = movie;
             currentActiveType = type;
             currentActiveElement = element;
 
             // Inicia o pré-carregamento da imagem para o Stories 
-            // Essencial para o iOS/Safari: a imagem precisa estar pronta antes do clique para o navigator.share() não perder o "transient user activation"
             currentStoryImagePromise = generateStoryImage(movie).catch(err => {
                 console.error("Erro no pré-carregamento da imagem do stories:", err);
                 return null;
@@ -3387,30 +3379,14 @@
             mGenres.textContent = movie.genre_names || 'Filme';
             mSynopsis.textContent = movie.overview || 'Sinopse não disponível.';
 
-            // Limpar e carregar trailer no modal
-            const mTrailerSection = document.getElementById('modal-trailer-section');
-            const mTrailerContainer = document.getElementById('modal-trailer-container');
-            mTrailerSection.classList.add('hidden');
-            mTrailerContainer.innerHTML = '';
-            fetchAndRenderTrailer(movie.id, mTrailerContainer, mTrailerSection);
-
-            // Limpar e carregar provedores no modal
-            const mProvidersSection = document.getElementById('modal-providers-section');
-            const mProvidersList = document.getElementById('modal-providers-list');
+            mTrailerBtn.classList.add('hidden');
+            mTrailerBtn.classList.remove('flex');
             mProvidersSection.classList.add('hidden');
             mProvidersList.innerHTML = '';
-            fetchAndRenderProviders(movie.id, mProvidersList, mProvidersSection);
-
-            // Show/Hide remove button based on context
-            if(type === 'discover' || type === 'trending' || type === 'search') {
-                mRemoveBtn.classList.add('hidden');
-            } else {
-                mRemoveBtn.classList.remove('hidden');
-            }
-
+            
             updateWatchedUI();
 
-            // Abrir com GSAP para suavidade premium
+            // Abrir o modal IMEDIATAMENTE para UX rápida
             modal.classList.remove('translate-y-full');
             modalBackdrop.classList.remove('pointer-events-none');
             
@@ -3426,6 +3402,23 @@
             });
             
             document.body.style.overflow = 'hidden';
+
+            // Carregar dados pesados em segundo plano
+            getTrailerKey(movie.id).then(trailerKey => {
+                if (trailerKey) {
+                    mTrailerBtn.classList.remove('hidden');
+                    mTrailerBtn.classList.add('flex');
+                    mTrailerBtn.onclick = () => window.openVideoTrailer(trailerKey);
+                }
+            });
+
+            fetchAndRenderProviders(movie.id, mProvidersList, mProvidersSection);
+            // Show/Hide remove button based on context
+            if(type === 'discover' || type === 'trending' || type === 'search') {
+                mRemoveBtn.classList.add('hidden');
+            } else {
+                mRemoveBtn.classList.remove('hidden');
+            }
         }
 
         function updateWatchedUI() {
