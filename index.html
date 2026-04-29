@@ -224,9 +224,10 @@
         /* PWA Install Prompt */
         #pwa-install-prompt {
             position: fixed;
-            bottom: 24px;
-            left: 50%;
-            transform: translateX(-50%) translateY(150%);
+            bottom: -200px;
+            left: 16px;
+            right: 16px;
+            margin: 0 auto;
             width: calc(100% - 32px);
             max-width: 400px;
             z-index: 9999;
@@ -236,6 +237,8 @@
             border-radius: 20px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 20px rgba(229, 9, 20, 0.1);
             opacity: 0;
+            visibility: hidden;
+            display: flex;
         }
 
         .pwa-step-indicator {
@@ -412,6 +415,43 @@
     </div>
 
     <script>
+        // === Lógica PWA Install Prompt (Top Priority) ===
+        (function() {
+            const pwaPrompt = document.getElementById('pwa-install-prompt');
+            const pwaOverlay = document.getElementById('pwa-tutorial-overlay');
+            const btnInstall = document.getElementById('btn-install-pwa');
+            const btnClosePwa = document.getElementById('btn-close-pwa');
+            const btnCloseTutorial = document.getElementById('btn-close-tutorial');
+
+            if (pwaPrompt) {
+                console.log("PWA Script Found Elements");
+                setTimeout(() => {
+                    console.log("PWA Animation Triggered");
+                    gsap.fromTo(pwaPrompt, 
+                        { bottom: -200, opacity: 0, visibility: 'visible' },
+                        { bottom: 24, opacity: 1, duration: 1.5, ease: "power4.out" }
+                    );
+                }, 1000);
+
+                btnInstall.addEventListener('click', () => {
+                    pwaOverlay.style.display = 'flex';
+                    gsap.fromTo(pwaOverlay, { opacity: 0 }, { opacity: 1, duration: 0.5 });
+                    gsap.from(".tutorial-card", { scale: 0.8, opacity: 0, duration: 0.6, ease: "back.out(1.7)" });
+                });
+
+                btnCloseTutorial.addEventListener('click', () => {
+                    gsap.to(pwaOverlay, { opacity: 0, duration: 0.4, onComplete: () => pwaOverlay.style.display = 'none' });
+                    gsap.to(pwaPrompt, { bottom: -200, opacity: 0, duration: 0.8 });
+                });
+
+                btnClosePwa.addEventListener('click', () => {
+                    gsap.to(pwaPrompt, { bottom: -200, opacity: 0, duration: 0.8 });
+                });
+            } else {
+                console.error("PWA Prompt Element NOT FOUND");
+            }
+        })();
+
         // Init Tilt
         VanillaTilt.init(document.querySelectorAll(".glass-card"), {
             max: 15,
@@ -649,70 +689,6 @@
             fetchPosters();
         }
 
-        // === Lógica PWA Install Prompt ===
-        const pwaPrompt = document.getElementById('pwa-install-prompt');
-        const pwaOverlay = document.getElementById('pwa-tutorial-overlay');
-        const btnInstall = document.getElementById('btn-install-pwa');
-        const btnClosePwa = document.getElementById('btn-close-pwa');
-        const btnCloseTutorial = document.getElementById('btn-close-tutorial');
-
-        // Detectar se já está instalado
-        const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-
-        console.log("PWA Logic initialized", { pwaPrompt, isPWA });
-
-        setTimeout(() => {
-            console.log("Showing PWA prompt...");
-            gsap.set(pwaPrompt, { visibility: 'visible', yPercent: 150, opacity: 0 });
-            gsap.to(pwaPrompt, {
-                yPercent: 0,
-                opacity: 1,
-                duration: 1.2,
-                ease: "power4.out"
-            });
-        }, 1000);
-
-        btnInstall.addEventListener('click', () => {
-            pwaOverlay.style.display = 'flex'; // Mudado de block para flex para centralizar
-            gsap.to(pwaOverlay, {
-                opacity: 1,
-                duration: 0.5,
-                ease: "power2.out"
-            });
-            gsap.from(".tutorial-card", {
-                scale: 0.8,
-                opacity: 0,
-                duration: 0.6,
-                ease: "back.out(1.7)"
-            });
-        });
-
-        const closeTutorial = () => {
-            gsap.to(pwaOverlay, {
-                opacity: 0,
-                duration: 0.4,
-                onComplete: () => {
-                    pwaOverlay.style.display = 'none';
-                    // Esconder o prompt original após o tutorial ser visto
-                    gsap.to(pwaPrompt, {
-                        y: 200,
-                        opacity: 0,
-                        duration: 0.8,
-                        ease: "power2.in"
-                    });
-                }
-            });
-        };
-
-        btnCloseTutorial.addEventListener('click', closeTutorial);
-        btnClosePwa.addEventListener('click', () => {
-            gsap.to(pwaPrompt, {
-                y: 200,
-                opacity: 0,
-                duration: 0.8,
-                ease: "power2.in"
-            });
-        });
     })();
     </script>
 </body>
