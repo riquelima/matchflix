@@ -1773,27 +1773,38 @@
         // Carrega do banco tudo que o usuário já deu match ou dislike
         async function fetchInteractedMovies() {
             try {
-                const { data, error } = await supabase
-                    .from('curtidas_filmes')
-                    .select('filme_id, assistido, curtiu, criado_em')
-                    .eq('usuario_id', currentUser.id);
-                if (data) {
-                    const now = new Date();
-                    const twentyDaysInMs = 20 * 24 * 60 * 60 * 1000;
+                let allData = [];
+                let from = 0;
+                const step = 1000;
+                let hasMore = true;
 
-                    data.forEach(item => {
-                        const id = Number(item.filme_id);
-                        const isLike = item.curtiu;
-                        const createdAt = new Date(item.criado_em);
+                while (hasMore) {
+                    const { data, error } = await supabase
+                        .from('curtidas_filmes')
+                        .select('filme_id, assistido, curtiu, criado_em')
+                        .eq('usuario_id', currentUser.id)
+                        .range(from, from + step - 1);
 
-                        if (id) {
-                            // Independente de ser Like ou Dislike, bloqueia permanentemente
-                            interactedMovieIds.add(id);
-                        }
-                        
-                        if (item.assistido) watchedMovieIds.add(id);
-                    });
+                    if (error) throw error;
+                    
+                    if (data && data.length > 0) {
+                        allData = [...allData, ...data];
+                        from += step;
+                        if (data.length < step) hasMore = false;
+                    } else {
+                        hasMore = false;
+                    }
                 }
+
+                allData.forEach(item => {
+                    const id = Number(item.filme_id);
+                    if (id) {
+                        interactedMovieIds.add(id);
+                    }
+                    if (item.assistido) watchedMovieIds.add(id);
+                });
+                
+                console.log(`✅ Histórico carregado: ${interactedMovieIds.size} filmes.`);
             } catch(e) {
                 console.error("Erro ao carregar histórico", e);
             }
@@ -1803,6 +1814,9 @@
         async function saveActionToSupabase(movie, liked) {
             const mId = Number(movie.id);
             interactedMovieIds.add(mId); 
+            
+            // REMOVER DA FILA IMEDIATAMENTE (Caso o filme estivesse na fila de descoberta)
+            moviesQueue = moviesQueue.filter(m => Number(m.id) !== mId);
             
             if (liked) {
                 // Atualização Otimista: Adiciona à lista local para aparecer em tempo real
@@ -2139,12 +2153,16 @@
             }
 
             // Buffer agressivo: Mantemos até 10 cards no DOM para garantir que a fila visual seja estável
-            const maxVisible = Math.min(10, moviesQueue.length);
             // Pegamos apenas wrappers que NÃO estão sendo descartados (sem a classe is-throwing)
             const existingWrappers = Array.from(stackContainer.querySelectorAll('.movie-card-wrapper:not(.is-throwing)'));
             
             // Mapear quais IDs já estão renderizados
             const renderedIds = existingWrappers.map(w => parseInt(w.dataset.movieId));
+
+            // CAMADA EXTRA: Filtrar a fila antes de renderizar para garantir que interações recentes foram removidas
+            moviesQueue = moviesQueue.filter(m => !interactedMovieIds.has(Number(m.id)));
+
+            const maxVisible = Math.min(10, moviesQueue.length);
 
             for (let i = 0; i < maxVisible; i++) {
                 const movieIndex = moviesQueue.length - 1 - i;
@@ -3014,94 +3032,115 @@
                 if (dataUpcoming.results) {
                     const filteredUpcoming = dataUpcoming.results.filter(m => !interactedMovieIds.has(Number(m.id)));
                     upcomingList.innerHTML = '';
-                    filteredUpcoming.slice(0, 10).forEach(movie => {
-                        const movieDiv = document.createElement('div');
-                        movieDiv.className = 'shrink-0 w-[140px] snap-start';
-                        movieDiv.innerHTML = `
-                            <div class="aspect-[2/3] rounded-2xl overflow-hidden border border-white/10 mb-2 relative group">
-                                <img src="${IMAGE_BASE_URL}${movie.poster_path}" class="w-full h-full object-cover">
-                                <div class="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg">
-                                    <p class="text-[8px] font-black text-primary-container">EM BREVE</p>
+                    
+                    const sectionUpcoming = upcomingList.closest('section');
+                    if (filteredUpcoming.length === 0) {
+                        if (sectionUpcoming) sectionUpcoming.classList.add('hidden');
+                    } else {
+                        if (sectionUpcoming) sectionUpcoming.classList.remove('hidden');
+                        filteredUpcoming.slice(0, 10).forEach(movie => {
+                            const movieDiv = document.createElement('div');
+                            movieDiv.className = 'shrink-0 w-[140px] snap-start';
+                            movieDiv.innerHTML = `
+                                <div class="aspect-[2/3] rounded-2xl overflow-hidden border border-white/10 mb-2 relative group">
+                                    <img src="${IMAGE_BASE_URL}${movie.poster_path}" class="w-full h-full object-cover">
+                                    <div class="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg">
+                                        <p class="text-[8px] font-black text-primary-container">EM BREVE</p>
+                                    </div>
                                 </div>
-                            </div>
-                            <h4 class="text-[10px] font-bold text-white line-clamp-1 uppercase">${movie.title}</h4>
-                            <p class="text-[8px] text-white/40 font-medium">${movie.release_date.split('-').reverse().join('/')}</p>
-                        `;
-                        movieDiv.onclick = () => openSynopsis(movie, 'trending', movieDiv);
-                        upcomingList.appendChild(movieDiv);
-                    });
+                                <h4 class="text-[10px] font-bold text-white line-clamp-1 uppercase">${movie.title}</h4>
+                                <p class="text-[8px] text-white/40 font-medium">${movie.release_date.split('-').reverse().join('/')}</p>
+                            `;
+                            movieDiv.onclick = () => openSynopsis(movie, 'trending', movieDiv);
+                            upcomingList.appendChild(movieDiv);
+                        });
+                    }
                 }
 
                 // 3. Renderizar Hall da Fama - Filtrando já vistos
                 if (dataAwarded.results) {
                     const filteredAwarded = dataAwarded.results.filter(m => !interactedMovieIds.has(Number(m.id)));
-                    sectionAwarded.classList.remove('hidden');
                     awardedGrid.innerHTML = '';
-                    filteredAwarded.slice(0, 10).forEach((movie, i) => {
-                        const card = document.createElement('div');
-                        card.className = 'film-card w-[150px] shrink-0 snap-start aspect-[2/3] relative group';
-                        card.innerHTML = `
-                            <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title}" class="w-full h-full object-cover" loading="lazy">
-                            <div class="card-overlay"></div>
-                            <div class="absolute top-2 left-2 bg-yellow-500 text-black font-black text-[8px] px-2 py-1 rounded-md flex items-center gap-1 shadow-xl z-20">
-                                <span class="material-symbols-outlined text-[10px]">trophy</span>
-                                PREMIADO
-                            </div>
-                            <div class="card-info">
-                                <h3 class="text-white font-bold text-[10px] line-clamp-1 uppercase tracking-tight">${movie.title}</h3>
-                            </div>
-                        `;
-                        card.addEventListener('click', () => openSynopsis(movie, 'trending', card));
-                        awardedGrid.appendChild(card);
-                        setTimeout(() => card.classList.add('visible'), 50 * i);
-                    });
+                    
+                    if (filteredAwarded.length === 0) {
+                        sectionAwarded.classList.add('hidden');
+                    } else {
+                        sectionAwarded.classList.remove('hidden');
+                        filteredAwarded.slice(0, 10).forEach((movie, i) => {
+                            const card = document.createElement('div');
+                            card.className = 'film-card w-[150px] shrink-0 snap-start aspect-[2/3] relative group';
+                            card.innerHTML = `
+                                <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title}" class="w-full h-full object-cover" loading="lazy">
+                                <div class="card-overlay"></div>
+                                <div class="absolute top-2 left-2 bg-yellow-500 text-black font-black text-[8px] px-2 py-1 rounded-md flex items-center gap-1 shadow-xl z-20">
+                                    <span class="material-symbols-outlined text-[10px]">trophy</span>
+                                    PREMIADO
+                                </div>
+                                <div class="card-info">
+                                    <h3 class="text-white font-bold text-[10px] line-clamp-1 uppercase tracking-tight">${movie.title}</h3>
+                                </div>
+                            `;
+                            card.addEventListener('click', () => openSynopsis(movie, 'trending', card));
+                            awardedGrid.appendChild(card);
+                            setTimeout(() => card.classList.add('visible'), 50 * i);
+                        });
+                    }
                 }
 
                 // 4. Renderizar Lançamentos Recentes - Filtrando já vistos
                 if (dataNewReleases.results) {
                     const filteredNew = dataNewReleases.results.filter(m => !interactedMovieIds.has(Number(m.id)));
                     newReleasesList.innerHTML = '';
-                    const now = new Date();
-                    filteredNew.forEach(movie => {
-                        const relDate = new Date(movie.release_date);
-                        const diffDays = Math.floor((now - relDate) / (1000 * 60 * 60 * 24));
-                        
-                        let badgeText = 'NOVO';
-                        let badgeClass = 'bg-blue-600';
-                        if (diffDays <= 7) {
-                            badgeText = 'SAIU ESSA SEMANA';
-                            badgeClass = 'bg-green-600';
-                        } else if (diffDays <= 1) {
-                            badgeText = 'SAIU HOJE';
-                            badgeClass = 'bg-primary-container';
-                        }
+                    
+                    const sectionNew = document.getElementById('section-new-releases');
+                    if (filteredNew.length === 0) {
+                        if (sectionNew) sectionNew.classList.add('hidden');
+                    } else {
+                        if (sectionNew) sectionNew.classList.remove('hidden');
+                        const now = new Date();
+                        filteredNew.forEach(movie => {
+                            const relDate = new Date(movie.release_date);
+                            const diffDays = Math.floor((now - relDate) / (1000 * 60 * 60 * 24));
+                            
+                            let badgeText = 'NOVO';
+                            let badgeClass = 'bg-blue-600';
+                            if (diffDays <= 7) {
+                                badgeText = 'SAIU ESSA SEMANA';
+                                badgeClass = 'bg-green-600';
+                            } else if (diffDays <= 1) {
+                                badgeText = 'SAIU HOJE';
+                                badgeClass = 'bg-primary-container';
+                            }
 
-                        const card = document.createElement('div');
-                        card.className = 'shrink-0 w-[140px] snap-start group cursor-pointer';
-                        card.innerHTML = `
-                            <div class="relative aspect-[2/3] rounded-xl overflow-hidden mb-2 border border-white/5 shadow-lg">
-                                <img src="${IMAGE_BASE_URL}${movie.poster_path}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
-                                <div class="absolute top-2 left-2 ${badgeClass} text-[7px] font-black px-1.5 py-0.5 rounded text-white tracking-widest shadow-lg">
-                                    ${badgeText}
+                            const card = document.createElement('div');
+                            card.className = 'shrink-0 w-[140px] snap-start group cursor-pointer';
+                            card.innerHTML = `
+                                <div class="relative aspect-[2/3] rounded-xl overflow-hidden mb-2 border border-white/5 shadow-lg">
+                                    <img src="${IMAGE_BASE_URL}${movie.poster_path}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                                    <div class="absolute top-2 left-2 ${badgeClass} text-[7px] font-black px-1.5 py-0.5 rounded text-white tracking-widest shadow-lg">
+                                        ${badgeText}
+                                    </div>
+                                    <div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black via-black/40 to-transparent">
+                                        <p class="text-[8px] text-white/70 font-medium">${movie.release_date.split('-').reverse().join('/')}</p>
+                                    </div>
                                 </div>
-                                <div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black via-black/40 to-transparent">
-                                    <p class="text-[8px] text-white/70 font-medium">${movie.release_date.split('-').reverse().join('/')}</p>
-                                </div>
-                            </div>
-                            <p class="text-[10px] font-bold text-white line-clamp-1 uppercase tracking-tight">${movie.title}</p>
-                        `;
-                        card.onclick = () => openSynopsis(movie, 'trending', card);
-                        newReleasesList.appendChild(card);
-                    });
+                                <p class="text-[10px] font-bold text-white line-clamp-1 uppercase tracking-tight">${movie.title}</p>
+                            `;
+                            card.onclick = () => openSynopsis(movie, 'trending', card);
+                            newReleasesList.appendChild(card);
+                        });
+                    }
                 }
 
                 // 5. Renderizar Grid Principal com Ranking e Termômetro - Filtrando já vistos
                 if (dataDay.results) {
-                    const filteredDay = dataDay.results.filter(m => !interactedMovieIds.has(Number(m.id)));
                     const weeklyResults = dataWeek.results || [];
                     trendingGrid.innerHTML = '';
                     
-                    dataDay.results.forEach((movie, i) => {
+                    // FILTRAGEM REAL APLICADA AQUI
+                    const filteredDay = dataDay.results.filter(m => !interactedMovieIds.has(Number(m.id)));
+                    
+                    filteredDay.forEach((movie, i) => {
                         // Calcular Termômetro
                         const dayRank = i + 1;
                         const weekRank = weeklyResults.findIndex(m => m.id === movie.id) + 1;
