@@ -230,15 +230,17 @@
             margin: 0 auto;
             width: calc(100% - 32px);
             max-width: 400px;
-            z-index: 9999;
-            background: rgba(15, 15, 15, 0.9);
-            border: 1px solid rgba(229, 9, 20, 0.3);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 20px rgba(229, 9, 20, 0.1);
+            z-index: 100000;
+            background: rgba(15, 15, 15, 0.95);
+            border: 1px solid rgba(229, 9, 20, 0.4);
+            backdrop-filter: blur(25px);
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8), 0 0 30px rgba(229, 9, 20, 0.2);
             opacity: 0;
-            visibility: hidden;
+            pointer-events: none;
             display: flex;
+            transition: opacity 0.3s ease;
+            padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
         }
 
         .pwa-step-indicator {
@@ -258,9 +260,9 @@
         #pwa-tutorial-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.85);
-            backdrop-filter: blur(8px);
-            z-index: 200;
+            background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(12px);
+            z-index: 100001;
             display: none;
             opacity: 0;
         }
@@ -366,53 +368,6 @@
         </div>
     </footer>
 
-    <!-- PWA Install Prompt -->
-    <div id="pwa-install-prompt" class="p-4 flex items-center justify-between gap-4" style="visibility: hidden;">
-        <div class="flex items-center gap-3">
-            <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
-                <span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">install_mobile</span>
-            </div>
-            <div>
-                <p class="font-headline font-bold text-sm text-white">Instale o MatchFlix</p>
-                <p class="text-[10px] text-white/50 uppercase tracking-widest font-black">Experiência WebApp nativa</p>
-            </div>
-        </div>
-        <button id="btn-install-pwa" class="bg-primary hover:bg-red-600 text-white px-5 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-[0_4px_15px_rgba(229,9,20,0.3)]">
-            Instalar
-        </button>
-        <button id="btn-close-pwa" class="absolute -top-2 -right-2 w-6 h-6 bg-surface-container-high rounded-full flex items-center justify-center border border-white/10 text-white/40 hover:text-white transition-colors">
-            <span class="material-symbols-outlined text-xs">close</span>
-        </button>
-    </div>
-
-    <!-- Tutorial PWA Overlay -->
-    <div id="pwa-tutorial-overlay" class="items-center justify-center">
-        <div class="tutorial-card text-center">
-            <div class="mb-6 relative inline-block">
-                <div class="w-20 h-20 bg-primary/20 rounded-3xl flex items-center justify-center mx-auto border border-primary/30">
-                    <span class="material-symbols-outlined text-primary text-5xl share-icon-animate">ios_share</span>
-                </div>
-            </div>
-            
-            <h3 class="font-headline font-black text-2xl text-white mb-2 uppercase italic tracking-tighter">Como instalar</h3>
-            <p class="text-white/60 text-sm mb-8 leading-relaxed">Siga estes passos simples para ter o MatchFlix na sua tela inicial:</p>
-            
-            <div class="space-y-6 text-left mb-8">
-                <div class="flex items-start gap-4">
-                    <div class="pwa-step-indicator">1</div>
-                    <p class="text-sm text-white/80 font-medium">Toque no ícone de <span class="text-primary font-bold">Compartilhar</span> no seu navegador.</p>
-                </div>
-                <div class="flex items-start gap-4">
-                    <div class="pwa-step-indicator">2</div>
-                    <p class="text-sm text-white/80 font-medium">Role para baixo e selecione <span class="text-white font-bold italic">"Adicionar à Tela de Início"</span>.</p>
-                </div>
-            </div>
-
-            <button id="btn-close-tutorial" class="w-full py-4 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all">
-                Entendi, vamos lá
-            </button>
-        </div>
-    </div>
 
     <script>
         // === Lógica PWA Install Prompt (Top Priority) ===
@@ -690,6 +645,91 @@
         }
 
     })();
+    </script>
+    <!-- PWA Install Prompt (Mapeado no final para z-index real) -->
+    <div id="pwa-install-prompt" class="p-4 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
+                <span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">install_mobile</span>
+            </div>
+            <div>
+                <p class="font-headline font-bold text-sm text-white">Instale o MatchFlix</p>
+                <p class="text-[10px] text-white/50 uppercase tracking-widest font-black">Experiência WebApp nativa</p>
+            </div>
+        </div>
+        <button id="btn-install-pwa" class="bg-primary hover:bg-red-600 text-white px-5 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-[0_4px_15px_rgba(229,9,20,0.3)]">
+            Instalar
+        </button>
+        <button id="btn-close-pwa" class="absolute -top-2 -right-2 w-6 h-6 bg-surface-container-high rounded-full flex items-center justify-center border border-white/10 text-white/40 hover:text-white transition-colors">
+            <span class="material-symbols-outlined text-xs">close</span>
+        </button>
+    </div>
+
+    <!-- Tutorial PWA Overlay -->
+    <div id="pwa-tutorial-overlay" class="items-center justify-center">
+        <div class="tutorial-card text-center">
+            <div class="mb-6 relative inline-block">
+                <div class="w-20 h-20 bg-primary/20 rounded-3xl flex items-center justify-center mx-auto border border-primary/30">
+                    <span class="material-symbols-outlined text-primary text-5xl share-icon-animate">ios_share</span>
+                </div>
+            </div>
+            
+            <h3 class="font-headline font-black text-2xl text-white mb-2 uppercase italic tracking-tighter">Como instalar</h3>
+            <p class="text-white/60 text-sm mb-8 leading-relaxed">Siga estes passos simples para ter o MatchFlix na sua tela inicial:</p>
+            
+            <div class="space-y-6 text-left mb-8">
+                <div class="flex items-start gap-4">
+                    <div class="pwa-step-indicator">1</div>
+                    <p class="text-sm text-white/80 font-medium">Toque no ícone de <span class="text-primary font-bold">Compartilhar</span> no seu navegador.</p>
+                </div>
+                <div class="flex items-start gap-4">
+                    <div class="pwa-step-indicator">2</div>
+                    <p class="text-sm text-white/80 font-medium">Role para baixo e selecione <span class="text-white font-bold italic">"Adicionar à Tela de Início"</span>.</p>
+                </div>
+            </div>
+
+            <button id="btn-close-tutorial" class="w-full py-4 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all">
+                Entendi, vamos lá
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // === Lógica PWA Install Prompt (Top Priority) ===
+        (function() {
+            const pwaPrompt = document.getElementById('pwa-install-prompt');
+            const pwaOverlay = document.getElementById('pwa-tutorial-overlay');
+            const btnInstall = document.getElementById('btn-install-pwa');
+            const btnClosePwa = document.getElementById('btn-close-pwa');
+            const btnCloseTutorial = document.getElementById('btn-close-tutorial');
+
+            // Verifica se já está instalado
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone || document.referrer.includes('android-app://');
+
+            if (pwaPrompt && !isStandalone) {
+                setTimeout(() => {
+                    gsap.fromTo(pwaPrompt, 
+                        { bottom: -200, opacity: 0, pointerEvents: 'none' },
+                        { bottom: 24, opacity: 1, pointerEvents: 'auto', duration: 1.5, ease: "power4.out" }
+                    );
+                }, 2500); // Dá um tempo para o usuário ver o mural primeiro
+
+                btnInstall.addEventListener('click', () => {
+                    pwaOverlay.style.display = 'flex';
+                    gsap.fromTo(pwaOverlay, { opacity: 0 }, { opacity: 1, duration: 0.5 });
+                    gsap.from(".tutorial-card", { scale: 0.8, opacity: 0, duration: 0.6, ease: "back.out(1.7)" });
+                });
+
+                btnCloseTutorial.addEventListener('click', () => {
+                    gsap.to(pwaOverlay, { opacity: 0, duration: 0.4, onComplete: () => pwaOverlay.style.display = 'none' });
+                    gsap.to(pwaPrompt, { bottom: -200, opacity: 0, duration: 0.8 });
+                });
+
+                btnClosePwa.addEventListener('click', () => {
+                    gsap.to(pwaPrompt, { bottom: -200, opacity: 0, duration: 0.8 });
+                });
+            }
+        })();
     </script>
 </body>
 </html>

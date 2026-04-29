@@ -1521,10 +1521,35 @@
                 goToTab('descobrir', false);
                 
                 // O Splash Screen só morre após garantir que os dados estão prontos
-                // E aguardamos as primeiras imagens para evitar "piscagem"
+                // E aguardamos as primeiras imagens (Match + Tendências) para evitar "piscagem"
+                const postersToLoad = [];
+                
+                // 1. Pôsteres do Match (os 2 primeiros)
                 if (moviesQueue.length > 0) {
-                    const firstPosters = moviesQueue.slice(0, 2).map(m => `${IMAGE_BASE_URL}${m.poster_path}`);
-                    await Promise.all(firstPosters.map(url => {
+                    moviesQueue.slice(0, 2).forEach(m => {
+                        if (m.poster_path) postersToLoad.push(`${IMAGE_BASE_URL}${m.poster_path}`);
+                    });
+                }
+
+                // 2. Pôsteres das Tendências (os 4 primeiros de cada seção principal)
+                const trendingData = await fetchTrending();
+                if (trendingData) {
+                    if (trendingData.day) {
+                        trendingData.day.slice(0, 4).forEach(m => {
+                            if (m.poster_path) postersToLoad.push(`${IMAGE_BASE_URL}${m.poster_path}`);
+                        });
+                    }
+                    if (trendingData.awarded) {
+                        trendingData.awarded.slice(0, 4).forEach(m => {
+                            if (m.poster_path) postersToLoad.push(`${IMAGE_BASE_URL}${m.poster_path}`);
+                        });
+                    }
+                }
+
+                // Aguarda o carregamento de todas as imagens críticas
+                if (postersToLoad.length > 0) {
+                    console.log(`🖼️ Pré-carregando ${postersToLoad.length} pôsteres críticos...`);
+                    await Promise.all(postersToLoad.map(url => {
                         return new Promise(resolve => {
                             const img = new Image();
                             img.onload = img.onerror = resolve;
@@ -1536,7 +1561,7 @@
                 setTimeout(() => {
                     hideSplashScreen();
                     console.log("🚀 App pronto!");
-                }, 800);
+                }, 400);
                 
             } catch (error) {
                 console.error("❌ Erro crítico na inicialização:", error);
@@ -2868,7 +2893,7 @@
         let isTrendingLoaded = false;
 
         async function fetchTrending() {
-            if (isTrendingLoaded) return;
+            if (isTrendingLoaded) return null;
             
             try {
                 // Cálculo dinâmico de datas para Lançamentos (Últimos 30 dias)
@@ -3096,7 +3121,7 @@
                         const card = document.createElement('div');
                         card.className = 'film-card w-[160px] shrink-0 snap-start aspect-[2/3] relative group';
                         card.innerHTML = `
-                            <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title}" class="w-full h-full object-cover" loading="lazy">
+                            <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title}" class="w-full h-full object-cover">
                             <div class="card-overlay"></div>
                             
                             <!-- Ranking Badge -->
@@ -3122,9 +3147,17 @@
                         setTimeout(() => card.classList.add('visible'), 50 * i);
                     });
                     isTrendingLoaded = true;
+                    return { 
+                        day: dataDay.results, 
+                        awarded: dataAwarded.results,
+                        upcoming: dataUpcoming.results,
+                        newReleases: dataNewReleases.results
+                    };
                 }
+                return null;
             } catch (e) {
                 console.error("Erro ao buscar tendências", e);
+                return null;
             }
         }
 
@@ -4036,11 +4069,16 @@
 
         // Logout
         document.getElementById('logout-btn').addEventListener('click', async () => {
-            const { error } = await supabase.auth.signOut();
-            if (error) {
-                alert('Erro ao sair: ' + error.message);
-            } else {
-                window.location.href = 'index.html';
+            try {
+                const { error } = await supabase.auth.signOut();
+                if (error) {
+                    console.error('Erro no signout:', error);
+                }
+                // Mesmo com erro no Supabase, forçamos o logout local e redirecionamento
+                localStorage.removeItem('supabase.auth.token'); // Limpeza preventiva
+                window.location.replace('index.html');
+            } catch (e) {
+                window.location.replace('index.html');
             }
         });
 
