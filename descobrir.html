@@ -1330,6 +1330,37 @@
         const API_KEY = "416394469462693ee5727abe4c864848";
         const IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w780";
         const BACKDROP_BASE_URL = "https://image.tmdb.org/t/p/w1280";
+
+        const genresList = [
+            { id: 28, name: 'Ação' }, { id: 12, name: 'Aventura' }, { id: 16, name: 'Animação' },
+            { id: 35, name: 'Comédia' }, { id: 80, name: 'Crime' }, { id: 99, name: 'Documentário' },
+            { id: 18, name: 'Drama' }, { id: 10751, name: 'Família' }, { id: 14, name: 'Fantasia' },
+            { id: 36, name: 'História' }, { id: 27, name: 'Terror' }, { id: 10402, name: 'Música' },
+            { id: 9648, name: 'Mistério' }, { id: 10749, name: 'Romance' }, { id: 878, name: 'Ficção' },
+            { id: 10770, name: 'Cinema TV' }, { id: 53, name: 'Suspense' }, { id: 10752, name: 'Guerra' },
+            { id: 37, name: 'Faroeste' }
+        ];
+
+        function getGenreNames(movie) {
+            let finalGenres = [];
+            if (movie.genres && Array.isArray(movie.genres)) {
+                finalGenres = movie.genres.map(g => g.name);
+            } else if (movie.genre_ids && Array.isArray(movie.genre_ids)) {
+                finalGenres = movie.genre_ids.map(id => {
+                    const g = genresList.find(gl => gl.id === id);
+                    return g ? g.name : null;
+                }).filter(Boolean);
+            } else if (movie.genre_names) {
+                finalGenres = movie.genre_names.split(',').map(s => s.trim());
+            }
+            return finalGenres.length > 0 ? finalGenres : ['Filme'];
+        }
+
+        function generateGenreLabelsHTML(movie) {
+            const names = getGenreNames(movie);
+            return names.map(name => `<span class="genre-pill">${name}</span>`).join('');
+        }
+
         
         let isFetching = false;
         let moviesQueue = [];
@@ -2375,7 +2406,12 @@
                         </div>
                     </div>
                     
+                    <div class="flex flex-wrap gap-2 mb-4 shrink-0">
+                        ${generateGenreLabelsHTML(movie)}
+                    </div>
+                    
                     <div class="flex-grow overflow-y-auto synopsis-scroll pr-2 text-gray-300 font-body leading-relaxed text-sm">
+
                         <p class="mb-4">${overview}</p>
                         
                         <div class="trailer-section-card hidden mb-6" id="trailer-section-${movie.id}">
@@ -3521,38 +3557,10 @@
             mYear.textContent = movie.release_date ? movie.release_date.split('-')[0] : '';
             
             // Renderizar Gêneros como Labels individuais
-            mGenres.innerHTML = '';
-            let finalGenres = [];
-
-            if (movie.genres && Array.isArray(movie.genres)) {
-                // Caso o objeto venha do fetch de detalhes (possui array de objetos)
-                finalGenres = movie.genres.map(g => g.name);
-            } else if (movie.genre_ids && Array.isArray(movie.genre_ids)) {
-                // Caso o objeto venha da listagem (possui array de IDs)
-                finalGenres = movie.genre_ids.map(id => {
-                    const g = genresList.find(gl => gl.id === id);
-                    return g ? g.name : null;
-                }).filter(Boolean);
-            } else if (movie.genre_names) {
-                // Fallback para string formatada
-                finalGenres = movie.genre_names.split(',').map(s => s.trim());
-            }
-
-            if (finalGenres.length > 0) {
-                finalGenres.forEach(name => {
-                    const span = document.createElement('span');
-                    span.className = 'genre-pill';
-                    span.textContent = name;
-                    mGenres.appendChild(span);
-                });
-            } else {
-                const span = document.createElement('span');
-                span.className = 'genre-pill';
-                span.textContent = 'Filme';
-                mGenres.appendChild(span);
-            }
+            mGenres.innerHTML = generateGenreLabelsHTML(movie);
 
             mSynopsis.textContent = movie.overview || 'Sinopse não disponível.';
+
 
 
             mTrailerBtn.classList.add('hidden');
@@ -3899,18 +3907,8 @@
             updateRatingDisplayFilters(e.target.value);
         };
 
-        const genresList = [
-            { id: 28, name: 'Ação' }, { id: 12, name: 'Aventura' }, { id: 16, name: 'Animação' },
-            { id: 35, name: 'Comédia' }, { id: 80, name: 'Crime' }, { id: 99, name: 'Documentário' },
-            { id: 18, name: 'Drama' }, { id: 10751, name: 'Família' }, { id: 14, name: 'Fantasia' },
-            { id: 36, name: 'História' }, { id: 27, name: 'Terror' }, { id: 10402, name: 'Música' },
-            { id: 9648, name: 'Mistério' }, { id: 10749, name: 'Romance' }, { id: 878, name: 'Ficção' },
-            { id: 10770, name: 'Cinema TV' }, { id: 53, name: 'Suspense' }, { id: 10752, name: 'Guerra' },
-            { id: 37, name: 'Faroeste' }
-        ];
-
-
         function renderGenresFilters() {
+
             const grid = document.getElementById('genres-grid');
             grid.innerHTML = '';
             genresList.forEach(genre => {
