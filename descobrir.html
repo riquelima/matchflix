@@ -649,6 +649,29 @@
             color: white;
         }
 
+        .genre-pill {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 5px 12px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .genre-pill:hover {
+            background: rgba(229, 9, 20, 0.15);
+            border-color: rgba(229, 9, 20, 0.4);
+            color: #ff3b30;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(229, 9, 20, 0.2);
+        }
+
+
         .badge-elite {
             background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
             border-color: rgba(255, 255, 255, 0.4);
@@ -1244,13 +1267,15 @@
                 </div>
                 <div class="px-8 -mt-12 relative z-10">
                     <h2 id="modal-title" class="font-headline font-black text-3xl tracking-tighter text-white mb-2"></h2>
-                    <div class="flex items-center gap-4 mb-6">
-                        <div class="flex items-center gap-1">
-                            <span class="material-symbols-outlined text-yellow-500 text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
-                            <span id="modal-rating" class="text-yellow-500 font-bold"></span>
+                    <div class="mb-6">
+                        <div class="flex items-center gap-4 mb-3">
+                            <div class="flex items-center gap-1">
+                                <span class="material-symbols-outlined text-yellow-500 text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+                                <span id="modal-rating" class="text-yellow-500 font-bold"></span>
+                            </div>
+                            <span id="modal-year" class="text-white/40 font-medium"></span>
                         </div>
-                        <span id="modal-year" class="text-white/40 font-medium"></span>
-                        <span id="modal-genres" class="text-primary-container font-bold text-xs uppercase tracking-widest"></span>
+                        <div id="modal-genres" class="flex flex-wrap gap-2"></div>
                     </div>
                     
                     <p class="text-primary-container text-[10px] font-black tracking-widest uppercase mb-2">Sinopse</p>
@@ -3494,8 +3519,41 @@
             mPoster.src = `${IMAGE_BASE_URL}${movie.backdrop_path || movie.poster_path}`;
             mRating.textContent = movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A';
             mYear.textContent = movie.release_date ? movie.release_date.split('-')[0] : '';
-            mGenres.textContent = movie.genre_names || 'Filme';
+            
+            // Renderizar Gêneros como Labels individuais
+            mGenres.innerHTML = '';
+            let finalGenres = [];
+
+            if (movie.genres && Array.isArray(movie.genres)) {
+                // Caso o objeto venha do fetch de detalhes (possui array de objetos)
+                finalGenres = movie.genres.map(g => g.name);
+            } else if (movie.genre_ids && Array.isArray(movie.genre_ids)) {
+                // Caso o objeto venha da listagem (possui array de IDs)
+                finalGenres = movie.genre_ids.map(id => {
+                    const g = genresList.find(gl => gl.id === id);
+                    return g ? g.name : null;
+                }).filter(Boolean);
+            } else if (movie.genre_names) {
+                // Fallback para string formatada
+                finalGenres = movie.genre_names.split(',').map(s => s.trim());
+            }
+
+            if (finalGenres.length > 0) {
+                finalGenres.forEach(name => {
+                    const span = document.createElement('span');
+                    span.className = 'genre-pill';
+                    span.textContent = name;
+                    mGenres.appendChild(span);
+                });
+            } else {
+                const span = document.createElement('span');
+                span.className = 'genre-pill';
+                span.textContent = 'Filme';
+                mGenres.appendChild(span);
+            }
+
             mSynopsis.textContent = movie.overview || 'Sinopse não disponível.';
+
 
             mTrailerBtn.classList.add('hidden');
             mTrailerBtn.classList.remove('flex');
@@ -3842,11 +3900,15 @@
         };
 
         const genresList = [
-            { id: 28, name: 'Ação' }, { id: 35, name: 'Comédia' },
-            { id: 27, name: 'Terror' }, { id: 10749, name: 'Romance' },
-            { id: 878, name: 'Ficção' }, { id: 18, name: 'Drama' },
-            { id: 16, name: 'Animação' }
+            { id: 28, name: 'Ação' }, { id: 12, name: 'Aventura' }, { id: 16, name: 'Animação' },
+            { id: 35, name: 'Comédia' }, { id: 80, name: 'Crime' }, { id: 99, name: 'Documentário' },
+            { id: 18, name: 'Drama' }, { id: 10751, name: 'Família' }, { id: 14, name: 'Fantasia' },
+            { id: 36, name: 'História' }, { id: 27, name: 'Terror' }, { id: 10402, name: 'Música' },
+            { id: 9648, name: 'Mistério' }, { id: 10749, name: 'Romance' }, { id: 878, name: 'Ficção' },
+            { id: 10770, name: 'Cinema TV' }, { id: 53, name: 'Suspense' }, { id: 10752, name: 'Guerra' },
+            { id: 37, name: 'Faroeste' }
         ];
+
 
         function renderGenresFilters() {
             const grid = document.getElementById('genres-grid');
