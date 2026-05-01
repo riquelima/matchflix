@@ -822,13 +822,6 @@
                         </div>
                     </section>
 
-                    <!-- 1. Pessoas em Alta (Avatares) -->
-                    <section class="mb-8 px-6">
-                        <p class="text-[10px] font-black uppercase tracking-widest text-white/30 mb-4">👥 Estrelas do Momento</p>
-                        <div id="trending-people-list" class="flex gap-4 overflow-x-auto no-scrollbar pb-2">
-                            <!-- Injetado via JS -->
-                        </div>
-                    </section>
 
                     <!-- 2. Chegando em Breve (Horizontal) -->
                     <section class="mb-8 bg-white/5 py-6">
@@ -855,6 +848,18 @@
                         </div>
                     </section>
 
+                    <!-- NOVA SESSÃO: LANÇAMENTOS RECENTES -->
+                    <section id="section-new-releases" class="mt-8 mb-8">
+                        <div class="px-6 flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-headline font-black text-white flex items-center gap-2 uppercase tracking-widest">
+                                🆕 Lançamentos
+                            </h3>
+                        </div>
+                        <div id="new-releases-list" class="flex gap-4 overflow-x-auto no-scrollbar px-6 snap-x pt-2">
+                            <!-- Injetado via JS -->
+                        </div>
+                    </section>
+
                     <!-- ABRA 2: HALL DA FAMA (PREMIADOS) -->
                     <div id="section-awarded" class="mt-8">
                         <div class="px-6 flex items-center justify-between mb-4">
@@ -867,17 +872,6 @@
                         </div>
                     </div>
 
-                    <!-- NOVA SESSÃO: LANÇAMENTOS RECENTES -->
-                    <div id="section-new-releases" class="mt-8 mb-20">
-                        <div class="px-6 flex items-center justify-between mb-4">
-                            <h3 class="text-lg font-headline font-black text-white flex items-center gap-2 uppercase tracking-widest">
-                                🆕 Lançamentos
-                            </h3>
-                        </div>
-                        <div id="new-releases-list" class="flex gap-4 overflow-x-auto snap-x snap-mandatory px-6 pb-4 scrollbar-hide pt-2">
-                            <!-- Filmes recém-lançados -->
-                        </div>
-                    </div>
 
                 </main>
             </section>
@@ -2975,12 +2969,11 @@
             if (isTrendingLoaded) return null;
             
             try {
-                // Cálculo dinâmico de datas para Lançamentos (Últimos 30 dias)
-                const today = new Date();
-                const past = new Date();
-                past.setDate(today.getDate() - 30);
-                const dateFrom = past.toISOString().split('T')[0];
-                const dateTo = today.toISOString().split('T')[0];
+                // Cálculo dinâmico para Lançamentos (Ano Atual)
+                const currentYear = new Date().getFullYear();
+                const dateFrom = `${currentYear}-01-01`;
+                const dateTo = new Date().toISOString().split('T')[0];
+                const releasePage = Math.floor(Math.random() * 2) + 1; // Alterna entre as primeiras páginas
 
                 // Cálculo de Seed para o Hall da Fama (muda a cada 3 dias)
                 const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
@@ -2994,7 +2987,7 @@
                     fetch(`https://api.themoviedb.org/3/trending/person/day?api_key=${API_KEY}&language=pt-BR`),
                     fetch(`https://api.themoviedb.org/3/movie/upcoming?api_key=${API_KEY}&language=pt-BR&region=BR`),
                     fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&language=pt-BR&sort_by=vote_count.desc&vote_average.gte=8&with_runtime.gte=60&page=${hallOfFamePage}`),
-                    fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&language=pt-BR&primary_release_date.gte=${dateFrom}&primary_release_date.lte=${dateTo}&sort_by=popularity.desc&vote_count.gte=50&vote_average.gte=6`)
+                    fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&language=pt-BR&primary_release_year=${currentYear}&sort_by=popularity.desc&page=${releasePage}`)
                 ]);
 
                 const dataDay = await resDay.json();
@@ -3072,22 +3065,6 @@
                     console.error("Erro ao carregar notícias do banco", newsError);
                 }
 
-                // 1. Renderizar Pessoas em Alta
-                if (dataPeople.results) {
-                    trendingPeopleList.innerHTML = '';
-                    dataPeople.results.slice(0, 8).forEach(person => {
-                        const personDiv = document.createElement('div');
-                        personDiv.className = 'flex flex-col items-center shrink-0 w-20 gap-2';
-                        const profilePath = person.profile_path ? `${IMAGE_BASE_URL}${person.profile_path}` : 'https://placehold.co/150/2a2a2a/ffffff?text=?';
-                        personDiv.innerHTML = `
-                            <div class="w-16 h-16 rounded-full border-2 border-primary-container/30 overflow-hidden shadow-lg shadow-primary-container/10">
-                                <img src="${profilePath}" class="w-full h-full object-cover">
-                            </div>
-                            <p class="text-[9px] font-bold text-white/70 text-center line-clamp-1 uppercase tracking-tight">${person.name}</p>
-                        `;
-                        trendingPeopleList.appendChild(personDiv);
-                    });
-                }
 
                 // 2. Renderizar Próximos Lançamentos - Filtrando já vistos
                 if (dataUpcoming.results) {
@@ -3149,28 +3126,32 @@
                 }
 
                 // 4. Renderizar Lançamentos Recentes - Filtrando já vistos
-                if (dataNewReleases.results) {
-                    const filteredNew = dataNewReleases.results.filter(m => !interactedMovieIds.has(Number(m.id)));
-                    newReleasesList.innerHTML = '';
+                if (dataNewReleases && dataNewReleases.results) {
+                    const newReleasesList = document.getElementById('new-releases-list');
+                    if (newReleasesList) newReleasesList.innerHTML = '';
                     
-                    const sectionNew = document.getElementById('section-new-releases');
-                    if (filteredNew.length === 0) {
-                        if (sectionNew) sectionNew.classList.add('hidden');
-                    } else {
-                        if (sectionNew) sectionNew.classList.remove('hidden');
+                    // Se não houver filtrados o suficiente, pegamos os resultados brutos (fallback)
+                    let moviesToShow = dataNewReleases.results.filter(m => !interactedMovieIds.has(Number(m.id)));
+                    if (moviesToShow.length < 5) moviesToShow = dataNewReleases.results; 
+                    
+                    if (moviesToShow.length > 0) {
                         const now = new Date();
-                        filteredNew.forEach(movie => {
+                        moviesToShow.slice(0, 20).forEach(movie => {
                             const relDate = new Date(movie.release_date);
                             const diffDays = Math.floor((now - relDate) / (1000 * 60 * 60 * 24));
                             
-                            let badgeText = 'NOVO';
+                            let badgeText = 'LANÇAMENTO';
                             let badgeClass = 'bg-blue-600';
-                            if (diffDays <= 7) {
-                                badgeText = 'SAIU ESSA SEMANA';
-                                badgeClass = 'bg-green-600';
-                            } else if (diffDays <= 1) {
+                            
+                            if (diffDays <= 1) {
                                 badgeText = 'SAIU HOJE';
                                 badgeClass = 'bg-primary-container';
+                            } else if (diffDays <= 7) {
+                                badgeText = 'ESSA SEMANA';
+                                badgeClass = 'bg-green-600';
+                            } else if (relDate.getFullYear() === currentYear) {
+                                badgeText = '2026';
+                                badgeClass = 'bg-white/10 backdrop-blur-md border border-white/20';
                             }
 
                             const card = document.createElement('div');
