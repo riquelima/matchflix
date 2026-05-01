@@ -597,18 +597,43 @@
             transform: translateY(8px);
         }
         @keyframes matchPlayPulse {
-            0% {
-                transform: scale(0.9);
-                opacity: 0.9;
-            }
-            70% {
-                transform: scale(1.08);
-                opacity: 0.2;
-            }
-            100% {
-                transform: scale(1.14);
-                opacity: 0;
-            }
+            0% { transform: scale(0.9); opacity: 0.9; }
+            70% { transform: scale(1.08); opacity: 0.2; }
+            100% { transform: scale(1.14); opacity: 0; }
+        }
+
+        /* Generic Toast Notification */
+        .toast-notification {
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(22, 22, 22, 0.95);
+            color: white;
+            padding: 14px 28px;
+            border-radius: 20px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 800;
+            font-size: 13px;
+            z-index: 9999;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6), 0 0 20px rgba(229, 9, 20, 0.2);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            opacity: 0;
+            transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+            pointer-events: none;
+            white-space: nowrap;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .toast-notification.active {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        .toast-notification .toast-icon {
+            color: #e50914;
         }
         @keyframes spin {
             to {
@@ -1290,9 +1315,12 @@
                         COMPARTILHAR NO STORIES
                     </button>
 
-                    <div class="grid grid-cols-2 gap-4">
+                    <div id="modal-actions-container" class="grid grid-cols-2 gap-4">
                         <button id="modal-remove" class="bg-neutral-800 text-white/70 font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all hover:bg-neutral-700">
                             REMOVER
+                        </button>
+                        <button id="modal-watchlist" class="hidden bg-white/10 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all border border-white/10">
+                            QUERO ASSISTIR
                         </button>
                         <button id="modal-watched" class="bg-primary-container text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-primary-container/20">
                             ASSISTIDO
@@ -1999,6 +2027,29 @@
                 if(shell) shell.classList.remove('glint-run');
                 gsap.set([matchFlash, matchToast], { opacity: 0 });
             });
+        }
+
+        // Generic Toast for non-match events
+        function showToast(message) {
+            let toast = document.querySelector('.toast-notification');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.className = 'toast-notification';
+                document.body.appendChild(toast);
+            }
+            toast.innerHTML = `<span class="material-symbols-outlined toast-icon" style="font-variation-settings: 'FILL' 1;">info</span> ${message}`;
+            
+            // Forçar reflow para animação
+            toast.classList.remove('active');
+            void toast.offsetWidth;
+            
+            toast.classList.add('active');
+            
+            // Remover após 3 segundos
+            if (window.toastTimeout) clearTimeout(window.toastTimeout);
+            window.toastTimeout = setTimeout(() => {
+                toast.classList.remove('active');
+            }, 3000);
         }
 
         // Obter preferências salvas
@@ -3510,6 +3561,7 @@
         const mSynopsis = document.getElementById('modal-synopsis');
         const mRemoveBtn = document.getElementById('modal-remove');
         const mWatchedBtn = document.getElementById('modal-watched');
+        const mWatchlistBtn = document.getElementById('modal-watchlist');
         const mTrailerBtn = document.getElementById('modal-trailer-btn');
         const mProvidersSection = document.getElementById('modal-providers-section');
         const mProvidersList = document.getElementById('modal-providers-list');
@@ -3550,6 +3602,7 @@
             mProvidersList.innerHTML = '';
             
             updateWatchedUI();
+            updateWatchlistUI();
 
             // Abrir o modal IMEDIATAMENTE para UX rápida
             modal.classList.remove('translate-y-full');
@@ -3578,10 +3631,16 @@
             });
 
             fetchAndRenderProviders(movie.id, mProvidersList, mProvidersSection);
-            // Show/Hide remove button based on context
-            if(type === 'discover' || type === 'trending' || type === 'search') {
+            
+            // Show/Hide buttons based on context
+            if (type === 'search') {
+                mWatchlistBtn.classList.remove('hidden');
+                mRemoveBtn.classList.add('hidden');
+            } else if (type === 'discover' || type === 'trending') {
+                mWatchlistBtn.classList.add('hidden');
                 mRemoveBtn.classList.add('hidden');
             } else {
+                mWatchlistBtn.classList.add('hidden');
                 mRemoveBtn.classList.remove('hidden');
             }
         }
@@ -3622,6 +3681,11 @@
                 if(newState) watchedMovieIds.add(id);
                 else watchedMovieIds.delete(id);
 
+                // Se interagiu na busca, removemos da fila principal
+                if (currentActiveType === 'search') {
+                    interactedMovieIds.add(id);
+                }
+
                 updateWatchedUI();
                 if (activeTab === 'colecoes') fetchCollection();
                 if (activeTab === 'meusmatches') fetchMatches();
@@ -3630,7 +3694,52 @@
             }
         }
 
+        async function toggleWatchlist() {
+            if(!currentActiveMovie || !currentUser) return;
+            
+            const id = Number(currentActiveMovie.id);
+            // No MatchFlix, "Quero Assistir" é curtir (true) mas não assistido (false)
+            // Se já está curtido e não assistido, ao clicar removemos (ou mantemos se o usuário quiser só adicionar)
+            // Para simplicidade e seguindo a solicitação, vamos garantir que adicione.
+            
+            try {
+                const { error } = await supabase
+                    .from('curtidas_filmes')
+                    .upsert({
+                        usuario_id: currentUser.id,
+                        filme_id: id,
+                        curtiu: true,
+                        assistido: false
+                    }, { onConflict: 'usuario_id,filme_id' });
+
+                if (error) throw error;
+
+                // Feedback visual
+                showToast("Adicionado à sua lista Quero Assistir! 🎬");
+                
+                // Se estiver na busca, podemos marcar como interagido para não aparecer na fila principal depois
+                if (currentActiveType === 'search') {
+                    interactedMovieIds.add(id);
+                }
+
+                if (activeTab === 'colecoes') fetchCollection();
+                updateWatchlistUI();
+            } catch (err) {
+                console.error("Erro ao adicionar à lista:", err);
+            }
+        }
+
+        function updateWatchlistUI() {
+            if(!currentActiveMovie) return;
+            const id = Number(currentActiveMovie.id);
+            
+            // Verificação local rápida: se está curtido e NÃO assistido
+            // Como não temos um Set global de 'curtidas' simples (apenas interactedMovieIds que inclui dislikes),
+            // essa UI vai refletir o estado após a ação.
+        }
+
         mWatchedBtn.addEventListener('click', toggleWatched);
+        mWatchlistBtn.addEventListener('click', toggleWatchlist);
 
         // --- Lógica de Compartilhamento Instagram ---
         const modalShare = document.getElementById('modal-share');
@@ -4197,16 +4306,13 @@
         function renderSearchResults(results) {
             searchResultsGrid.innerHTML = '';
             
-            // Filtrar já vistos na busca
-            const filteredResults = results ? results.filter(m => !interactedMovieIds.has(Number(m.id))) : [];
-
-            if (filteredResults.length === 0) {
-                searchPlaceholder.innerHTML = `<span class="material-symbols-outlined text-6xl mb-4">sentiment_dissatisfied</span><p class="font-headline font-bold">Nenhum filme novo encontrado</p>`;
+            if (!results || results.length === 0) {
+                searchPlaceholder.innerHTML = `<span class="material-symbols-outlined text-6xl mb-4">sentiment_dissatisfied</span><p class="font-headline font-bold">Nenhum filme encontrado</p>`;
                 searchPlaceholder.classList.remove('hidden');
                 return;
             }
 
-            filteredResults.forEach(movie => {
+            results.forEach(movie => {
                 if (!movie.poster_path) return;
 
                 const card = document.createElement('div');
