@@ -831,7 +831,7 @@
                     <p class="text-[10px] tracking-[0.3em] uppercase text-primary-container/70 font-bold font-headline mb-1">📈 Tendência</p>
                     <h2 class="font-headline font-black text-3xl tracking-tighter text-white leading-none">🔥 Tendên<span class="text-white/30">cias</span></h2>
                 </div>
-                <main class="flex-grow px-0 pb-20 no-scrollbar" id="trending-scroll">
+                <main class="flex-grow px-0 pb-40 no-scrollbar" id="trending-scroll">
                     
                     <!-- 0. Notícias em Destaque (Editorial) -->
                     <section class="mb-10 mt-4">
@@ -916,7 +916,7 @@
                     </div>
                 </div>
 
-                <main class="flex-grow px-4 pb-24 no-scrollbar">
+                <main class="flex-grow px-4 pb-40 no-scrollbar">
                     <div id="search-results-grid" class="grid grid-cols-2 gap-4">
                         <!-- Resultados da busca aqui -->
                     </div>
@@ -3022,8 +3022,10 @@
             try {
                 // Cálculo dinâmico para Lançamentos (Ano Atual)
                 const currentYear = new Date().getFullYear();
-                const dateFrom = `${currentYear}-01-01`;
                 const dateTo = new Date().toISOString().split('T')[0];
+                const sixtyDaysAgo = new Date();
+                sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+                const sixtyDaysAgoStr = sixtyDaysAgo.toISOString().split('T')[0];
                 const releasePage = Math.floor(Math.random() * 2) + 1; // Alterna entre as primeiras páginas
 
                 // Cálculo de Seed para o Hall da Fama (muda a cada 3 dias)
@@ -3033,7 +3035,7 @@
 
                 // Busca simultânea de vários endpoints do TMDB
                 const [resDay, resWeek, resPeople, resUpcoming, resAwarded, resNewReleases] = await Promise.all([
-                    fetch(`https://api.themoviedb.org/3/trending/movie/day?api_key=${API_KEY}&language=pt-BR`),
+                    fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&language=pt-BR&sort_by=popularity.desc&primary_release_date.gte=${sixtyDaysAgoStr}&primary_release_date.lte=${dateTo}`),
                     fetch(`https://api.themoviedb.org/3/trending/movie/week?api_key=${API_KEY}&language=pt-BR`),
                     fetch(`https://api.themoviedb.org/3/trending/person/day?api_key=${API_KEY}&language=pt-BR`),
                     fetch(`https://api.themoviedb.org/3/movie/upcoming?api_key=${API_KEY}&language=pt-BR&region=BR`),
@@ -3226,12 +3228,17 @@
                 }
 
                 // 5. Renderizar Grid Principal com Ranking e Termômetro - Filtrando já vistos
-                if (dataDay.results) {
+                if (dataDay && dataDay.results) {
                     const weeklyResults = dataWeek.results || [];
                     trendingGrid.innerHTML = '';
                     
                     // FILTRAGEM REAL APLICADA AQUI
-                    const filteredDay = dataDay.results.filter(m => !interactedMovieIds.has(Number(m.id)));
+                    let filteredDay = dataDay.results.filter(m => !interactedMovieIds.has(Number(m.id)));
+                    
+                    // FALLBACK: Se o filtro removeu tudo (usuário já viu muito conteúdo), mostra os top 10 brutos
+                    if (filteredDay.length === 0) {
+                        filteredDay = dataDay.results.slice(0, 10);
+                    }
                     
                     filteredDay.forEach((movie, i) => {
                         // Calcular Termômetro
@@ -3450,9 +3457,10 @@
                 // Busca filmes curtidos do banco
                 const { data, error } = await supabase
                     .from('curtidas_filmes')
-                    .select('filme_id, assistido')
+                    .select('filme_id, assistido, criado_em')
                     .eq('usuario_id', currentUser.id)
-                    .eq('curtiu', true);
+                    .eq('curtiu', true)
+                    .order('criado_em', { ascending: false });
                 
                 if (error) throw error;
 
@@ -3633,10 +3641,10 @@
             fetchAndRenderProviders(movie.id, mProvidersList, mProvidersSection);
             
             // Show/Hide buttons based on context
-            if (type === 'search') {
+            if (type === 'search' || type === 'trending') {
                 mWatchlistBtn.classList.remove('hidden');
                 mRemoveBtn.classList.add('hidden');
-            } else if (type === 'discover' || type === 'trending') {
+            } else if (type === 'discover') {
                 mWatchlistBtn.classList.add('hidden');
                 mRemoveBtn.classList.add('hidden');
             } else {
@@ -3717,8 +3725,8 @@
                 // Feedback visual
                 showToast("Adicionado à sua lista Quero Assistir! 🎬");
                 
-                // Se estiver na busca, podemos marcar como interagido para não aparecer na fila principal depois
-                if (currentActiveType === 'search') {
+                // Se estiver na busca ou tendências, podemos marcar como interagido para não aparecer na fila principal depois
+                if (currentActiveType === 'search' || currentActiveType === 'trending') {
                     interactedMovieIds.add(id);
                 }
 

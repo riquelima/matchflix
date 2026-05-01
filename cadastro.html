@@ -144,9 +144,9 @@
 <div class="relative">
 <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/70 text-[20px]">lock</span>
 <input class="w-full bg-surface-container-highest border-none text-on-surface font-body text-base rounded-DEFAULT py-4 pl-12 pr-12 focus:ring-2 focus:ring-primary/50 focus:bg-surface-container-highest transition-all duration-300 placeholder:text-on-surface-variant/50 shadow-inner" id="password" placeholder="Mínimo 8 caracteres" type="password"/>
-<button class="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant/70 hover:text-on-surface transition-colors" type="button">
-<span class="material-symbols-outlined text-[20px]">visibility_off</span>
-</button>
+            <button id="toggle-password" class="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant/70 hover:text-on-surface transition-colors" type="button">
+                <span class="material-symbols-outlined text-[20px]">visibility_off</span>
+            </button>
 </div>
 </div>
 <button class="w-full py-4 rounded-full bg-gradient-to-br from-primary to-primary-container text-on-primary font-headline font-bold text-lg tracking-wide hover:shadow-[0_8px_24px_-6px_rgba(229,9,20,0.4)] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-2 mt-8" type="submit">
@@ -225,6 +225,22 @@
             // Sucesso!
             window.location.href = 'primeiroLogin.html';
         }
+    });
+
+    // Lógica para mostrar/esconder senha
+    const togglePasswordBtn = document.getElementById('toggle-password');
+    const passwordInput = document.getElementById('password');
+    
+    togglePasswordBtn.addEventListener('click', () => {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        
+        // Trocar o ícone
+        const icon = togglePasswordBtn.querySelector('span');
+        icon.textContent = type === 'password' ? 'visibility_off' : 'visibility';
+        
+        // Feedback visual sutil (Cyber-Noir)
+        gsap.fromTo(icon, { scale: 0.8 }, { scale: 1, duration: 0.3, ease: "back.out(2)" });
     });
 </script>
 </body></html>
