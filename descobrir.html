@@ -235,6 +235,63 @@
             transition: opacity 0.4s ease;
             z-index: 30;
         }
+        .trailer-preview-wrapper {
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.7s ease;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .trailer-preview-wrapper.active {
+            opacity: 1 !important;
+        }
+        .trailer-preview-wrapper iframe {
+            width: 100% !important;
+            aspect-ratio: 16 / 9;
+            height: auto !important;
+        }
+        .unmute-btn {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+        .unmute-btn.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .unmute-btn span {
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .unmute-btn:active {
+            transform: scale(0.9);
+        }
+
         .match-overlay {
             position: absolute;
             inset: 0;
@@ -1389,6 +1446,13 @@
         const trailersCache = new Map();
         let isYouTubeAPIReady = false;
         const posterCache = new Set();
+        
+        // Trailer Preview System State
+        let activeTrailerPlayer = null;
+        let trailerTimer = null;
+        let isUnmuted = false;
+        let isPreviewPlaying = false;
+
 
         // --- Função de Pre-loading de Imagens ---
         function preloadMoviePosters(movies) {
@@ -1417,8 +1481,7 @@
             }
             const tag = document.createElement('script');
             tag.src = "https://www.youtube.com/iframe_api";
-            const firstScriptTag = document.getElementsByTagName('script')[0];
-            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+            document.head.appendChild(tag);
         }
 
         window.onYouTubeIframeAPIReady = () => {
@@ -1577,6 +1640,7 @@
         // Inicialização Global com Bloqueio de Splash
         async function initApp() {
             console.log("🎬 Iniciando MatchFlix...");
+            initTrendingElements();
             try {
                 // Carrega TUDO em paralelo (Match, Tendências, Matches e Coleção)
                 await Promise.all([
@@ -1902,6 +1966,12 @@
                     likedMoviesLocal.unshift(movie);
                     matchCount++;
                     updateBadge(matchCount);
+
+                    // TRIGGER DINÂMICO: A cada 3 likes, tentamos injetar novos filmes baseados no novo perfil
+                    if (likedMoviesLocal.length % 3 === 0 && !isFetching) {
+                        console.log("🧠 Perfil de preferência atualizado. Buscando novas sugestões dinâmicas...");
+                        fetchMovies(); 
+                    }
                 }
             }
 
@@ -2056,6 +2126,26 @@
         const favGenresRaw = localStorage.getItem("user_favorite_genres");
         const favoriteGenres = favGenresRaw ? JSON.parse(favGenresRaw) : [];
 
+        // Calcular gêneros preferidos baseados nos likes reais (Algoritmo Dinâmico)
+        function calculateDynamicGenres() {
+            const genreCounts = {};
+            // Analisa likes da sessão atual (mais precisos para o "mood" atual)
+            likedMoviesLocal.forEach(movie => {
+                const ids = movie.genre_ids || (movie.genres ? movie.genres.map(g => g.id) : []);
+                ids.forEach(id => {
+                    genreCounts[id] = (genreCounts[id] || 0) + 1;
+                });
+            });
+
+            // Converte para array, ordena por frequência e pega os top 3
+            const sortedGenres = Object.entries(genreCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3)
+                .map(entry => entry[0]);
+            
+            return sortedGenres;
+        }
+
         // Inicializar a fila
         async function fetchMovies() {
             if (isFetching) return;
@@ -2066,161 +2156,175 @@
                 const savedFilters = localStorage.getItem('mf_filters');
                 const filters = savedFilters ? JSON.parse(savedFilters) : null;
 
-                const queryParams = new URLSearchParams({
+                const baseParams = {
                     api_key: API_KEY,
                     language: 'pt-BR',
                     sort_by: 'popularity.desc',
                     include_adult: 'false',
-                    'vote_count.gte': 100 // Filtro base para qualidade
-                });
-
-                // 1. Filtros de Mood (Mapeamento de API mais eficaz)
-                if (filters?.mood && filters.mood !== 'any') {
-                    switch(filters.mood) {
-                        case 'underrated': 
-                            queryParams.set('sort_by', 'vote_average.desc');
-                            queryParams.set('vote_count.gte', 150);
-                            queryParams.set('vote_count.lte', 1500); 
-                            queryParams.set('vote_average.gte', 7.2); 
-                            break;
-                        case 'relax': 
-                            queryParams.set('with_genres', '35,10751');
-                            queryParams.set('without_genres', '27,53,10752');
-                            break;
-                        case 'intense': 
-                            queryParams.set('with_genres', '53,9648,27');
-                            queryParams.set('vote_average.gte', 6.5);
-                            break;
-                        case 'cry': 
-                            queryParams.set('with_genres', '18');
-                            queryParams.set('with_keywords', '208453,970,15250'); // tragedy, sadness, tear jerker
-                            break;
-                        case 'laugh': 
-                            queryParams.set('with_genres', '35');
-                            queryParams.set('without_genres', '18,27');
-                            break;
-                        case 'mind': 
-                            queryParams.set('with_genres', '878,9648');
-                            queryParams.set('with_keywords', '310,2343,3035'); // philosophy, mind game, psychological thriller
-                            break;
-                    }
-                }
-
-                // 2. Nota Mínima
-                if (filters?.minRating) {
-                    const min = parseFloat(filters.minRating);
-                    queryParams.set('vote_average.gte', min);
-                    if (min >= 8) queryParams.set('vote_count.gte', 50);
-                }
-
-                // 3. Gêneros (Lógica OR para maior volume de sugestões)
-                const activeGenres = filters?.genres?.length > 0 ? filters.genres : (favoriteGenres.length > 0 ? favoriteGenres : []);
-                if (activeGenres.length > 0) {
-                    queryParams.set('with_genres', activeGenres.join('|'));
-                }
-
-                if (filters?.excludedGenres?.length > 0) {
-                    queryParams.set('without_genres', filters.excludedGenres.join(','));
-                }
-
-                // 4. Provedores de Streaming (BR)
-                if (filters?.providers?.length > 0) {
-                    queryParams.set('watch_region', 'BR');
-                    queryParams.set('with_watch_providers', filters.providers.join('|'));
-                    queryParams.set('with_watch_monetization_types', 'flatrate');
-                }
-
-                // 5. Filtro de Ano
-                if (filters?.year && filters.year !== 'all') {
-                    const currentYear = new Date().getFullYear();
-                    if (filters.year === 'recent') {
-                        queryParams.set('primary_release_date.gte', `${currentYear - 3}-01-01`);
-                    } else if (filters.year === 'classic') {
-                        queryParams.set('primary_release_date.lte', '1999-12-31');
-                        queryParams.set('sort_by', 'vote_average.desc');
-                    } else {
-                        queryParams.set('primary_release_year', filters.year);
-                    }
-                }
+                    'vote_count.gte': 100
+                };
 
                 let results = [];
-                let attempts = 0;
-                let pageToFetch = currentPage;
+                // Estágios de busca: 0: Full, 1: Sem Mood, 2: Sem Ano, 3: Sem Gêneros, 4: Trending Global
+                let stage = 0; 
+                
+                while (results.length < 5 && stage <= 5) {
+                    console.log(`🔍 Buscando filmes - Estágio ${stage}`);
+                    let queryParams = new URLSearchParams(baseParams);
+                    let endpoint = 'discover/movie';
 
-                // Loop de busca para garantir cards inéditos
-                while (results.length < 5 && attempts < 12) { // Aumentado para 12 tentativas
-                    queryParams.set('page', pageToFetch);
-                    const res = await fetch(`https://api.themoviedb.org/3/discover/movie?${queryParams.toString()}`);
-                    const data = await res.json();
-                    
-                    if (!data.results || data.results.length === 0) {
-                        // Se não tem resultados na página, talvez os filtros sejam muito estritos ou acabou as páginas
-                        // Tentamos resetar para a página 1 e mudar o sort_by para dar diversidade se necessário
-                        if (pageToFetch > 1) { 
-                            pageToFetch = 1; 
-                            queryParams.set('sort_by', attempts % 2 === 0 ? 'vote_average.desc' : 'primary_release_date.desc');
-                            attempts++; 
-                            continue; 
-                        } 
-                        break; 
+                    if (stage < 4) {
+                        // 1. Mood (Removido no estágio 1+)
+                        if (stage < 1 && filters?.mood && filters.mood !== 'any') {
+                            switch(filters.mood) {
+                                case 'underrated': 
+                                    queryParams.set('sort_by', 'vote_average.desc');
+                                    queryParams.set('vote_count.gte', 150);
+                                    queryParams.set('vote_count.lte', 1500); 
+                                    queryParams.set('vote_average.gte', 7.2); 
+                                    break;
+                                case 'relax': 
+                                    queryParams.set('with_genres', '35,10751');
+                                    queryParams.set('without_genres', '27,53,10752');
+                                    break;
+                                case 'intense': 
+                                    queryParams.set('with_genres', '53,9648,27');
+                                    queryParams.set('vote_average.gte', 6.5);
+                                    break;
+                                case 'cry': 
+                                    queryParams.set('with_genres', '18');
+                                    queryParams.set('with_keywords', '208453,970,15250');
+                                    break;
+                                case 'laugh': 
+                                    queryParams.set('with_genres', '35');
+                                    queryParams.set('without_genres', '18,27');
+                                    break;
+                                case 'mind': 
+                                    queryParams.set('with_genres', '878,9648');
+                                    queryParams.set('with_keywords', '310,2343,3035');
+                                    break;
+                            }
+                        }
+
+                        // 2. Nota Mínima (Sempre mantida)
+                        if (filters?.minRating) {
+                            const min = parseFloat(filters.minRating);
+                            queryParams.set('vote_average.gte', min);
+                        }
+
+                        // 3. Gêneros (Removido no estágio 3)
+                        if (stage < 3) {
+                            const dynamicGenres = calculateDynamicGenres();
+                            const activeGenres = filters?.genres?.length > 0 ? filters.genres : (dynamicGenres.length > 0 ? dynamicGenres : (favoriteGenres.length > 0 ? favoriteGenres : []));
+                            if (activeGenres.length > 0) queryParams.set('with_genres', activeGenres.join('|'));
+                            if (filters?.excludedGenres?.length > 0) queryParams.set('without_genres', filters.excludedGenres.join(','));
+                        }
+
+                        // 4. Provedores
+                        if (filters?.providers?.length > 0) {
+                            queryParams.set('watch_region', 'BR');
+                            queryParams.set('with_watch_providers', filters.providers.join('|'));
+                            queryParams.set('with_watch_monetization_types', 'flatrate');
+                        }
+
+                        // 5. Ano (Removido no estágio 2+)
+                        if (stage < 2 && filters?.year && filters.year !== 'all') {
+                            const currentYear = new Date().getFullYear();
+                            if (filters.year === 'recent') {
+                                queryParams.set('primary_release_date.gte', `${currentYear - 3}-01-01`);
+                            } else if (filters.year === 'classic') {
+                                queryParams.set('primary_release_date.lte', '1999-12-31');
+                            } else {
+                                queryParams.set('primary_release_year', filters.year);
+                            }
+                        }
+                    } else if (stage === 4) {
+                        // Estágio 4: Trending Global
+                        endpoint = 'trending/movie/week';
+                        queryParams.delete('with_genres');
+                        queryParams.delete('without_genres');
+                        queryParams.delete('vote_average.gte');
+                        queryParams.delete('vote_count.gte');
+                        queryParams.delete('sort_by');
+                    } else {
+                        // Estágio 5: Diversidade Total (Emergência)
+                        endpoint = 'discover/movie';
+                        queryParams = new URLSearchParams({
+                            api_key: API_KEY,
+                            language: 'pt-BR',
+                            sort_by: 'popularity.desc',
+                            'vote_count.gte': 50,
+                            include_adult: 'false'
+                        });
+                        // Escolhe uma página aleatória entre 1 e 100 para garantir novidade
+                        const randomPage = Math.floor(Math.random() * 100) + 1;
+                        queryParams.set('page', randomPage);
                     }
 
-                    const filtered = data.results.filter(m => 
-                        !interactedMovieIds.has(Number(m.id)) && 
-                        !moviesQueue.some(q => Number(q.id) === Number(m.id))
-                    );
+                    let pageToFetch = (stage === 0) ? currentPage : (stage === 4 ? currentTrendingFallbackPage : (stage === 5 ? parseInt(queryParams.get('page')) : 1));
+                    let attempts = 0;
+                    const maxAttempts = (stage === 0) ? 6 : 3;
 
-                    results = [...results, ...filtered];
-                    pageToFetch++;
-                    attempts++;
-                    
-                    if (results.length >= 15) break; // Buffer maior
-                }
+                    while (results.length < 10 && attempts < maxAttempts) {
+                        queryParams.set('page', pageToFetch);
+                        const url = `https://api.themoviedb.org/3/${endpoint}?${queryParams.toString()}`;
+                        
+                        try {
+                            const res = await fetch(url);
+                            const data = await res.json();
+                            
+                            if (!data.results || data.results.length === 0) {
+                                // Se esgotou páginas, tenta uma aleatória para diversidade
+                                pageToFetch = Math.floor(Math.random() * 20) + 1;
+                                attempts++;
+                                continue;
+                            }
 
-                currentPage = pageToFetch;
+                            const filtered = data.results.filter(m => 
+                                !interactedMovieIds.has(Number(m.id)) && 
+                                !moviesQueue.some(q => Number(q.id) === Number(m.id)) &&
+                                !results.some(r => r.id === m.id)
+                            );
 
-                // FALLBACK INFINITO SUPREMO: Se a busca por filtros falhar ou der poucos resultados
-                if (results.length < 10) {
-                    console.log("🔄 Buscando reforço no Trending para manter fluxo infinito...");
-                    const resTrending = await fetch(`https://api.themoviedb.org/3/trending/movie/week?api_key=${API_KEY}&language=pt-BR&page=${currentTrendingFallbackPage}`);
-                    const dataTrending = await resTrending.json();
-                    
-                    if (dataTrending.results) {
-                        const trendingFiltered = dataTrending.results.filter(m => 
-                            !interactedMovieIds.has(Number(m.id)) && 
-                            !moviesQueue.some(q => Number(q.id) === Number(m.id)) &&
-                            !results.some(r => r.id === m.id)
-                        );
-                        results = [...results, ...trendingFiltered];
-                        currentTrendingFallbackPage++;
+                            console.log(`📍 Estágio ${stage}: Encontrados ${data.results.length} filmes, ${filtered.length} novos.`);
+                            results = [...results, ...filtered];
+                            pageToFetch++;
+                            if (pageToFetch > 500) pageToFetch = 1;
+                        } catch(e) {
+                            console.error("Erro no fetch de filmes:", e);
+                        }
+                        attempts++;
                     }
+
+                    // Atualiza rastreadores persistentes
+                    if (stage === 0) currentPage = pageToFetch;
+                    if (stage === 4) currentTrendingFallbackPage = pageToFetch;
+                    
+                    stage++;
                 }
 
                 loadingIndicator.style.display = "none";
 
                 if (results.length > 0) {
-                    // Remover duplicatas finais
                     const finalResults = results.filter((v,i,a) => a.findIndex(t => (t.id === v.id)) === i);
-                    
-                    // Injetar na fila
                     moviesQueue = [...finalResults.reverse(), ...moviesQueue];
                     preloadMoviePosters(finalResults);
                     
-                    // Se o container estiver vazio ou com erro, renderiza
                     if (stackContainer.querySelectorAll('.movie-card-wrapper').length === 0) {
                         renderTopCards();
                     }
                 } else if (moviesQueue.length === 0) {
-                    // Se REALMENTE não tem nada, mostra tela de ajuste
+                    // Fallback Supremo
+                    console.log("⚠️ Esgotamento total de sugestões.");
                     stackContainer.innerHTML = `
                         <div class="flex flex-col items-center justify-center h-full text-center p-8 animate-fade-in">
                             <div class="bg-primary-container/10 w-24 h-24 rounded-full flex items-center justify-center backdrop-blur-md border border-white/10 shadow-[0_0_30px_rgba(229,9,20,0.3)] mb-6">
-                                <span class="material-symbols-outlined text-primary-container text-5xl">filter_list_off</span>
+                                <span class="material-symbols-outlined text-primary-container text-5xl">restart_alt</span>
                             </div>
-                            <h3 class="text-xl font-headline font-bold text-white mb-2">Acabaram os filmes?</h3>
-                            <p class="text-white/40 text-sm max-w-[240px] mx-auto mb-8">Parece que você já viu tudo com esses filtros. Tente relaxar as preferências para continuar explorando.</p>
-                            <button onclick="localStorage.removeItem('mf_filters'); location.reload();" class="w-full max-w-[200px] px-6 py-4 rounded-2xl bg-primary-container text-white text-xs font-bold shadow-lg transition-all active:scale-95">
-                                Resetar Filtros
+                            <h3 class="text-xl font-headline font-bold text-white mb-2">Explorando novos horizontes</h3>
+                            <p class="text-white/40 text-sm max-w-[240px] mx-auto mb-8">Você já viu quase tudo! Vamos resetar as sugestões para você continuar descobrindo.</p>
+                            <button onclick="interactedMovieIds.clear(); fetchMovies();" class="w-full max-w-[200px] px-6 py-4 rounded-2xl bg-primary-container text-white text-xs font-bold shadow-lg transition-all active:scale-95 uppercase tracking-widest">
+                                Reiniciar Sugestões
                             </button>
                         </div>
                     `;
@@ -2228,12 +2332,12 @@
 
             } catch (error) {
                 console.error("Erro na busca infinita:", error);
-                isFetching = false;
             } finally {
                 isFetching = false;
                 loadingIndicator.style.display = "none";
             }
         }
+
 
         // Renderizar a fila (Otimizado estilo Tinder)
         function renderTopCards() {
@@ -2307,8 +2411,12 @@
                             const overlay = existing.querySelector('.match-overlay');
                             initDrag(existing, movie, front, overlay);
                             existing._dragInitialized = true;
+                        } else {
+                            // Se já estava inicializado, garante que o timer do trailer inicie
+                            if (existing._startTrailerTimer) existing._startTrailerTimer();
                         }
                     } else {
+
                         existing.classList.remove('active-drag');
                         existing.style.zIndex = zIndex;
                     }
@@ -2421,6 +2529,14 @@
                 <img src="${posterUrl}" alt="${movie.title}" class="card-poster-img absolute inset-0 w-full h-full object-cover select-none pointer-events-none z-10">
                 <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent opacity-90 pointer-events-none z-15"></div>
                 
+                <!-- Trailer Preview System -->
+                <div class="trailer-preview-wrapper" id="trailer-wrapper-${movie.id}">
+                    <div class="w-full aspect-video" id="trailer-preview-${movie.id}"></div>
+                </div>
+                <button id="unmute-btn-${movie.id}" class="unmute-btn">
+                    <span class="material-symbols-outlined text-xl leading-none">volume_off</span>
+                </button>
+                
                 <div class="card-info-content absolute bottom-0 left-0 right-0 z-30 p-8 pb-12 transition-opacity duration-300">
                     <div class="flex items-center gap-3 mb-2">
                         <span class="badge-rating-hud">
@@ -2431,6 +2547,7 @@
                     </div>
                     <h2 class="text-3xl font-headline font-extrabold tracking-tighter leading-none text-white drop-shadow-lg pointer-events-none">${movie.title}</h2>
                 </div>
+
 
                 ${badgeHTML}
                 ${statusBadgesHTML}
@@ -2632,6 +2749,83 @@
             }
         }
 
+        async function startTrailerPreview(movieId, playerContainerId, wrapper, unmuteBtn) {
+            if (isPreviewPlaying || !playerContainerId) return;
+            
+            const key = await getTrailerKey(movieId);
+            if (!key) return;
+
+            console.log(`🎬 Iniciando preview do trailer: ${movieId}`);
+            
+            const startPlayer = () => {
+                if (activeTrailerPlayer) {
+                    try { activeTrailerPlayer.destroy(); } catch(e) {}
+                }
+
+                activeTrailerPlayer = new YT.Player(playerContainerId, {
+                    host: 'https://www.youtube-nocookie.com',
+                    videoId: key,
+                    playerVars: {
+                        autoplay: 1,
+                        controls: 0,
+                        mute: isUnmuted ? 0 : 1,
+                        loop: 1,
+                        playlist: key,
+                        modestbranding: 1,
+                        rel: 0,
+                        iv_load_policy: 3,
+                        disablekb: 1,
+                        origin: window.location.origin
+                    },
+                    events: {
+                        onReady: (event) => {
+                            console.log(`✅ Trailer Ready: ${movieId}`);
+                            event.target.playVideo();
+                            isPreviewPlaying = true;
+                            if (wrapper) wrapper.classList.add('active');
+                            if (unmuteBtn) unmuteBtn.classList.add('visible');
+                        },
+                        onStateChange: (event) => {
+                            console.log(`🔄 Trailer State: ${event.data}`);
+                            if (event.data === YT.PlayerState.ENDED) {
+                                event.target.playVideo();
+                            }
+                        },
+                        onError: (e) => {
+                            console.error(`❌ Trailer Error: ${e.data}`);
+                            cleanupTrailer();
+                        }
+                    }
+                });
+            };
+
+            if (isYouTubeAPIReady) {
+                startPlayer();
+            } else {
+                ytAPIQueue.push(startPlayer);
+            }
+        }
+
+        function cleanupTrailer() {
+            if (activeTrailerPlayer) {
+                try {
+                    activeTrailerPlayer.destroy();
+                } catch(e) {}
+                activeTrailerPlayer = null;
+            }
+            isPreviewPlaying = false;
+            if (trailerTimer) clearTimeout(trailerTimer);
+            
+            document.querySelectorAll('.trailer-preview-wrapper').forEach(w => {
+                w.classList.remove('active');
+                // Opcional: restaurar o div interno se o destroy não o fizer ou se quisermos garantir
+                const movieId = w.id.replace('trailer-wrapper-', '');
+                w.innerHTML = `<div id="trailer-preview-${movieId}"></div>`;
+            });
+            document.querySelectorAll('.unmute-btn').forEach(b => b.classList.remove('visible'));
+        }
+
+
         window.openVideoTrailer = function(key) {
             console.log("🎬 Cinema Mode - Abrindo Trailer:", key);
             const overlay = document.getElementById('video-overlay');
@@ -2757,6 +2951,46 @@
 
             const btnAcaoOverlay = element.querySelector('.btn-acao-overlay');
             const heartIcon = overlayEl.querySelector('.bg-primary-container'); // O coração no canto superior da sinopse
+            
+            // Trailer Preview Refs
+            const trailerWrapper = frontEl.querySelector('.trailer-preview-wrapper');
+            const unmuteBtn = frontEl.querySelector('.unmute-btn');
+
+            const startTimer = () => {
+                if (trailerTimer) clearTimeout(trailerTimer);
+                console.log(`[Timer] Iniciando contagem de 3s para "${movie.title}"`);
+                trailerTimer = setTimeout(() => {
+                    console.log(`[Timer] 3s completados para "${movie.title}". Tentando iniciar trailer...`);
+                    const playerContainer = trailerWrapper.querySelector('[id^="trailer-preview-"]');
+                    if (playerContainer) {
+                        startTrailerPreview(movie.id, playerContainer.id, trailerWrapper, unmuteBtn);
+                    }
+                }, 3000);
+            };
+
+            // Inicia o timer se for o card do topo
+            if (element.classList.contains('active-drag')) {
+                startTimer();
+            }
+
+            // Controle de Unmute
+            if (unmuteBtn) {
+                unmuteBtn.onpointerdown = (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (activeTrailerPlayer && typeof activeTrailerPlayer.unMute === 'function') {
+                        if (isUnmuted) {
+                            activeTrailerPlayer.mute();
+                            unmuteBtn.innerHTML = '<span class="material-symbols-outlined text-xl">volume_off</span>';
+                        } else {
+                            activeTrailerPlayer.unMute();
+                            unmuteBtn.innerHTML = '<span class="material-symbols-outlined text-xl">volume_up</span>';
+                        }
+                        isUnmuted = !isUnmuted;
+                    }
+                };
+            }
+
 
             // Expondo métodos para os botões globais
             element._triggerLike = () => {
@@ -2770,6 +3004,9 @@
                 gsap.to(element, { x: -60, rotation: -10, duration: 0.12, ease: "power2.out", onComplete: () => triggerDislike() });
             };
             element._toggleSynopsis = toggleSynopsis;
+            element._startTrailerTimer = startTimer;
+            element._cleanupTrailer = cleanupTrailer;
+
 
             // Quando der like (Match) - Animação cinematográfica de Match
             function triggerMatch() {
@@ -2854,7 +3091,11 @@
             function throwOut(direction) {
                 isAnimating = true;
                 
+                // Cleanup trailer system
+                cleanupTrailer();
+
                 element.classList.add('is-throwing');
+
                 // Isso evita o bug onde o swipe pra direita removia 2 filmes (um pelo save e outro pelo pop)
                 moviesQueue = moviesQueue.filter(m => Number(m.id) !== Number(movie.id));
                 interactedMovieIds.add(Number(movie.id));
@@ -2913,7 +3154,14 @@
             function dragStart(e) {
                 if (isAnimating || isMatched || isInfoOpen) return;
                 
+                // Pausa trailer e cancela timer ao começar a arrastar
+                if (trailerTimer) clearTimeout(trailerTimer);
+                if (activeTrailerPlayer && typeof activeTrailerPlayer.pauseVideo === 'function') {
+                    try { activeTrailerPlayer.pauseVideo(); } catch(e) {}
+                }
+
                 isDragging = true;
+
                 
                 const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
                 const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
@@ -2982,19 +3230,25 @@
                         ease: "elastic.out(1, 0.5)",
                         onComplete: () => {
                             // Retoma o trailer se o deslize foi cancelado
-                            if (isPreviewPlaying && ytPlayer && typeof ytPlayer.playVideo === 'function') {
+                            if (isPreviewPlaying && activeTrailerPlayer && typeof activeTrailerPlayer.playVideo === 'function') {
                                 try {
-                                    ytPlayer.playVideo();
-                                    if (isUnmuted) {
-                                        // Se estava no modo foco, restaura a visão do vídeo
-                                        previewContainer.style.opacity = "1";
-                                        const posterImg = frontEl.querySelector('.card-poster-img');
-                                        if (posterImg) posterImg.style.display = 'none';
-                                    }
+                                    activeTrailerPlayer.playVideo();
                                 } catch(e) {}
+                            } else if (!isPreviewPlaying) {
+                                // Se o trailer ainda não tinha começado, reinicia o timer
+                                const trailerWrapper = frontEl.querySelector('.trailer-preview-wrapper');
+                                const unmuteBtn = frontEl.querySelector('.unmute-btn');
+                                if (trailerTimer) clearTimeout(trailerTimer);
+                                trailerTimer = setTimeout(() => {
+                                    const playerContainer = trailerWrapper.querySelector('[id^="trailer-preview-"]');
+                                    if (playerContainer) {
+                                        startTrailerPreview(movie.id, playerContainer.id, trailerWrapper, unmuteBtn);
+                                    }
+                                }, 3000);
                             }
                         }
                     });
+
                     currentX = 0;
                     currentY = 0;
                 }
@@ -3007,13 +3261,18 @@
             }
         }
         // --- ABA 2: TENDÊNCIAS LOGIC ---
-        const trendingGrid = document.getElementById('trending-grid');
-        const trendingPeopleList = document.getElementById('trending-people-list');
-        const upcomingList = document.getElementById('upcoming-list');
-        const awardedGrid = document.getElementById('awarded-grid');
-        const newReleasesList = document.getElementById('new-releases-list');
-        const sectionAwarded = document.getElementById('section-awarded');
-        const newsList = document.getElementById('news-list');
+        let trendingGrid, trendingPeopleList, upcomingList, awardedGrid, newReleasesList, sectionAwarded, newsList;
+
+        function initTrendingElements() {
+            trendingGrid = document.getElementById('trending-grid');
+            trendingPeopleList = document.getElementById('trending-people-list');
+            upcomingList = document.getElementById('upcoming-list');
+            awardedGrid = document.getElementById('awarded-grid');
+            newReleasesList = document.getElementById('new-releases-list');
+            sectionAwarded = document.getElementById('section-awarded');
+            newsList = document.getElementById('news-list');
+        }
+
         let isTrendingLoaded = false;
 
         async function fetchTrending() {
@@ -3057,7 +3316,7 @@
                     .order('published_at', { ascending: false })
                     .limit(60); // Aumentamos o limite para ter mais margem para filtrar
 
-                if (cachedNews && cachedNews.length > 0) {
+                if (cachedNews && cachedNews.length > 0 && newsList) {
                     newsList.innerHTML = '';
                     
                     // Palavras-chave para filtro de entretenimento
@@ -3122,9 +3381,9 @@
                 // 2. Renderizar Próximos Lançamentos - Filtrando já vistos
                 if (dataUpcoming.results) {
                     const filteredUpcoming = dataUpcoming.results.filter(m => !interactedMovieIds.has(Number(m.id)));
-                    upcomingList.innerHTML = '';
+                    if (upcomingList) upcomingList.innerHTML = '';
                     
-                    const sectionUpcoming = upcomingList.closest('section');
+                    const sectionUpcoming = upcomingList ? upcomingList.closest('section') : null;
                     if (filteredUpcoming.length === 0) {
                         if (sectionUpcoming) sectionUpcoming.classList.add('hidden');
                     } else {
@@ -3143,20 +3402,20 @@
                                 <p class="text-[8px] text-white/40 font-medium">${movie.release_date.split('-').reverse().join('/')}</p>
                             `;
                             movieDiv.onclick = () => openSynopsis(movie, 'trending', movieDiv);
-                            upcomingList.appendChild(movieDiv);
+                            if (upcomingList) upcomingList.appendChild(movieDiv);
                         });
                     }
                 }
 
                 // 3. Renderizar Hall da Fama - Filtrando já vistos
-                if (dataAwarded.results) {
+                if (dataAwarded && dataAwarded.results) {
                     const filteredAwarded = dataAwarded.results.filter(m => !interactedMovieIds.has(Number(m.id)));
-                    awardedGrid.innerHTML = '';
+                    if (awardedGrid) awardedGrid.innerHTML = '';
                     
                     if (filteredAwarded.length === 0) {
-                        sectionAwarded.classList.add('hidden');
+                        if (sectionAwarded) sectionAwarded.classList.add('hidden');
                     } else {
-                        sectionAwarded.classList.remove('hidden');
+                        if (sectionAwarded) sectionAwarded.classList.remove('hidden');
                         filteredAwarded.slice(0, 10).forEach((movie, i) => {
                             const card = document.createElement('div');
                             card.className = 'film-card w-[150px] shrink-0 snap-start aspect-[2/3] relative group';
@@ -3180,7 +3439,6 @@
 
                 // 4. Renderizar Lançamentos Recentes - Filtrando já vistos
                 if (dataNewReleases && dataNewReleases.results) {
-                    const newReleasesList = document.getElementById('new-releases-list');
                     if (newReleasesList) newReleasesList.innerHTML = '';
                     
                     // Se não houver filtrados o suficiente, pegamos os resultados brutos (fallback)
@@ -3188,18 +3446,12 @@
                     if (moviesToShow.length < 5) moviesToShow = dataNewReleases.results; 
                     
                     if (moviesToShow.length > 0) {
-                        const now = new Date();
-                        moviesToShow.slice(0, 20).forEach(movie => {
+                        moviesToShow.slice(0, 10).forEach(movie => {
                             const relDate = new Date(movie.release_date);
-                            const diffDays = Math.floor((now - relDate) / (1000 * 60 * 60 * 24));
-                            
-                            let badgeText = 'LANÇAMENTO';
-                            let badgeClass = 'bg-blue-600';
-                            
-                            if (diffDays <= 1) {
-                                badgeText = 'SAIU HOJE';
-                                badgeClass = 'bg-primary-container';
-                            } else if (diffDays <= 7) {
+                            let badgeText = '';
+                            let badgeClass = '';
+
+                            if (movie.release_date && (new Date() - relDate) < (30 * 24 * 60 * 60 * 1000)) {
                                 badgeText = 'ESSA SEMANA';
                                 badgeClass = 'bg-green-600';
                             } else if (relDate.getFullYear() === currentYear) {
@@ -3222,7 +3474,7 @@
                                 <p class="text-[10px] font-bold text-white line-clamp-1 uppercase tracking-tight">${movie.title}</p>
                             `;
                             card.onclick = () => openSynopsis(movie, 'trending', card);
-                            newReleasesList.appendChild(card);
+                            if (newReleasesList) newReleasesList.appendChild(card);
                         });
                     }
                 }
@@ -3230,7 +3482,7 @@
                 // 5. Renderizar Grid Principal com Ranking e Termômetro - Filtrando já vistos
                 if (dataDay && dataDay.results) {
                     const weeklyResults = dataWeek.results || [];
-                    trendingGrid.innerHTML = '';
+                    if (trendingGrid) trendingGrid.innerHTML = '';
                     
                     // FILTRAGEM REAL APLICADA AQUI
                     let filteredDay = dataDay.results.filter(m => !interactedMovieIds.has(Number(m.id)));
