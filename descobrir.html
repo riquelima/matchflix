@@ -1074,10 +1074,10 @@
                                class="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-6 text-white placeholder:text-white/20 focus:outline-none focus:border-primary-container/50 transition-all backdrop-blur-md">
                     </div>
 
-                    <!-- Resultados / Grid de Streaming -->
-                    <div id="streaming-results" class="flex-1 overflow-y-auto grid grid-cols-2 gap-4 pb-32 custom-scrollbar">
+                    <!-- Resultados de Streaming (Flexbox para evitar sobreposição) -->
+                    <div id="streaming-results" class="flex-1 overflow-y-auto flex flex-wrap gap-4 pb-40 px-1 custom-scrollbar content-start">
                         <!-- Skeleton Inicial ou Vazio -->
-                        <div class="col-span-2 flex flex-col items-center justify-center py-20 text-center opacity-40">
+                        <div class="w-full flex flex-col items-center justify-center py-20 text-center opacity-40">
                             <span class="material-symbols-outlined text-6xl mb-4">movie_filter</span>
                             <p class="text-sm">Busque um título para começar a maratona</p>
                         </div>
@@ -4767,7 +4767,7 @@
             results.forEach(movie => {
                 if (!movie.poster_path) return;
                 const card = document.createElement('div');
-                card.className = 'provider-card relative aspect-[2/3] rounded-xl overflow-hidden glass-panel border border-white/5 active:scale-95 transition-all animate-fade-in group';
+                card.className = 'provider-card relative w-[calc(50%-8px)] aspect-[2/3] rounded-xl overflow-hidden glass-panel border border-white/5 active:scale-95 transition-all animate-fade-in group';
                 card.innerHTML = `
                     <img src="${IMAGE_BASE_URL}${movie.poster_path}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
                     <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-4">
