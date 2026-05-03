@@ -1403,7 +1403,12 @@
                     <p class="text-primary-container text-[10px] font-black tracking-widest uppercase mb-2">Sinopse</p>
                     <p id="modal-synopsis" class="text-white/90 leading-relaxed font-body text-sm mb-4"></p>
 
-                    <button id="modal-trailer-btn" class="hidden w-full bg-primary-container text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3 active:scale-95 transition-all shadow-lg shadow-primary-container/20 mb-6">
+                    <button id="modal-watch-now-btn" class="w-full bg-primary-container text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3 active:scale-95 transition-all shadow-lg shadow-primary-container/20 mb-4">
+                        <span class="material-symbols-outlined">play_arrow</span>
+                        ASSISTIR AGORA
+                    </button>
+
+                    <button id="modal-trailer-btn" class="hidden w-full bg-white/10 text-white/90 font-black py-4 rounded-2xl flex items-center justify-center gap-3 active:scale-95 transition-all border border-white/5 mb-6">
                         <span class="material-symbols-outlined">play_circle</span>
                         VER TRAILER
                     </button>
@@ -3876,6 +3881,7 @@
         const mWatchedBtn = document.getElementById('modal-watched');
         const mWatchlistBtn = document.getElementById('modal-watchlist');
         const mTrailerBtn = document.getElementById('modal-trailer-btn');
+        const mWatchNowBtn = document.getElementById('modal-watch-now-btn');
         const mProvidersSection = document.getElementById('modal-providers-section');
         const mProvidersList = document.getElementById('modal-providers-list');
         
@@ -3942,6 +3948,11 @@
                     mTrailerBtn.onclick = () => window.openVideoTrailer(trailerKey);
                 }
             });
+
+            mWatchNowBtn.onclick = () => {
+                closeSynopsis();
+                window.openStreamingPlayer(movie);
+            };
 
             fetchAndRenderProviders(movie.id, mProvidersList, mProvidersSection);
             
@@ -4791,6 +4802,9 @@
             const streamingPlayerTitle = document.getElementById('streaming-player-title');
             const streamingPlayerOverlay = document.getElementById('streaming-player-overlay');
             
+            // Remove explicitamente qualquer restrição de sandbox para evitar bloqueios do provedor
+            streamingIframe.removeAttribute('sandbox');
+            
             const embedUrl = `https://myembed.biz/filme/${movie.id}`;
             streamingIframe.src = embedUrl;
             streamingPlayerTitle.textContent = movie.title;
@@ -4821,8 +4835,20 @@
             if (e.target.id === 'streaming-search-input') {
                 clearTimeout(streamingSearchTimeout);
                 const query = e.target.value.trim();
+                const streamingResultsGrid = document.getElementById('streaming-results');
+
                 if (query.length > 2) {
                     streamingSearchTimeout = setTimeout(() => searchStreamingMovies(query), 500);
+                } else if (query.length === 0) {
+                    // Limpa a tela se a busca estiver vazia
+                    if (streamingResultsGrid) {
+                        streamingResultsGrid.innerHTML = `
+                            <div class="w-full flex flex-col items-center justify-center py-20 text-center opacity-40 animate-fade-in">
+                                <span class="material-symbols-outlined text-6xl mb-4">movie_filter</span>
+                                <p class="text-sm">Busque um título para começar a maratona</p>
+                            </div>
+                        `;
+                    }
                 }
             }
         });
