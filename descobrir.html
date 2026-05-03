@@ -819,13 +819,15 @@
 
         <!-- Universal TopAppBar -->
         <header id="main-header" class="opacity-0 w-full z-[100] flex items-center justify-between px-6 h-16 bg-neutral-950/80 backdrop-blur-2xl shrink-0 sticky top-0 transition-all duration-500 border-b border-white/5">
-            <!-- Bloco Esquerdo: Ações -->
             <div class="flex items-center w-12 shrink-0 z-10 gap-2">
                 <button id="header-back-btn" class="hidden text-white hover:opacity-80 transition-opacity active:scale-95 duration-150">
                     <span class="material-symbols-outlined">arrow_back</span>
                 </button>
                 <button id="header-trending-btn" class="text-white hover:opacity-80 transition-opacity active:scale-95 duration-150">
                     <span class="material-symbols-outlined" data-icon="trending_up">local_fire_department</span>
+                </button>
+                <button id="header-play-btn" class="hidden text-white hover:opacity-80 transition-opacity active:scale-95 duration-150">
+                    <span class="material-symbols-outlined">play_circle</span>
                 </button>
             </div>
 
@@ -850,6 +852,28 @@
                 </button>
             </div>
         </header>
+
+        <!-- PLAYER DE STREAMING GLOBAL (FORA DO SLIDER) -->
+        <div id="streaming-player-overlay" class="fixed inset-0 z-[300] bg-black translate-y-full transition-transform duration-500 flex flex-col pointer-events-none">
+            <header class="h-16 flex items-center justify-between px-6 bg-neutral-950 border-b border-white/5 shrink-0">
+                <button onclick="closeStreamingPlayer()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 text-white active:scale-90 transition-transform">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+                <h3 id="streaming-player-title" class="text-[10px] font-black text-white uppercase tracking-[0.2em] truncate max-w-[180px]">Assistindo</h3>
+                <div class="w-10"></div>
+            </header>
+            <div class="flex-1 bg-black flex flex-col items-center justify-center p-4">
+                <!-- Container 16:9 Estilo Mobile -->
+                <div class="w-full shadow-[0_0_100px_rgba(0,0,0,1)] border border-white/10 rounded-xl overflow-hidden bg-neutral-900" 
+                     style="aspect-ratio: 16 / 9; position: relative;">
+                    <iframe id="streaming-iframe" 
+                            class="absolute inset-0 w-full h-full border-none" 
+                            allowfullscreen 
+                            style="width: 100%; height: 100%;"></iframe>
+                </div>
+                <p class="mt-8 text-white/10 text-[8px] font-black tracking-[0.4em] uppercase">MatchFlix Experience</p>
+            </div>
+        </div>
 
 
 
@@ -1038,6 +1062,28 @@
                         <div id="grid-pending" class="grid grid-rows-2 grid-flow-col overflow-x-auto snap-x no-scrollbar gap-3 pb-4 px-2 auto-cols-[130px] h-[420px]"></div>
                     </section>
                 </main>
+            </section>
+
+            <!-- TELA DE STREAMING (NOVA) -->
+            <section id="view-streaming" class="w-[100vw] shrink-0 h-full relative flex flex-col pt-2 bg-neutral-950 overflow-hidden">
+                <div class="px-6 py-4 flex flex-col h-full">
+                    <!-- Busca no Streaming -->
+                    <div class="relative mb-6">
+                        <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-white/30">search</span>
+                        <input type="text" id="streaming-search-input" placeholder="Buscar filme para assistir..." 
+                               class="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-6 text-white placeholder:text-white/20 focus:outline-none focus:border-primary-container/50 transition-all backdrop-blur-md">
+                    </div>
+
+                    <!-- Resultados / Grid de Streaming -->
+                    <div id="streaming-results" class="flex-1 overflow-y-auto grid grid-cols-2 gap-4 pb-32 custom-scrollbar">
+                        <!-- Skeleton Inicial ou Vazio -->
+                        <div class="col-span-2 flex flex-col items-center justify-center py-20 text-center opacity-40">
+                            <span class="material-symbols-outlined text-6xl mb-4">movie_filter</span>
+                            <p class="text-sm">Busque um título para começar a maratona</p>
+                        </div>
+                    </div>
+                </div>
+
             </section>
             
             <!-- ABA 4: FILTROS (Configurações) -->
@@ -1564,7 +1610,7 @@
         let isCollectionLoaded = false;
 
         // Definição única e global das abas para evitar erros de índice
-        const APP_TABS = ['descobrir', 'trending', 'busca', 'meusmatches', 'colecoes', 'filtro', 'configuracoes'];
+        const APP_TABS = ['descobrir', 'trending', 'busca', 'meusmatches', 'colecoes', 'streaming', 'filtro', 'configuracoes'];
 
         // Elementos DOM Críticos (Mover para o topo para evitar erros de referência)
         const stackContainer = document.getElementById("card-stack");
@@ -1580,6 +1626,7 @@
         const headerSettingsBtn = document.getElementById('header-settings-btn');
         const headerBackBtn = document.getElementById('header-back-btn');
         const headerMenuBtn = document.getElementById('header-trending-btn');
+        const headerPlayBtn = document.getElementById('header-play-btn');
         const headerTitle = document.getElementById('header-title');
 
         // Check Auth
@@ -1752,6 +1799,8 @@
             setVisible(headerMenuBtn, false);
             setVisible(globalFilterBtn, false);
             setVisible(headerSettingsBtn, false);
+            setVisible(headerTrendingBtn, false);
+            setVisible(headerPlayBtn, false);
             if (navbar) setVisible(navbar, true);
             if (headerTitle) headerTitle.innerHTML = 'Match<span class="text-primary-container">Flix</span>';
             
@@ -1765,6 +1814,7 @@
                 case 'descobrir':
                     setVisible(headerMenuBtn, true);
                     setVisible(globalFilterBtn, true);
+                    setVisible(headerTrendingBtn, true);
                     break;
 
                 case 'trending':
@@ -1802,7 +1852,10 @@
                     break;
 
                 case 'colecoes':
-                    setVisible(headerMenuBtn, true);
+                    setVisible(headerMenuBtn, false);
+                    setVisible(headerTrendingBtn, false);
+                    setVisible(headerPlayBtn, true);
+                    document.getElementById('header-play-btn').onclick = () => goToTab('streaming');
                     setVisible(globalFilterBtn, false);
                     setVisible(headerSettingsBtn, true);
                     if (!isCollectionLoaded || collectionDirty) {
@@ -4675,6 +4728,104 @@
                 img.onerror = () => reject(new Error("Erro ao carregar imagem"));
             });
         }
+
+        // --- STREAMING VIEW LOGIC ---
+        let streamingSearchTimeout;
+
+        async function searchStreamingMovies(query) {
+            const streamingResultsGrid = document.getElementById('streaming-results');
+            try {
+                streamingResultsGrid.innerHTML = `
+                    <div class="col-span-2 flex flex-col items-center justify-center py-20 text-center">
+                        <div class="w-10 h-10 border-4 border-primary-container border-t-transparent rounded-full animate-spin mb-4"></div>
+                        <p class="text-sm opacity-60">Buscando no acervo...</p>
+                    </div>
+                `;
+                
+                const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&language=pt-BR&query=${encodeURIComponent(query)}&include_adult=false`);
+                const data = await res.json();
+                renderStreamingResults(data.results);
+            } catch (err) {
+                console.error("Erro na busca de streaming:", err);
+            }
+        }
+
+        function renderStreamingResults(results) {
+            const streamingResultsGrid = document.getElementById('streaming-results');
+            if (!streamingResultsGrid) return;
+            streamingResultsGrid.innerHTML = '';
+            if (!results || results.length === 0) {
+                streamingResultsGrid.innerHTML = `
+                    <div class="col-span-2 flex flex-col items-center justify-center py-20 text-center opacity-40">
+                        <span class="material-symbols-outlined text-6xl mb-4">sentiment_dissatisfied</span>
+                        <p class="text-sm">Nenhum título encontrado</p>
+                    </div>
+                `;
+                return;
+            }
+
+            results.forEach(movie => {
+                if (!movie.poster_path) return;
+                const card = document.createElement('div');
+                card.className = 'provider-card relative aspect-[2/3] rounded-xl overflow-hidden glass-panel border border-white/5 active:scale-95 transition-all animate-fade-in group';
+                card.innerHTML = `
+                    <img src="${IMAGE_BASE_URL}${movie.poster_path}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-4">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="bg-primary-container text-[8px] font-black px-1.5 py-0.5 rounded uppercase">Full HD</span>
+                            <span class="text-[10px] text-white/60 font-bold">${movie.release_date?.split('-')[0] || 'N/A'}</span>
+                        </div>
+                        <h4 class="text-xs font-black text-white uppercase truncate">${movie.title}</h4>
+                        <div class="mt-3 flex items-center justify-center w-full bg-white/10 hover:bg-white/20 backdrop-blur-md py-2 rounded-lg text-[10px] font-bold transition-all">
+                            ASSISTIR AGORA
+                        </div>
+                    </div>
+                `;
+                card.onclick = () => openStreamingPlayer(movie);
+                streamingResultsGrid.appendChild(card);
+            });
+        }
+
+        window.openStreamingPlayer = function(movie) {
+            const streamingIframe = document.getElementById('streaming-iframe');
+            const streamingPlayerTitle = document.getElementById('streaming-player-title');
+            const streamingPlayerOverlay = document.getElementById('streaming-player-overlay');
+            
+            const embedUrl = `https://myembed.biz/filme/${movie.id}`;
+            streamingIframe.src = embedUrl;
+            streamingPlayerTitle.textContent = movie.title;
+            
+            // Ativa o overlay global
+            streamingPlayerOverlay.classList.remove('translate-y-full');
+            streamingPlayerOverlay.classList.remove('pointer-events-none');
+            streamingPlayerOverlay.style.pointerEvents = 'auto';
+            
+            if (typeof cleanupTrailer === 'function') cleanupTrailer();
+        };
+
+        window.closeStreamingPlayer = function() {
+            const streamingPlayerOverlay = document.getElementById('streaming-player-overlay');
+            const streamingIframe = document.getElementById('streaming-iframe');
+            
+            streamingPlayerOverlay.classList.add('translate-y-full');
+            streamingPlayerOverlay.classList.add('pointer-events-none');
+            streamingPlayerOverlay.style.pointerEvents = 'none';
+            
+            setTimeout(() => {
+                streamingIframe.src = '';
+            }, 500);
+        };
+
+        // Listener para busca no streaming
+        document.addEventListener('input', (e) => {
+            if (e.target.id === 'streaming-search-input') {
+                clearTimeout(streamingSearchTimeout);
+                const query = e.target.value.trim();
+                if (query.length > 2) {
+                    streamingSearchTimeout = setTimeout(() => searchStreamingMovies(query), 500);
+                }
+            }
+        });
     </script>
 </body>
 </html>
