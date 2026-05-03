@@ -1690,6 +1690,14 @@
         }
 
         // Inicialização Global com Bloqueio de Splash
+        // Feedback Tátil (Vibração sutil para Mobile)
+        function triggerHaptic(ms = 10) {
+            if (navigator.vibrate) {
+                navigator.vibrate(ms);
+            }
+        }
+        window.triggerHaptic = triggerHaptic;
+
         async function initApp() {
             console.log("🎬 Iniciando MatchFlix...");
             initTrendingElements();
