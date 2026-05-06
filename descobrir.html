@@ -786,6 +786,63 @@
             color: white;
         }
 
+        .badge-container-gsap {
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .front-content:has(.trailer-preview-wrapper.active) .badge-container-gsap {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-10px);
+        }
+
+        .trailer-genres-container {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            right: 24px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            z-index: 50;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            pointer-events: none;
+        }
+
+        .trailer-genres-container.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .trailer-genre-pill {
+            background: rgba(229, 9, 20, 0.2);
+            border: 1px solid rgba(229, 9, 20, 0.55);
+            color: #ff3b30;
+            padding: 5px 12px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            box-shadow: 0 4px 15px rgba(229, 9, 20, 0.35), inset 0 0 10px rgba(229, 9, 20, 0.15);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            animation: pulse-neon 2s infinite alternate;
+        }
+
+        @keyframes pulse-neon {
+            0% {
+                box-shadow: 0 4px 15px rgba(229, 9, 20, 0.35), inset 0 0 10px rgba(229, 9, 20, 0.15);
+                border-color: rgba(229, 9, 20, 0.55);
+            }
+            100% {
+                box-shadow: 0 4px 25px rgba(229, 9, 20, 0.65), inset 0 0 12px rgba(229, 9, 20, 0.3);
+                border-color: rgba(229, 9, 20, 0.85);
+            }
+        }
+
         .badge-rating-hud {
             background-color: rgba(0, 0, 0, 0.4);
             backdrop-filter: blur(24px);
@@ -1499,6 +1556,11 @@
         function generateGenreLabelsHTML(movie) {
             const names = getGenreNames(movie);
             return names.map(name => `<span class="genre-pill">${name}</span>`).join('');
+        }
+
+        function generateTrailerGenreLabelsHTML(movie) {
+            const names = getGenreNames(movie);
+            return names.map(name => `<span class="trailer-genre-pill">${name}</span>`).join('');
         }
 
         
@@ -2223,7 +2285,7 @@
             return sortedGenres;
         }
 
-        // Inicializar a fila
+        // Inicializar a fila (Algorítimo de Filtros Nível Master com Multi-Stage Progressive Fallback)
         async function fetchMovies() {
             if (isFetching) return;
             isFetching = true;
@@ -2241,94 +2303,167 @@
                     'vote_count.gte': 100
                 };
 
-                let results = [];
-                // Estágios de busca: 0: Full, 1: Sem Mood, 2: Sem Ano, 3: Sem Gêneros, 4: Trending Global
-                let stage = 0; 
-                
-                while (results.length < 5 && stage <= 5) {
-                    if (stage >= 3 && filters?.genres && filters.genres.length > 0) {
-                        console.log("🛑 Filtro de gênero selecionado explicitamente. Interrompendo fallback para manter resultados exatos.");
-                        break;
+                // Helper: Parâmetros de Mood (Tipo de Momento)
+                function applyMoodParams(params, mood, keepKeywords) {
+                    switch(mood) {
+                        case 'underrated': 
+                            params.set('sort_by', 'vote_average.desc');
+                            params.set('vote_count.gte', 80);
+                            params.set('vote_count.lte', keepKeywords ? 2000 : 5000); 
+                            params.set('vote_average.gte', 7.0); 
+                            break;
+                        case 'relax': 
+                            params.set('without_genres', '27,53,10752'); // Excluir Terror, Suspense, Guerra
+                            break;
+                        case 'intense': 
+                            params.set('vote_average.gte', 6.0);
+                            break;
+                        case 'cry': 
+                            if (keepKeywords) params.set('with_keywords', '208453,970,15250');
+                            break;
+                        case 'laugh': 
+                            params.set('without_genres', '18,27'); // Excluir Drama e Terror
+                            break;
+                        case 'mind': 
+                            if (keepKeywords) params.set('with_keywords', '310,2343,3035');
+                            break;
+                    }
+                }
+
+                // Helper: Parâmetros de Ano
+                function applyYearParams(params, year) {
+                    const currentYear = new Date().getFullYear();
+                    if (year === 'recent') {
+                        params.set('primary_release_date.gte', `${currentYear - 3}-01-01`);
+                    } else if (year === 'classic') {
+                        params.set('primary_release_date.lte', '1999-12-31');
+                    } else {
+                        params.set('primary_release_year', year);
+                    }
+                }
+
+                // Helper: Parâmetros de Provedores de Streaming
+                function applyProvidersParams(params, providers) {
+                    const provArr = providers ? Array.from(providers) : [];
+                    if (provArr.length > 0) {
+                        params.set('watch_region', 'BR');
+                        params.set('with_watch_providers', provArr.join('|'));
+                        params.set('with_watch_monetization_types', 'flatrate');
+                    }
+                }
+
+                // Helper: Combinador Inteligente de Gêneros do Usuário e Gêneros do Mood
+                function applyGenresParams(params, userGenres, mood) {
+                    const uGenres = userGenres ? Array.from(userGenres) : [];
+                    let mGenres = [];
+
+                    if (mood) {
+                        switch(mood) {
+                            case 'relax': mGenres = [35, 10751]; break; // Comédia, Família
+                            case 'intense': mGenres = [53, 9648, 27]; break; // Suspense, Mistério, Terror
+                            case 'cry': mGenres = [18]; break; // Drama
+                            case 'laugh': mGenres = [35]; break; // Comédia
+                            case 'mind': mGenres = [878, 9648]; break; // Ficção Científica, Mistério
+                        }
                     }
 
-                    console.log(`🔍 Buscando filmes - Estágio ${stage}`);
+                    if (uGenres.length > 0 && mGenres.length > 0) {
+                        // Combina ambos os grupos com AND em TMDB: (Gêneros do Usuário via OR) AND (Gêneros do Mood via OR)
+                        params.set('with_genres', `${uGenres.join('|')},${mGenres.join('|')}`);
+                    } else if (uGenres.length > 0) {
+                        params.set('with_genres', uGenres.join('|')); // Utiliza OR para máxima flexibilidade
+                    } else if (mGenres.length > 0) {
+                        params.set('with_genres', mGenres.join('|'));
+                    }
+                }
+
+                let results = [];
+                // Multi-Stage Progressive Fallback Ladder (Estágios de 0 a 9)
+                let stage = 0; 
+                
+                while (results.length < 5 && stage <= 9) {
+                    console.log(`🧠 [Filtro Master] Buscando filmes - Estágio ${stage}`);
                     let queryParams = new URLSearchParams(baseParams);
                     let endpoint = 'discover/movie';
 
-                    if (stage < 4) {
-                        // 1. Mood (Removido no estágio 1+)
-                        if (stage < 1 && filters?.mood && filters.mood !== 'any') {
-                            switch(filters.mood) {
-                                case 'underrated': 
-                                    queryParams.set('sort_by', 'vote_average.desc');
-                                    queryParams.set('vote_count.gte', 150);
-                                    queryParams.set('vote_count.lte', 1500); 
-                                    queryParams.set('vote_average.gte', 7.2); 
-                                    break;
-                                case 'relax': 
-                                    queryParams.set('with_genres', '35,10751');
-                                    queryParams.set('without_genres', '27,53,10752');
-                                    break;
-                                case 'intense': 
-                                    queryParams.set('with_genres', '53,9648,27');
-                                    queryParams.set('vote_average.gte', 6.5);
-                                    break;
-                                case 'cry': 
-                                    queryParams.set('with_genres', '18');
-                                    queryParams.set('with_keywords', '208453,970,15250');
-                                    break;
-                                case 'laugh': 
-                                    queryParams.set('with_genres', '35');
-                                    queryParams.set('without_genres', '18,27');
-                                    break;
-                                case 'mind': 
-                                    queryParams.set('with_genres', '878,9648');
-                                    queryParams.set('with_keywords', '310,2343,3035');
-                                    break;
-                            }
-                        }
+                    const dynamicGenres = calculateDynamicGenres();
+                    const activeGenres = filters?.genres?.length > 0 ? filters.genres : (dynamicGenres.length > 0 ? dynamicGenres : (favoriteGenres.length > 0 ? favoriteGenres : []));
 
-                        // 2. Nota Mínima (Sempre mantida)
+                    if (stage === 0) {
+                        // Estágio 0: Filtros Completos e Estritos
+                        if (filters?.mood && filters.mood !== 'any') applyMoodParams(queryParams, filters.mood, true);
+                        if (filters?.year && filters.year !== 'all') applyYearParams(queryParams, filters.year);
+                        if (filters?.minRating) queryParams.set('vote_average.gte', parseFloat(filters.minRating));
+                        applyGenresParams(queryParams, activeGenres, filters?.mood);
+                        applyProvidersParams(queryParams, filters?.providers);
+                    } 
+                    else if (stage === 1) {
+                        // Estágio 1: Relaxar Keywords restritivas do Mood (mantém gêneros do mood)
+                        if (filters?.mood && filters.mood !== 'any') applyMoodParams(queryParams, filters.mood, false);
+                        if (filters?.year && filters.year !== 'all') applyYearParams(queryParams, filters.year);
+                        if (filters?.minRating) queryParams.set('vote_average.gte', parseFloat(filters.minRating));
+                        applyGenresParams(queryParams, activeGenres, filters?.mood);
+                        applyProvidersParams(queryParams, filters?.providers);
+                    } 
+                    else if (stage === 2) {
+                        // Estágio 2: Relaxar Mood completamente (mantém Gêneros, Ano, Rating, Provedores)
+                        if (filters?.year && filters.year !== 'all') applyYearParams(queryParams, filters.year);
+                        if (filters?.minRating) queryParams.set('vote_average.gte', parseFloat(filters.minRating));
+                        applyGenresParams(queryParams, activeGenres, null);
+                        applyProvidersParams(queryParams, filters?.providers);
+                    } 
+                    else if (stage === 3) {
+                        // Estágio 3: Relaxar Ano (busca todos os anos)
+                        if (filters?.minRating) queryParams.set('vote_average.gte', parseFloat(filters.minRating));
+                        applyGenresParams(queryParams, activeGenres, null);
+                        applyProvidersParams(queryParams, filters?.providers);
+                    } 
+                    else if (stage === 4) {
+                        // Estágio 4: Relaxar Nota Mínima (reduz em 1.5 pontos, mínimo de 5.0)
                         if (filters?.minRating) {
-                            const min = parseFloat(filters.minRating);
-                            queryParams.set('vote_average.gte', min);
+                            const relaxedRating = Math.max(5.0, parseFloat(filters.minRating) - 1.5);
+                            queryParams.set('vote_average.gte', relaxedRating);
                         }
-
-                        // 3. Gêneros (Removido no estágio 3)
-                        if (stage < 3) {
-                            const dynamicGenres = calculateDynamicGenres();
-                            const activeGenres = filters?.genres?.length > 0 ? filters.genres : (dynamicGenres.length > 0 ? dynamicGenres : (favoriteGenres.length > 0 ? favoriteGenres : []));
-                            if (activeGenres.length > 0) queryParams.set('with_genres', activeGenres.join(','));
+                        applyGenresParams(queryParams, activeGenres, null);
+                        applyProvidersParams(queryParams, filters?.providers);
+                    } 
+                    else if (stage === 5) {
+                        // Estágio 5: Relaxar Gêneros do usuário para Gêneros Dinâmicos/Favoritos
+                        const fallbackGenres = dynamicGenres.length > 0 ? dynamicGenres : favoriteGenres;
+                        if (filters?.minRating) {
+                            const relaxedRating = Math.max(5.0, parseFloat(filters.minRating) - 1.5);
+                            queryParams.set('vote_average.gte', relaxedRating);
                         }
-
-                        // 4. Provedores
-                        if (filters?.providers?.length > 0) {
-                            queryParams.set('watch_region', 'BR');
-                            queryParams.set('with_watch_providers', filters.providers.join('|'));
-                            queryParams.set('with_watch_monetization_types', 'flatrate');
+                        applyGenresParams(queryParams, fallbackGenres, null);
+                        applyProvidersParams(queryParams, filters?.providers);
+                    } 
+                    else if (stage === 6) {
+                        // Estágio 6: Remover filtro de Gêneros completamente (mantém Provedores e Nota relaxada)
+                        if (filters?.minRating) {
+                            const relaxedRating = Math.max(5.0, parseFloat(filters.minRating) - 1.5);
+                            queryParams.set('vote_average.gte', relaxedRating);
                         }
-
-                        // 5. Ano (Removido no estágio 2+)
-                        if (stage < 2 && filters?.year && filters.year !== 'all') {
-                            const currentYear = new Date().getFullYear();
-                            if (filters.year === 'recent') {
-                                queryParams.set('primary_release_date.gte', `${currentYear - 3}-01-01`);
-                            } else if (filters.year === 'classic') {
-                                queryParams.set('primary_release_date.lte', '1999-12-31');
-                            } else {
-                                queryParams.set('primary_release_year', filters.year);
-                            }
+                        applyProvidersParams(queryParams, filters?.providers);
+                    } 
+                    else if (stage === 7) {
+                        // Estágio 7: Relaxar Provedores de Streaming (mantém Gêneros selecionados e Nota relaxada)
+                        if (filters?.minRating) {
+                            const relaxedRating = Math.max(5.0, parseFloat(filters.minRating) - 1.5);
+                            queryParams.set('vote_average.gte', relaxedRating);
                         }
-                    } else if (stage === 4) {
-                        // Estágio 4: Trending Global
+                        applyGenresParams(queryParams, activeGenres, null);
+                    } 
+                    else if (stage === 8) {
+                        // Estágio 8: Trending Global (Tendências da semana)
                         endpoint = 'trending/movie/week';
                         queryParams.delete('with_genres');
                         queryParams.delete('without_genres');
                         queryParams.delete('vote_average.gte');
                         queryParams.delete('vote_count.gte');
                         queryParams.delete('sort_by');
-                    } else {
-                        // Estágio 5: Diversidade Total (Emergência)
+                    } 
+                    else if (stage === 9) {
+                        // Estágio 9: Diversidade Total / Popularidade Global (Emergência absoluta)
                         endpoint = 'discover/movie';
                         queryParams = new URLSearchParams({
                             api_key: API_KEY,
@@ -2337,12 +2472,12 @@
                             'vote_count.gte': 50,
                             include_adult: 'false'
                         });
-                        // Escolhe uma página aleatória entre 1 e 100 para garantir novidade
-                        const randomPage = Math.floor(Math.random() * 100) + 1;
+                        const randomPage = Math.floor(Math.random() * 50) + 1;
                         queryParams.set('page', randomPage);
                     }
 
-                    let pageToFetch = (stage === 0) ? currentPage : (stage === 4 ? currentTrendingFallbackPage : (stage === 5 ? parseInt(queryParams.get('page')) : 1));
+                    // Define qual página buscar baseando-se no estágio
+                    let pageToFetch = (stage === 0) ? currentPage : (stage === 8 ? currentTrendingFallbackPage : 1);
                     let attempts = 0;
                     const maxAttempts = (stage === 0) ? 6 : 3;
 
@@ -2355,7 +2490,7 @@
                             const data = await res.json();
                             
                             if (!data.results || data.results.length === 0) {
-                                // Se esgotou páginas, tenta uma aleatória para diversidade
+                                // Se esgotou páginas, tenta página aleatória segura para variedade
                                 pageToFetch = Math.floor(Math.random() * 20) + 1;
                                 attempts++;
                                 continue;
@@ -2367,7 +2502,7 @@
                                 !results.some(r => r.id === m.id)
                             );
 
-                            console.log(`📍 Estágio ${stage}: Encontrados ${data.results.length} filmes, ${filtered.length} novos.`);
+                            console.log(`📍 Estágio ${stage} (pág ${pageToFetch}): Encontrados ${data.results.length} filmes, ${filtered.length} novos.`);
                             results = [...results, ...filtered];
                             pageToFetch++;
                             if (pageToFetch > 500) pageToFetch = 1;
@@ -2377,9 +2512,9 @@
                         attempts++;
                     }
 
-                    // Atualiza rastreadores persistentes
+                    // Atualiza rastreadores de página persistentes
                     if (stage === 0) currentPage = pageToFetch;
-                    if (stage === 4) currentTrendingFallbackPage = pageToFetch;
+                    if (stage === 8) currentTrendingFallbackPage = pageToFetch;
                     
                     stage++;
                 }
@@ -2395,7 +2530,7 @@
                         renderTopCards();
                     }
                 } else if (moviesQueue.length === 0) {
-                    // Fallback Supremo
+                    // Fallback Supremo em caso de esgotamento total de dados no banco / TMDB
                     console.log("⚠️ Esgotamento total de sugestões.");
                     stackContainer.innerHTML = `
                         <div class="flex flex-col items-center justify-center h-full text-center p-8 animate-fade-in">
@@ -2610,6 +2745,10 @@
                 <img src="${posterUrl}" alt="${movie.title}" class="card-poster-img absolute inset-0 w-full h-full object-cover select-none pointer-events-none z-10">
                 <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent opacity-90 pointer-events-none z-15"></div>
                 
+                <div class="trailer-genres-container" id="trailer-genres-${movie.id}">
+                    ${generateTrailerGenreLabelsHTML(movie)}
+                </div>
+
                 <!-- Trailer Preview System -->
                 <div class="trailer-preview-wrapper" id="trailer-wrapper-${movie.id}">
                     <div class="w-full aspect-video" id="trailer-preview-${movie.id}"></div>
@@ -2865,6 +3004,15 @@
                             isPreviewPlaying = true;
                             if (wrapper) wrapper.classList.add('active');
                             if (unmuteBtn) unmuteBtn.classList.add('visible');
+                            
+                            // Ativar as labels de gênero do trailer no topo do card
+                            if (wrapper) {
+                                const frontEl = wrapper.closest('.front-content');
+                                if (frontEl) {
+                                    const genresCont = frontEl.querySelector('.trailer-genres-container');
+                                    if (genresCont) genresCont.classList.add('active');
+                                }
+                            }
                         },
                         onStateChange: (event) => {
                             console.log(`🔄 Trailer State: ${event.data}`);
@@ -2902,6 +3050,9 @@
                 // Opcional: restaurar o div interno se o destroy não o fizer ou se quisermos garantir
                 const movieId = w.id.replace('trailer-wrapper-', '');
                 w.innerHTML = `<div id="trailer-preview-${movieId}"></div>`;
+            });
+            document.querySelectorAll('.trailer-genres-container').forEach(c => {
+                c.classList.remove('active');
             });
             document.querySelectorAll('.unmute-btn').forEach(b => b.classList.remove('visible'));
         }
