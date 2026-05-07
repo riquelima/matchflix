@@ -2056,6 +2056,30 @@
                 });
                 
                 console.log(`✅ Histórico carregado: ${interactedMovieIds.size} filmes.`);
+
+                // Pré-popular likedMoviesLocal com os filmes que o usuário curtiu no banco de dados para o algoritmo dinâmico de sugestões
+                const likedRecent = allData
+                    .filter(item => item.curtiu && !item.assistido)
+                    .sort((a, b) => new Date(b.criado_em) - new Date(a.criado_em))
+                    .slice(0, 10);
+
+                if (likedRecent.length > 0) {
+                    const fetchPromises = likedRecent.map(async (item) => {
+                        try {
+                            const res = await fetch(`https://api.themoviedb.org/3/movie/${item.filme_id}?api_key=${API_KEY}&language=pt-BR`);
+                            if (res.ok) {
+                                const movie = await res.json();
+                                if (!likedMoviesLocal.find(m => m.id === movie.id)) {
+                                    likedMoviesLocal.push(movie);
+                                }
+                            }
+                        } catch (err) {
+                            console.error(`Erro ao pré-carregar filme curtido ${item.filme_id}:`, err);
+                        }
+                    });
+                    await Promise.all(fetchPromises);
+                    console.log(`🧠 [Algoritmo Dinâmico] ${likedMoviesLocal.length} filmes carregados do banco para sugestões baseadas em likes.`);
+                }
             } catch(e) {
                 console.error("Erro ao carregar histórico", e);
             }
@@ -2295,6 +2319,7 @@
 
                 // Helper: Parâmetros de Ano
                 function applyYearParams(params, year) {
+                    if (!year || year === 'all') return;
                     const currentYear = new Date().getFullYear();
                     if (year === 'recent') {
                         params.set('primary_release_date.gte', `${currentYear - 3}-01-01`);
@@ -4862,18 +4887,14 @@
                 const jsonPart = parts[1] ? parts[1].trim() : '';
                 
                 let cleanJson = jsonPart;
-                // Remove blocos de código markdown (como ```json ou ```)
                 cleanJson = cleanJson.replace(/```json/gi, '').replace(/```/g, '').trim();
-                // Normaliza aspas inteligentes e aspas simples
                 cleanJson = cleanJson.replace(/[“”]/g, '"').replace(/[‘’]/g, '"');
                 
                 try {
-                    // Tentativa de parse direto com correção de aspas simples
                     const jsonToParse = cleanJson.replace(/'/g, '"');
                     recommendedMovies = JSON.parse(jsonToParse);
                 } catch (e) {
                     console.warn("Falha no JSON.parse padrão, ativando recuperação por Regex:", e);
-                    // Fallback ultra robusto: Extrai tudo o que estiver entre aspas duplas ou simples
                     const regexDouble = /"([^"\r\n]+)"/g;
                     const regexSingle = /'([^'\r\n]+)'/g;
                     let match;
@@ -4894,14 +4915,38 @@
                         }
                     }
                 }
-
-                // Garante que é uma lista válida
-                if (!Array.isArray(recommendedMovies)) {
-                    if (recommendedMovies && recommendedMovies.movies && Array.isArray(recommendedMovies.movies)) {
-                        recommendedMovies = recommendedMovies.movies;
-                    } else {
+            } else {
+                // Se o Gemini não incluiu ||| mas colocou um array [ "Filme" ] em algum lugar
+                const bracketMatch = rawResponse.match(/\[\s*["'][\s\S]*?["']\s*\]/);
+                if (bracketMatch) {
+                    const jsonPart = bracketMatch[0].trim();
+                    textToShow = rawResponse.replace(jsonPart, '').trim();
+                    
+                    let cleanJson = jsonPart.replace(/```json/gi, '').replace(/```/g, '').trim();
+                    cleanJson = cleanJson.replace(/[“”]/g, '"').replace(/[‘’]/g, '"');
+                    
+                    try {
+                        recommendedMovies = JSON.parse(cleanJson.replace(/'/g, '"'));
+                    } catch (e) {
+                        const regexDouble = /"([^"\r\n]+)"/g;
+                        let match;
                         recommendedMovies = [];
+                        while ((match = regexDouble.exec(cleanJson)) !== null) {
+                            const val = match[1].trim();
+                            if (val && val !== '[' && val !== ']') {
+                                recommendedMovies.push(val);
+                            }
+                        }
                     }
+                }
+            }
+
+            // Garante que é uma lista válida
+            if (!Array.isArray(recommendedMovies)) {
+                if (recommendedMovies && recommendedMovies.movies && Array.isArray(recommendedMovies.movies)) {
+                    recommendedMovies = recommendedMovies.movies;
+                } else {
+                    recommendedMovies = [];
                 }
             }
 
@@ -5029,7 +5074,7 @@
 
         async function askGemini(prompt) {
             const API_KEY_GOOGLE = "AIzaSyB73ZOA2Qr1izJg0IW2TaYpZvvXMpKnL-A";
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${API_KEY_GOOGLE}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY_GOOGLE}`;
             
             const systemInstruction = "Você é o Cine-Bot, o assistente virtual de recomendação de filmes do MatchFlix. " +
                 "Seu objetivo é responder em Português do Brasil de forma entusiasmada, concisa e cinéfila. " +
@@ -5051,7 +5096,7 @@
                         contents: [
                             {
                                 role: "user",
-                                parts: [{ text: prompt }]
+                                parts: [{ text: prompt + "\n\n[Regra Estrita de Formato: Escreva de forma empolgante com no máximo 2 ou 3 frases. NÃO liste os filmes em texto ou em listas numeradas. Ao final de tudo, na última linha, adicione obrigatoriamente a lista de filmes sugeridos estritamente no formato JSON delimitado por ||| para os pôsteres carregarem corretamente, exemplo: |||[\"Matrix\", \"Interestelar\"]|||]" }]
                             }
                         ],
                         systemInstruction: {
