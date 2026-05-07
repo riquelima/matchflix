@@ -4972,6 +4972,45 @@
             messagesContainer.insertAdjacentHTML('beforeend', botMsgHTML);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
+            // Fallback defensivo: Se a IA não retornou nenhum filme no array JSON, extrai termos do prompt do usuário e busca no TMDB para que o chat NUNCA fique sem pôsteres!
+            if (recommendedMovies.length === 0) {
+                console.warn("⚠️ IA respondeu sem filmes no JSON, ativando fallback automático de busca por palavras-chave!");
+                const keywords = prompt
+                    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"")
+                    .split(/\s+/)
+                    .filter(w => w.length > 3 && !['para', 'com', 'mais', 'sobre', 'filme', 'filmes', 'como', 'onde', 'quero', 'dicas', 'sugira', 'indique', 'meu', 'minha', 'tudo', 'esta'].includes(w.toLowerCase()));
+                
+                if (keywords.length > 0) {
+                    try {
+                        const searchTerm = keywords.slice(0, 3).join(' ');
+                        const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&language=pt-BR&query=${encodeURIComponent(searchTerm)}&page=1`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.results && data.results.length > 0) {
+                                recommendedMovies = data.results.slice(0, 5).map(m => m.title);
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Erro no fallback de busca por palavras-chave:", err);
+                    }
+                }
+                
+                // Se ainda assim estiver vazio, puxa filmes populares/trending da semana
+                if (recommendedMovies.length === 0) {
+                    try {
+                        const res = await fetch(`https://api.themoviedb.org/3/trending/movie/week?api_key=${API_KEY}&language=pt-BR&page=1`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.results) {
+                                recommendedMovies = data.results.slice(0, 5).map(m => m.title);
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Erro no fallback secundário de trending:", err);
+                    }
+                }
+            }
+
             // 5. Se houver filmes recomendados, busca no TMDB e exibe os pôsteres!
             if (recommendedMovies.length > 0) {
                 const carouselId = 'ia-carousel-' + Date.now();
@@ -5077,6 +5116,7 @@
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY_GOOGLE}`;
             
             const systemInstruction = "Você é o Cine-Bot, o assistente virtual de recomendação de filmes do MatchFlix. " +
+                "Considere obrigatoriamente que o ano atual é 2026. Portanto, os filmes de 2024, 2025 e início de 2026 já foram lançados e o Oscar de 2025 já aconteceu! " +
                 "Seu objetivo é responder em Português do Brasil de forma entusiasmada, concisa e cinéfila. " +
                 "Sugira exatamente de 3 a 5 filmes que correspondam ao gosto e clima que o usuário descreveu. " +
                 "Escreva uma resposta de texto curta e empolgante de no máximo 2 ou 3 frases. " +
@@ -5096,7 +5136,7 @@
                         contents: [
                             {
                                 role: "user",
-                                parts: [{ text: prompt + "\n\n[Regra Estrita de Formato: Escreva de forma empolgante com no máximo 2 ou 3 frases. NÃO liste os filmes em texto ou em listas numeradas. Ao final de tudo, na última linha, adicione obrigatoriamente a lista de filmes sugeridos estritamente no formato JSON delimitado por ||| para os pôsteres carregarem corretamente, exemplo: |||[\"Matrix\", \"Interestelar\"]|||]" }]
+                                parts: [{ text: prompt + "\n\n[Regra Estrita de Formato: Lembre-se de que o ano atual é 2026. Escreva de forma empolgante com no máximo 2 ou 3 frases. NÃO liste os filmes em texto ou em listas numeradas. Ao final de tudo, na última linha, adicione obrigatoriamente a lista de filmes sugeridos estritamente no formato JSON delimitado por ||| para os pôsteres carregarem corretamente, exemplo: |||[\"Matrix\", \"Interestelar\"]|||]" }]
                             }
                         ],
                         systemInstruction: {
