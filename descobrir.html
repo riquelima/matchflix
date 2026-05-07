@@ -5002,6 +5002,65 @@
             textToShow = textToShow.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             textToShow = textToShow.replace(/\*(.*?)\*/g, '<em>$1</em>');
 
+            // --- PRÉ-BUSCA E VALIDAÇÃO DOS FILMES NO TMDB (Blinda total do chat - Garante que só exibe com pôster) ---
+            let validMovies = [];
+            if (recommendedMovies.length > 0) {
+                const promises = recommendedMovies.slice(0, 5).map(async (title) => {
+                    try {
+                        const searchUrl = `https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(title)}&language=pt-BR`;
+                        const res = await fetch(searchUrl);
+                        if (!res.ok) return null;
+                        const searchData = await res.json();
+                        // Filtra apenas filmes que realmente existam e tenham um poster_path no TMDB
+                        return searchData.results && searchData.results[0] && searchData.results[0].poster_path ? searchData.results[0] : null;
+                    } catch (err) {
+                        console.error(`Erro na pré-busca do filme ${title}:`, err);
+                        return null;
+                    }
+                });
+                const results = await Promise.all(promises);
+                validMovies = results.filter(m => m !== null);
+            }
+
+            // Fallback de primeiro nível por palavra-chave se não houver filmes válidos com pôster
+            if (validMovies.length === 0) {
+                console.warn("⚠️ Sem filmes com pôsteres válidos, iniciando busca por palavras-chave...");
+                const keywords = prompt
+                    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"")
+                    .split(/\s+/)
+                    .filter(w => w.length > 3 && !['para', 'com', 'mais', 'sobre', 'filme', 'filmes', 'como', 'onde', 'quero', 'dicas', 'sugira', 'indique', 'meu', 'minha', 'tudo', 'esta'].includes(w.toLowerCase()));
+                
+                if (keywords.length > 0) {
+                    try {
+                        const searchTerm = keywords.slice(0, 3).join(' ');
+                        const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&language=pt-BR&query=${encodeURIComponent(searchTerm)}&page=1`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.results) {
+                                validMovies = data.results.filter(m => m.poster_path).slice(0, 5);
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Erro na busca de fallback pré-render:", err);
+                    }
+                }
+            }
+
+            // Fallback de segundo nível por trending se ainda assim estiver vazio
+            if (validMovies.length === 0) {
+                try {
+                    const res = await fetch(`https://api.themoviedb.org/3/trending/movie/week?api_key=${API_KEY}&language=pt-BR&page=1`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.results) {
+                            validMovies = data.results.filter(m => m.poster_path).slice(0, 5);
+                        }
+                    }
+                } catch (err) {
+                    console.error("Erro na busca secundária de trending pré-render:", err);
+                }
+            }
+
             // Renderiza a resposta de texto do Cine-Bot
             const botResponseId = 'bot-resp-' + Date.now();
             const botMsgHTML = `
@@ -5018,86 +5077,14 @@
                 </div>
             `;
             messagesContainer.insertAdjacentHTML('beforeend', botMsgHTML);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-            // Fallback defensivo: Se a IA não retornou nenhum filme no array JSON, extrai termos do prompt do usuário e busca no TMDB para que o chat NUNCA fique sem pôsteres!
-            if (recommendedMovies.length === 0) {
-                console.warn("⚠️ IA respondeu sem filmes no JSON, ativando fallback automático de busca por palavras-chave!");
-                const keywords = prompt
-                    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"")
-                    .split(/\s+/)
-                    .filter(w => w.length > 3 && !['para', 'com', 'mais', 'sobre', 'filme', 'filmes', 'como', 'onde', 'quero', 'dicas', 'sugira', 'indique', 'meu', 'minha', 'tudo', 'esta'].includes(w.toLowerCase()));
-                
-                if (keywords.length > 0) {
-                    try {
-                        const searchTerm = keywords.slice(0, 3).join(' ');
-                        const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&language=pt-BR&query=${encodeURIComponent(searchTerm)}&page=1`);
-                        if (res.ok) {
-                            const data = await res.json();
-                            if (data.results && data.results.length > 0) {
-                                recommendedMovies = data.results.slice(0, 5).map(m => m.title);
-                            }
-                        }
-                    } catch (err) {
-                        console.error("Erro no fallback de busca por palavras-chave:", err);
-                    }
-                }
-                
-                // Se ainda assim estiver vazio, puxa filmes populares/trending da semana
-                if (recommendedMovies.length === 0) {
-                    try {
-                        const res = await fetch(`https://api.themoviedb.org/3/trending/movie/week?api_key=${API_KEY}&language=pt-BR&page=1`);
-                        if (res.ok) {
-                            const data = await res.json();
-                            if (data.results) {
-                                recommendedMovies = data.results.slice(0, 5).map(m => m.title);
-                            }
-                        }
-                    } catch (err) {
-                        console.error("Erro no fallback secundário de trending:", err);
-                    }
-                }
-            }
-
-            // 5. Se houver filmes recomendados, busca no TMDB e exibe os pôsteres!
-            if (recommendedMovies.length > 0) {
+            // Renderiza o carrossel de pôsteres (Agora 100% garantido e sincronizado!)
+            if (validMovies.length > 0) {
                 const carouselId = 'ia-carousel-' + Date.now();
                 const carouselHTML = `
                     <div class="flex gap-3 pl-11 overflow-x-auto pb-4 pt-1 snap-x no-scrollbar w-full" id="${carouselId}">
-                        <!-- Skeletons enquanto busca os filmes no TMDB -->
-                        ${recommendedMovies.slice(0, 5).map(() => `
-                            <div class="w-[120px] h-[180px] rounded-2xl bg-white/5 border border-white/10 shrink-0 flex items-center justify-center animate-pulse">
-                                <span class="material-symbols-outlined text-white/10 text-2xl animate-spin">sync</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
-                messagesContainer.insertAdjacentHTML('beforeend', carouselHTML);
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-                const carouselContainer = document.getElementById(carouselId);
-                if (carouselContainer) {
-                    const promises = recommendedMovies.slice(0, 5).map(async (title) => {
-                        try {
-                            const searchUrl = `https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(title)}&language=pt-BR`;
-                            const res = await fetch(searchUrl);
-                            if (!res.ok) return null;
-                            const searchData = await res.json();
-                            return searchData.results && searchData.results[0] ? searchData.results[0] : null;
-                        } catch (err) {
-                            console.error(`Erro ao buscar o filme ${title} no TMDB:`, err);
-                            return null;
-                        }
-                    });
-
-                    const movieResults = await Promise.all(promises);
-                    const validMovies = movieResults.filter(m => m !== null);
-
-                    if (validMovies.length > 0) {
-                        carouselContainer.innerHTML = validMovies.map(movie => {
-                            const posterSrc = movie.poster_path 
-                                ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` 
-                                : 'https://placehold.co/342x513/000000/ffffff?text=Sem+Poster';
+                        ${validMovies.map(movie => {
+                            const posterSrc = `https://image.tmdb.org/t/p/w342${movie.poster_path}`;
                             const movieObjSafe = JSON.stringify(movie).replace(/'/g, "\\'");
 
                             return `
@@ -5113,54 +5100,28 @@
                                     <p class="text-[10px] font-headline font-extrabold text-white truncate px-1">${movie.title}</p>
                                 </div>
                             `;
-                        }).join('');
-
-                        if (currentUser) {
-                            supabase.from('ia_chat_messages').insert({
-                                user_id: currentUser.id,
-                                role: 'model',
-                                content: textToShow,
-                                movies: validMovies
-                            }).then(({ error }) => { if (error) console.error("Erro ao salvar mensagem no Supabase:", error); });
-                        }
-                    } else {
-                        carouselContainer.remove();
-                        if (currentUser) {
-                            supabase.from('ia_chat_messages').insert({
-                                user_id: currentUser.id,
-                                role: 'model',
-                                content: textToShow,
-                                movies: []
-                            }).then(({ error }) => { if (error) console.error("Erro ao salvar mensagem no Supabase:", error); });
-                        }
-                    }
-                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                } else {
-                    if (currentUser) {
-                        supabase.from('ia_chat_messages').insert({
-                            user_id: currentUser.id,
-                            role: 'model',
-                            content: textToShow,
-                            movies: []
-                        }).then(({ error }) => { if (error) console.error("Erro ao salvar mensagem no Supabase:", error); });
-                    }
-                }
-                isIASending = false;
-            } else {
-                if (currentUser) {
-                    supabase.from('ia_chat_messages').insert({
-                        user_id: currentUser.id,
-                        role: 'model',
-                        content: textToShow,
-                        movies: []
-                    }).then(({ error }) => { if (error) console.error("Erro ao salvar mensagem no Supabase:", error); });
-                }
-                isIASending = false;
+                        }).join('')}
+                    </div>
+                `;
+                messagesContainer.insertAdjacentHTML('beforeend', carouselHTML);
             }
+
+            // Salva consolidado no Supabase de forma assíncrona
+            if (currentUser) {
+                supabase.from('ia_chat_messages').insert({
+                    user_id: currentUser.id,
+                    role: 'model',
+                    content: textToShow,
+                    movies: validMovies
+                }).then(({ error }) => { if (error) console.error("Erro ao salvar mensagem no Supabase:", error); });
+            }
+
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            isIASending = false;
         }
 
         async function askGemini(prompt) {
-            const API_KEY_GOOGLE = "AIzaSyB73ZOA2Qr1izJg0IW2TaYpZvvXMpKnL-A";
+            const API_KEY_GOOGLE = localStorage.getItem('gemini_api_key') || "AIzaSyB73ZOA2Qr1izJg0IW2TaYpZvvXMpKnL-A";
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY_GOOGLE}`;
             
             const systemInstruction = "Você é o Cine-Bot, o assistente virtual de recomendação de filmes do MatchFlix. " +
@@ -5197,12 +5158,63 @@
                     })
                 });
 
+                if (response.status === 403) {
+                    promptForGeminiApiKey();
+                    throw new Error("Sua chave de API do Gemini foi revogada pela Google por segurança (leaked). Por favor configure uma nova chave.");
+                }
+
                 if (!response.ok) throw new Error("Erro na chamada da API do Gemini");
                 const data = await response.json();
                 return data.candidates[0].content.parts[0].text;
             } catch (err) {
                 console.error("Erro ao chamar o Gemini:", err);
                 return null;
+            }
+        }
+
+        // Modal para inserção de chave pessoal para evitar chaves desativadas por leak
+        function promptForGeminiApiKey() {
+            let modal = document.getElementById('gemini-key-modal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'gemini-key-modal';
+                modal.className = 'fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[9999] px-4';
+                modal.innerHTML = `
+                    <div class="bg-zinc-950 border border-white/10 rounded-3xl p-6 max-w-sm w-full shadow-2xl flex flex-col gap-4 text-center cinematic-shadow">
+                        <div class="flex flex-col items-center gap-2">
+                            <div class="w-12 h-12 rounded-2xl bg-primary-container/10 border border-primary-container/20 flex items-center justify-center mb-1">
+                                <span class="material-symbols-outlined text-primary-container text-2xl">vpn_key</span>
+                            </div>
+                            <h3 class="font-headline font-black text-white text-lg">Chave do Gemini Desativada</h3>
+                            <p class="text-[11px] text-white/40">A chave padrão pública foi bloqueada pela Google por segurança.</p>
+                        </div>
+                        <p class="text-xs text-white/70 leading-relaxed font-body">
+                            Para restabelecer o Cine-Bot instantaneamente e de forma 100% gratuita, gere uma chave de API pessoal em 10 segundos no <a href="https://aistudio.google.com/" target="_blank" class="text-primary-container hover:underline font-bold">Google AI Studio (Clique Aqui)</a> e cole-a abaixo:
+                        </p>
+                        <input type="text" id="gemini-key-input" placeholder="Cole sua chave AIzaSy..." 
+                               class="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-xs text-white focus:outline-none focus:border-primary-container/40 font-mono">
+                        <div class="flex gap-2 mt-1">
+                            <button onclick="saveGeminiApiKey()" class="flex-1 bg-primary-container hover:bg-primary-container/80 text-white text-xs font-bold py-3.5 rounded-2xl active:scale-95 transition-transform duration-200">
+                                Salvar e Ativar Cine-Bot 🚀
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            } else {
+                modal.classList.remove('hidden');
+            }
+        }
+
+        window.saveGeminiApiKey = function() {
+            const input = document.getElementById('gemini-key-input');
+            if (input && input.value.trim()) {
+                localStorage.setItem('gemini_api_key', input.value.trim());
+                document.getElementById('gemini-key-modal').classList.add('hidden');
+                showToast("Chave do Gemini ativada com sucesso! 🚀");
+                setTimeout(() => { location.reload(); }, 1000);
+            } else {
+                showToast("Por favor, insira uma chave válida.");
             }
         }
 
