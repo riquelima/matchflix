@@ -1722,13 +1722,13 @@
                 // 2. Pôsteres das Tendências (os 4 primeiros de cada seção principal)
                 const trendingData = await fetchTrending();
                 if (trendingData) {
-                    if (trendingData.day) {
-                        trendingData.day.slice(0, 4).forEach(m => {
+                    if (trendingData.day && trendingData.day.results) {
+                        trendingData.day.results.slice(0, 4).forEach(m => {
                             if (m.poster_path) postersToLoad.push(`${IMAGE_BASE_URL}${m.poster_path}`);
                         });
                     }
-                    if (trendingData.awarded) {
-                        trendingData.awarded.slice(0, 4).forEach(m => {
+                    if (trendingData.awarded && trendingData.awarded.results) {
+                        trendingData.awarded.results.slice(0, 4).forEach(m => {
                             if (m.poster_path) postersToLoad.push(`${IMAGE_BASE_URL}${m.poster_path}`);
                         });
                     }
@@ -3412,280 +3412,337 @@
         }
 
         let isTrendingLoaded = false;
+        let cachedTrendingData = null;
+
+        function renderTrendingData(data) {
+            if (!data) return;
+            
+            const { day, week, upcoming, awarded, newReleases, news } = data;
+            
+            // 0. Renderizar Notícias
+            if (news && news.length > 0 && newsList) {
+                newsList.innerHTML = '';
+                news.slice(0, 20).forEach(article => {
+                    const newsCard = document.createElement('div');
+                    newsCard.className = 'shrink-0 w-[280px] snap-start relative group';
+                    newsCard.innerHTML = `
+                        <div class="aspect-[16/9] rounded-2xl overflow-hidden border border-white/5 relative shadow-2xl">
+                            <img src="${article.image_url}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
+                            <div class="absolute top-2 right-2 bg-black/40 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10">
+                                <p class="text-[7px] font-black text-white/60 uppercase tracking-tighter">${article.source_name}</p>
+                            </div>
+                            <div class="absolute bottom-3 left-3 right-3">
+                                <h4 class="text-[11px] font-bold text-white line-clamp-2 leading-tight uppercase tracking-tight">${article.title}</h4>
+                            </div>
+                        </div>
+                    `;
+                    newsCard.onclick = () => window.open(article.article_url, '_blank');
+                    newsList.appendChild(newsCard);
+                });
+            }
+
+            // 2. Renderizar Próximos Lançamentos
+            if (upcoming && upcoming.results) {
+                const filteredUpcoming = upcoming.results.filter(m => !interactedMovieIds.has(Number(m.id)));
+                if (upcomingList) upcomingList.innerHTML = '';
+                
+                const sectionUpcoming = upcomingList ? upcomingList.closest('section') : null;
+                if (filteredUpcoming.length === 0) {
+                    if (sectionUpcoming) sectionUpcoming.classList.add('hidden');
+                } else {
+                    if (sectionUpcoming) sectionUpcoming.classList.remove('hidden');
+                    filteredUpcoming.slice(0, 10).forEach(movie => {
+                        const movieDiv = document.createElement('div');
+                        movieDiv.className = 'shrink-0 w-[140px] snap-start';
+                        movieDiv.innerHTML = `
+                            <div class="aspect-[2/3] rounded-2xl overflow-hidden border border-white/10 mb-2 relative group">
+                                <img src="${IMAGE_BASE_URL}${movie.poster_path}" class="w-full h-full object-cover" loading="lazy">
+                                <div class="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg">
+                                    <p class="text-[8px] font-black text-primary-container">EM BREVE</p>
+                                </div>
+                            </div>
+                            <h4 class="text-[10px] font-bold text-white line-clamp-1 uppercase">${movie.title}</h4>
+                            <p class="text-[8px] text-white/40 font-medium">${movie.release_date.split('-').reverse().join('/')}</p>
+                        `;
+                        movieDiv.onclick = () => openSynopsis(movie, 'trending', movieDiv);
+                        if (upcomingList) upcomingList.appendChild(movieDiv);
+                    });
+                }
+            }
+
+            // 3. Renderizar Hall da Fama
+            if (awarded && awarded.results) {
+                const filteredAwarded = awarded.results.filter(m => !interactedMovieIds.has(Number(m.id)));
+                if (awardedGrid) awardedGrid.innerHTML = '';
+                
+                if (filteredAwarded.length === 0) {
+                    if (sectionAwarded) sectionAwarded.classList.add('hidden');
+                } else {
+                    if (sectionAwarded) sectionAwarded.classList.remove('hidden');
+                    filteredAwarded.slice(0, 10).forEach((movie, i) => {
+                        const card = document.createElement('div');
+                        card.className = 'film-card w-[150px] shrink-0 snap-start aspect-[2/3] relative group';
+                        card.innerHTML = `
+                            <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title}" class="w-full h-full object-cover" loading="lazy">
+                            <div class="card-overlay"></div>
+                            <div class="absolute top-2 left-2 bg-yellow-500 text-black font-black text-[8px] px-2 py-1 rounded-md flex items-center gap-1 shadow-xl z-20">
+                                <span class="material-symbols-outlined text-[10px]">trophy</span>
+                                PREMIADO
+                            </div>
+                            <div class="card-info">
+                                <h3 class="text-white font-bold text-[10px] line-clamp-1 uppercase tracking-tight">${movie.title}</h3>
+                            </div>
+                        `;
+                        card.addEventListener('click', () => openSynopsis(movie, 'trending', card));
+                        if (awardedGrid) awardedGrid.appendChild(card);
+                        setTimeout(() => card.classList.add('visible'), 50 * i);
+                    });
+                }
+            }
+
+            // 4. Renderizar Lançamentos Recentes
+            if (newReleases && newReleases.results) {
+                if (newReleasesList) newReleasesList.innerHTML = '';
+                const currentYear = new Date().getFullYear();
+                
+                let moviesToShow = newReleases.results.filter(m => !interactedMovieIds.has(Number(m.id)));
+                if (moviesToShow.length < 5) moviesToShow = newReleases.results; 
+                
+                if (moviesToShow.length > 0) {
+                    moviesToShow.slice(0, 10).forEach(movie => {
+                        const relDate = new Date(movie.release_date);
+                        let badgeText = '';
+                        let badgeClass = '';
+
+                        if (movie.release_date && (new Date() - relDate) < (30 * 24 * 60 * 60 * 1000)) {
+                            badgeText = 'ESSA SEMANA';
+                            badgeClass = 'bg-green-600';
+                        } else if (relDate.getFullYear() === currentYear) {
+                            badgeText = '2026';
+                            badgeClass = 'bg-white/10 backdrop-blur-md border border-white/20';
+                        }
+
+                        const card = document.createElement('div');
+                        card.className = 'shrink-0 w-[140px] snap-start group cursor-pointer';
+                        card.innerHTML = `
+                            <div class="relative aspect-[2/3] rounded-xl overflow-hidden mb-2 border border-white/5 shadow-lg">
+                                <img src="${IMAGE_BASE_URL}${movie.poster_path}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute top-2 left-2 ${badgeClass} text-[7px] font-black px-1.5 py-0.5 rounded text-white tracking-widest shadow-lg">
+                                    ${badgeText}
+                                </div>
+                                <div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black via-black/40 to-transparent">
+                                    <p class="text-[8px] text-white/70 font-medium">${movie.release_date.split('-').reverse().join('/')}</p>
+                                </div>
+                            </div>
+                            <p class="text-[10px] font-bold text-white line-clamp-1 uppercase tracking-tight">${movie.title}</p>
+                        `;
+                        card.onclick = () => openSynopsis(movie, 'trending', card);
+                        if (newReleasesList) newReleasesList.appendChild(card);
+                    });
+                }
+            }
+
+            // 5. Renderizar Grid Principal (Em Alta)
+            if (day && day.results) {
+                const weeklyResults = week ? (week.results || []) : [];
+                if (trendingGrid) trendingGrid.innerHTML = '';
+                
+                let filteredDay = day.results.filter(m => !interactedMovieIds.has(Number(m.id)));
+                if (filteredDay.length === 0) {
+                    filteredDay = day.results.slice(0, 10);
+                }
+                
+                filteredDay.forEach((movie, i) => {
+                    const dayRank = i + 1;
+                    const weekRank = weeklyResults.findIndex(m => m.id === movie.id) + 1;
+                    
+                    let trendHTML = '';
+                    if (weekRank > 0) {
+                        const diff = weekRank - dayRank;
+                        if (diff > 0) {
+                            trendHTML = `<span class="text-green-500 flex items-center gap-0.5"><span class="material-symbols-outlined text-[10px]">trending_up</span>+${diff}</span>`;
+                        } else if (diff < 0) {
+                            trendHTML = `<span class="text-error flex items-center gap-0.5"><span class="material-symbols-outlined text-[10px]">trending_down</span>${diff}</span>`;
+                        }
+                    } else {
+                        trendHTML = `<span class="text-primary-container font-black">NEW</span>`;
+                    }
+
+                    const card = document.createElement('div');
+                    card.className = 'film-card w-[160px] shrink-0 snap-start aspect-[2/3] relative group';
+                    card.innerHTML = `
+                        <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title}" class="w-full h-full object-cover" loading="lazy">
+                        <div class="card-overlay"></div>
+                        
+                        <div class="absolute top-3 left-3 flex flex-col gap-1">
+                            <div class="bg-black/60 backdrop-blur-xl border border-white/20 w-8 h-8 rounded-xl flex items-center justify-center shadow-2xl">
+                                <span class="text-white font-black text-xs">#${dayRank}</span>
+                            </div>
+                            <div class="bg-black/80 backdrop-blur-md px-2 py-0.5 rounded-full text-[8px] font-bold flex items-center justify-center border border-white/5">
+                                ${trendHTML}
+                            </div>
+                        </div>
+
+                        <div class="card-info">
+                            <div class="flex items-center gap-1 mb-1">
+                                <span class="material-symbols-outlined text-yellow-500 text-[10px]" style="font-variation-settings: 'FILL' 1;">star</span>
+                                <span class="text-yellow-500 font-bold text-[10px]">${movie.vote_average.toFixed(1)}</span>
+                            </div>
+                            <h3 class="text-white font-bold text-[10px] line-clamp-1 uppercase tracking-tight">${movie.title}</h3>
+                        </div>
+                    `;
+                    card.addEventListener('click', () => openSynopsis(movie, 'trending', card));
+                    if (trendingGrid) trendingGrid.appendChild(card);
+                    setTimeout(() => card.classList.add('visible'), 50 * i);
+                });
+            }
+        }
 
         async function fetchTrending() {
+            if (isTrendingLoaded && cachedTrendingData) return cachedTrendingData;
             if (isTrendingLoaded) return null;
             
+            // 1. Tentar ler do Cache Local para renderização instantânea
             try {
-                // Cálculo dinâmico para Lançamentos (Ano Atual)
+                const localCache = localStorage.getItem('mf_trending_cache');
+                if (localCache) {
+                    const cacheObj = JSON.parse(localCache);
+                    // Expiração do cache: 6 horas (6 * 60 * 60 * 1000 ms)
+                    if (Date.now() - cacheObj.timestamp < 6 * 60 * 60 * 1000) {
+                        console.log("⚡ Carregando Tendências do cache local...");
+                        const data = cacheObj.data;
+                        renderTrendingData(data);
+                        isTrendingLoaded = true;
+                        cachedTrendingData = data;
+                        return data;
+                    }
+                }
+            } catch (err) {
+                console.warn("Falha ao ler cache local de tendências:", err);
+            }
+
+            try {
                 const currentYear = new Date().getFullYear();
                 const dateTo = new Date().toISOString().split('T')[0];
                 const sixtyDaysAgo = new Date();
                 sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
                 const sixtyDaysAgoStr = sixtyDaysAgo.toISOString().split('T')[0];
-                const releasePage = Math.floor(Math.random() * 2) + 1; // Alterna entre as primeiras páginas
 
-                // Cálculo de Seed para o Hall da Fama (muda a cada 3 dias)
                 const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
                 const hallOfFameSeed = Math.floor(Date.now() / threeDaysMs);
-                const hallOfFamePage = (hallOfFameSeed % 10) + 1; // Rotaciona entre as 10 primeiras páginas de clássicos
+                const hallOfFamePage = (hallOfFameSeed % 10) + 1;
+                const releasePage = Math.floor(Math.random() * 2) + 1;
 
-                // Busca simultânea de vários endpoints do TMDB
-                const [resDay, resWeek, resPeople, resUpcoming, resAwarded, resNewReleases] = await Promise.all([
-                    fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&language=pt-BR&sort_by=popularity.desc&primary_release_date.gte=${sixtyDaysAgoStr}&primary_release_date.lte=${dateTo}`),
-                    fetch(`https://api.themoviedb.org/3/trending/movie/week?api_key=${API_KEY}&language=pt-BR`),
-                    fetch(`https://api.themoviedb.org/3/trending/person/day?api_key=${API_KEY}&language=pt-BR`),
-                    fetch(`https://api.themoviedb.org/3/movie/upcoming?api_key=${API_KEY}&language=pt-BR&region=BR`),
-                    fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&language=pt-BR&sort_by=vote_count.desc&vote_average.gte=8&with_runtime.gte=60&page=${hallOfFamePage}`),
-                    fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&language=pt-BR&primary_release_year=${currentYear}&sort_by=popularity.desc&page=${releasePage}`)
+                // Auxiliar de busca segura (individual) para tolerância de falhas total
+                async function safeFetchJSON(url) {
+                    try {
+                        const controller = new AbortController();
+                        const id = setTimeout(() => controller.abort(), 8000); // 8s timeout
+                        const res = await fetch(url, { signal: controller.signal });
+                        clearTimeout(id);
+                        if (!res.ok) throw new Error(`HTTP status ${res.status}`);
+                        return await res.json();
+                    } catch (err) {
+                        console.warn(`Aviso de carregamento seguro: falha ao buscar ${url}. Usando fallback.`, err);
+                        return { results: [] }; // Fallback seguro para manter a página de pé
+                    }
+                }
+
+                // Busca paralela resiliente
+                const [dataDay, dataWeek, dataPeople, dataUpcoming, dataAwarded, dataNewReleases] = await Promise.all([
+                    safeFetchJSON(`https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&language=pt-BR&sort_by=popularity.desc&primary_release_date.gte=${sixtyDaysAgoStr}&primary_release_date.lte=${dateTo}`),
+                    safeFetchJSON(`https://api.themoviedb.org/3/trending/movie/week?api_key=${API_KEY}&language=pt-BR`),
+                    safeFetchJSON(`https://api.themoviedb.org/3/trending/person/day?api_key=${API_KEY}&language=pt-BR`),
+                    safeFetchJSON(`https://api.themoviedb.org/3/movie/upcoming?api_key=${API_KEY}&language=pt-BR&region=BR`),
+                    safeFetchJSON(`https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&language=pt-BR&sort_by=vote_count.desc&vote_average.gte=8&with_runtime.gte=60&page=${hallOfFamePage}`),
+                    safeFetchJSON(`https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&language=pt-BR&primary_release_year=${currentYear}&sort_by=popularity.desc&page=${releasePage}`)
                 ]);
 
-                const dataDay = await resDay.json();
-                const dataWeek = await resWeek.json();
-                const dataPeople = await resPeople.json();
-                const dataUpcoming = await resUpcoming.json();
-                const dataAwarded = await resAwarded.json();
-                const dataNewReleases = await resNewReleases.json();
+                // Busca notícias com resiliência extra
+                let newsData = [];
+                try {
+                    const { data: cachedNews, error: newsError } = await supabase
+                        .from('news')
+                        .select('*')
+                        .order('published_at', { ascending: false })
+                        .limit(60);
 
-                // 0. Renderizar Notícias (Lendo do Cache do Supabase)
-                const { data: cachedNews, error: newsError } = await supabase
-                    .from('news')
-                    .select('*')
-                    .order('published_at', { ascending: false })
-                    .limit(60); // Aumentamos o limite para ter mais margem para filtrar
+                    if (cachedNews && cachedNews.length > 0) {
+                        const movieKeywords = [
+                            'filme', 'série', 'cinema', 'movie', 'series', 'netflix', 'disney', 'hbo', 'amazon', 'prime video', 
+                            'streaming', 'trailer', 'oscar', 'emmy', 'ator', 'atriz', 'elenco', 'diretor', 'marvel', 'dc', 
+                            'star wars', 'lançamento', 'estreia', 'estréia', 'hollywood', 'teaser', 'temporada', 'episódio', 
+                            'roteiro', 'showrunner', 'blockbuster', 'bilheteria', 'globo de ouro', 'geek', 'nerd', 'fandom'
+                        ];
+                        const excludeKeywords = [
+                            'política', 'governo', 'lula', 'bolsonaro', 'stf', 'congresso', 'deputado', 'senador', 'prefeitura', 
+                            'crise', 'economia', 'inflação', 'ministro', 'votação', 'crime', 'polícia', 'guerra', 'eleição', 
+                            'eleições', 'votos', 'brasil 247', 'revista fórum', 'jovem pan', 'uol notícias', 'g1 política',
+                            'prefeito', 'vereador', 'secretaria', 'militar', 'roubo', 'assalto', 'futebol', 'partida', 'gol'
+                        ];
 
-                if (cachedNews && cachedNews.length > 0 && newsList) {
-                    newsList.innerHTML = '';
-                    
-                    // Palavras-chave para filtro de entretenimento
-                    const movieKeywords = [
-                        'filme', 'série', 'cinema', 'movie', 'series', 'netflix', 'disney', 'hbo', 'amazon', 'prime video', 
-                        'streaming', 'trailer', 'oscar', 'emmy', 'ator', 'atriz', 'elenco', 'diretor', 'marvel', 'dc', 
-                        'star wars', 'lançamento', 'estreia', 'estréia', 'hollywood', 'teaser', 'temporada', 'episódio', 
-                        'roteiro', 'showrunner', 'blockbuster', 'bilheteria', 'globo de ouro', 'geek', 'nerd', 'fandom'
-                    ];
+                        newsData = cachedNews.filter(article => {
+                            const title = (article.title || '').toLowerCase();
+                            const source = (article.source_name || '').toLowerCase();
+                            const combined = title + ' ' + source;
 
-                    // Palavras-chave para exclusão (Política, Economia, Crimes, etc)
-                    const excludeKeywords = [
-                        'política', 'governo', 'lula', 'bolsonaro', 'stf', 'congresso', 'deputado', 'senador', 'prefeitura', 
-                        'crise', 'economia', 'inflação', 'ministro', 'votação', 'crime', 'polícia', 'guerra', 'eleição', 
-                        'eleições', 'votos', 'brasil 247', 'revista fórum', 'jovem pan', 'uol notícias', 'g1 política',
-                        'prefeito', 'vereador', 'secretaria', 'militar', 'roubo', 'assalto', 'futebol', 'partida', 'gol'
-                    ];
-
-                    const filteredNews = cachedNews.filter(article => {
-                        const title = (article.title || '').toLowerCase();
-                        const source = (article.source_name || '').toLowerCase();
-                        const combined = title + ' ' + source;
-
-                        // 1. Excluir explicitamente fontes de notícias gerais/políticas conhecidas se não tiverem nada de cinema no título
-                        if (source.includes('brasil 247') || source.includes('jovem pan') || source.includes('fórum')) {
-                            return movieKeywords.some(kw => title.includes(kw));
-                        }
-
-                        // 2. Se contiver palavras de exclusão fortes, removemos (a menos que tenha uma palavra forte de entretenimento)
-                        const hasExclude = excludeKeywords.some(kw => title.includes(kw));
-                        const hasStrongMovieKw = ['filme', 'série', 'netflix', 'cinema', 'trailer'].some(kw => title.includes(kw));
-                        if (hasExclude && !hasStrongMovieKw) return false;
-
-                        // 3. Deve ter ao menos uma palavra relacionada a cinema/série
-                        return movieKeywords.some(kw => combined.includes(kw));
-                    });
-
-                    // Mostramos apenas as 20 melhores após o filtro
-                    filteredNews.slice(0, 20).forEach(article => {
-                        const newsCard = document.createElement('div');
-                        newsCard.className = 'shrink-0 w-[280px] snap-start relative group';
-                        newsCard.innerHTML = `
-                            <div class="aspect-[16/9] rounded-2xl overflow-hidden border border-white/5 relative shadow-2xl">
-                                <img src="${article.image_url}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
-                                <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
-                                <div class="absolute top-2 right-2 bg-black/40 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10">
-                                    <p class="text-[7px] font-black text-white/60 uppercase tracking-tighter">${article.source_name}</p>
-                                </div>
-                                <div class="absolute bottom-3 left-3 right-3">
-                                    <h4 class="text-[11px] font-bold text-white line-clamp-2 leading-tight uppercase tracking-tight">${article.title}</h4>
-                                </div>
-                            </div>
-                        `;
-                        newsCard.onclick = () => window.open(article.article_url, '_blank');
-                        newsList.appendChild(newsCard);
-                    });
-                } else if (newsError) {
-                    console.error("Erro ao carregar notícias do banco", newsError);
-                }
-
-
-                // 2. Renderizar Próximos Lançamentos - Filtrando já vistos
-                if (dataUpcoming.results) {
-                    const filteredUpcoming = dataUpcoming.results.filter(m => !interactedMovieIds.has(Number(m.id)));
-                    if (upcomingList) upcomingList.innerHTML = '';
-                    
-                    const sectionUpcoming = upcomingList ? upcomingList.closest('section') : null;
-                    if (filteredUpcoming.length === 0) {
-                        if (sectionUpcoming) sectionUpcoming.classList.add('hidden');
-                    } else {
-                        if (sectionUpcoming) sectionUpcoming.classList.remove('hidden');
-                        filteredUpcoming.slice(0, 10).forEach(movie => {
-                            const movieDiv = document.createElement('div');
-                            movieDiv.className = 'shrink-0 w-[140px] snap-start';
-                            movieDiv.innerHTML = `
-                                <div class="aspect-[2/3] rounded-2xl overflow-hidden border border-white/10 mb-2 relative group">
-                                    <img src="${IMAGE_BASE_URL}${movie.poster_path}" class="w-full h-full object-cover">
-                                    <div class="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg">
-                                        <p class="text-[8px] font-black text-primary-container">EM BREVE</p>
-                                    </div>
-                                </div>
-                                <h4 class="text-[10px] font-bold text-white line-clamp-1 uppercase">${movie.title}</h4>
-                                <p class="text-[8px] text-white/40 font-medium">${movie.release_date.split('-').reverse().join('/')}</p>
-                            `;
-                            movieDiv.onclick = () => openSynopsis(movie, 'trending', movieDiv);
-                            if (upcomingList) upcomingList.appendChild(movieDiv);
-                        });
-                    }
-                }
-
-                // 3. Renderizar Hall da Fama - Filtrando já vistos
-                if (dataAwarded && dataAwarded.results) {
-                    const filteredAwarded = dataAwarded.results.filter(m => !interactedMovieIds.has(Number(m.id)));
-                    if (awardedGrid) awardedGrid.innerHTML = '';
-                    
-                    if (filteredAwarded.length === 0) {
-                        if (sectionAwarded) sectionAwarded.classList.add('hidden');
-                    } else {
-                        if (sectionAwarded) sectionAwarded.classList.remove('hidden');
-                        filteredAwarded.slice(0, 10).forEach((movie, i) => {
-                            const card = document.createElement('div');
-                            card.className = 'film-card w-[150px] shrink-0 snap-start aspect-[2/3] relative group';
-                            card.innerHTML = `
-                                <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title}" class="w-full h-full object-cover" loading="lazy">
-                                <div class="card-overlay"></div>
-                                <div class="absolute top-2 left-2 bg-yellow-500 text-black font-black text-[8px] px-2 py-1 rounded-md flex items-center gap-1 shadow-xl z-20">
-                                    <span class="material-symbols-outlined text-[10px]">trophy</span>
-                                    PREMIADO
-                                </div>
-                                <div class="card-info">
-                                    <h3 class="text-white font-bold text-[10px] line-clamp-1 uppercase tracking-tight">${movie.title}</h3>
-                                </div>
-                            `;
-                            card.addEventListener('click', () => openSynopsis(movie, 'trending', card));
-                            if (awardedGrid) awardedGrid.appendChild(card);
-                            setTimeout(() => card.classList.add('visible'), 50 * i);
-                        });
-                    }
-                }
-
-                // 4. Renderizar Lançamentos Recentes - Filtrando já vistos
-                if (dataNewReleases && dataNewReleases.results) {
-                    if (newReleasesList) newReleasesList.innerHTML = '';
-                    
-                    // Se não houver filtrados o suficiente, pegamos os resultados brutos (fallback)
-                    let moviesToShow = dataNewReleases.results.filter(m => !interactedMovieIds.has(Number(m.id)));
-                    if (moviesToShow.length < 5) moviesToShow = dataNewReleases.results; 
-                    
-                    if (moviesToShow.length > 0) {
-                        moviesToShow.slice(0, 10).forEach(movie => {
-                            const relDate = new Date(movie.release_date);
-                            let badgeText = '';
-                            let badgeClass = '';
-
-                            if (movie.release_date && (new Date() - relDate) < (30 * 24 * 60 * 60 * 1000)) {
-                                badgeText = 'ESSA SEMANA';
-                                badgeClass = 'bg-green-600';
-                            } else if (relDate.getFullYear() === currentYear) {
-                                badgeText = '2026';
-                                badgeClass = 'bg-white/10 backdrop-blur-md border border-white/20';
+                            if (source.includes('brasil 247') || source.includes('jovem pan') || source.includes('fórum')) {
+                                return movieKeywords.some(kw => title.includes(kw));
                             }
+                            const hasExclude = excludeKeywords.some(kw => title.includes(kw));
+                            const hasStrongMovieKw = ['filme', 'série', 'netflix', 'cinema', 'trailer'].some(kw => title.includes(kw));
+                            if (hasExclude && !hasStrongMovieKw) return false;
 
-                            const card = document.createElement('div');
-                            card.className = 'shrink-0 w-[140px] snap-start group cursor-pointer';
-                            card.innerHTML = `
-                                <div class="relative aspect-[2/3] rounded-xl overflow-hidden mb-2 border border-white/5 shadow-lg">
-                                    <img src="${IMAGE_BASE_URL}${movie.poster_path}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
-                                    <div class="absolute top-2 left-2 ${badgeClass} text-[7px] font-black px-1.5 py-0.5 rounded text-white tracking-widest shadow-lg">
-                                        ${badgeText}
-                                    </div>
-                                    <div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black via-black/40 to-transparent">
-                                        <p class="text-[8px] text-white/70 font-medium">${movie.release_date.split('-').reverse().join('/')}</p>
-                                    </div>
-                                </div>
-                                <p class="text-[10px] font-bold text-white line-clamp-1 uppercase tracking-tight">${movie.title}</p>
-                            `;
-                            card.onclick = () => openSynopsis(movie, 'trending', card);
-                            if (newReleasesList) newReleasesList.appendChild(card);
+                            return movieKeywords.some(kw => combined.includes(kw));
                         });
                     }
+                } catch (newsErr) {
+                    console.warn("Falha segura ao carregar notícias do Supabase:", newsErr);
                 }
 
-                // 5. Renderizar Grid Principal com Ranking e Termômetro - Filtrando já vistos
-                if (dataDay && dataDay.results) {
-                    const weeklyResults = dataWeek.results || [];
-                    if (trendingGrid) trendingGrid.innerHTML = '';
-                    
-                    // FILTRAGEM REAL APLICADA AQUI
-                    let filteredDay = dataDay.results.filter(m => !interactedMovieIds.has(Number(m.id)));
-                    
-                    // FALLBACK: Se o filtro removeu tudo (usuário já viu muito conteúdo), mostra os top 10 brutos
-                    if (filteredDay.length === 0) {
-                        filteredDay = dataDay.results.slice(0, 10);
-                    }
-                    
-                    filteredDay.forEach((movie, i) => {
-                        // Calcular Termômetro
-                        const dayRank = i + 1;
-                        const weekRank = weeklyResults.findIndex(m => m.id === movie.id) + 1;
-                        
-                        let trendHTML = '';
-                        if (weekRank > 0) {
-                            const diff = weekRank - dayRank;
-                            if (diff > 0) {
-                                trendHTML = `<span class="text-green-500 flex items-center gap-0.5"><span class="material-symbols-outlined text-[10px]">trending_up</span>+${diff}</span>`;
-                            } else if (diff < 0) {
-                                trendHTML = `<span class="text-error flex items-center gap-0.5"><span class="material-symbols-outlined text-[10px]">trending_down</span>${diff}</span>`;
-                            }
-                        } else {
-                            trendHTML = `<span class="text-primary-container font-black">NEW</span>`;
-                        }
+                const unifiedData = {
+                    day: dataDay,
+                    week: dataWeek,
+                    people: dataPeople,
+                    upcoming: dataUpcoming,
+                    awarded: dataAwarded,
+                    newReleases: dataNewReleases,
+                    news: newsData
+                };
 
-                        const card = document.createElement('div');
-                        card.className = 'film-card w-[160px] shrink-0 snap-start aspect-[2/3] relative group';
-                        card.innerHTML = `
-                            <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title}" class="w-full h-full object-cover">
-                            <div class="card-overlay"></div>
-                            
-                            <!-- Ranking Badge -->
-                            <div class="absolute top-3 left-3 flex flex-col gap-1">
-                                <div class="bg-black/60 backdrop-blur-xl border border-white/20 w-8 h-8 rounded-xl flex items-center justify-center shadow-2xl">
-                                    <span class="text-white font-black text-xs">#${dayRank}</span>
-                                </div>
-                                <div class="bg-black/80 backdrop-blur-md px-2 py-0.5 rounded-full text-[8px] font-bold flex items-center justify-center border border-white/5">
-                                    ${trendHTML}
-                                </div>
-                            </div>
-
-                            <div class="card-info">
-                                <div class="flex items-center gap-1 mb-1">
-                                    <span class="material-symbols-outlined text-yellow-500 text-[10px]" style="font-variation-settings: 'FILL' 1;">star</span>
-                                    <span class="text-yellow-500 font-bold text-[10px]">${movie.vote_average.toFixed(1)}</span>
-                                </div>
-                                <h3 class="text-white font-bold text-[10px] line-clamp-1 uppercase tracking-tight">${movie.title}</h3>
-                            </div>
-                        `;
-                        card.addEventListener('click', () => openSynopsis(movie, 'trending', card));
-                        trendingGrid.appendChild(card);
-                        setTimeout(() => card.classList.add('visible'), 50 * i);
-                    });
-                    isTrendingLoaded = true;
-                    return { 
-                        day: dataDay.results, 
-                        awarded: dataAwarded.results,
-                        upcoming: dataUpcoming.results,
-                        newReleases: dataNewReleases.results
-                    };
+                // Gravar no cache persistente para acessos futuros instantâneos
+                try {
+                    localStorage.setItem('mf_trending_cache', JSON.stringify({
+                        timestamp: Date.now(),
+                        data: unifiedData
+                    }));
+                } catch (cacheErr) {
+                    console.warn("Falha ao persistir cache no localStorage:", cacheErr);
                 }
-                return null;
+
+                // Renderiza
+                renderTrendingData(unifiedData);
+                
+                isTrendingLoaded = true;
+                cachedTrendingData = unifiedData;
+                return unifiedData;
+
             } catch (e) {
-                console.error("Erro ao buscar tendências", e);
+                console.error("Erro geral de rede ao buscar tendências:", e);
+                // Fallback seguro de emergência usando o cache local histórico
+                try {
+                    const localCache = localStorage.getItem('mf_trending_cache');
+                    if (localCache) {
+                        const data = JSON.parse(localCache).data;
+                        renderTrendingData(data);
+                        isTrendingLoaded = true;
+                        cachedTrendingData = data;
+                        return data;
+                    }
+                } catch (fallbackErr) {
+                    console.error("Falha ao resgatar cache histórico em erro crítico:", fallbackErr);
+                }
                 return null;
             }
         }
