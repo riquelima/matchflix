@@ -4780,9 +4780,9 @@
                         if (msg.role === 'user') {
                             const userMsgHTML = `
                                 <div class="flex justify-end gap-3 max-w-[85%] ml-auto">
-                                    <div class="bg-primary-container text-white rounded-2xl px-4 py-3 text-sm font-body leading-relaxed shadow-[0_0_15px_rgba(229,9,20,0.3)]">
-                                        <p class="font-headline font-bold text-white/70 text-xs mb-1 uppercase tracking-wider">Você</p>
-                                        ${msg.content}
+                                    <div class="bg-primary-container text-white rounded-2xl px-4 py-3 text-sm font-body leading-relaxed shadow-[0_0_15px_rgba(229,9,20,0.3)] selectable-message" onclick="copyMessageText(this)">
+                                        <p class="font-headline font-bold text-white/70 text-xs mb-1 uppercase tracking-wider pointer-events-none">Você</p>
+                                        <span class="message-body">${msg.content}</span>
                                     </div>
                                 </div>
                             `;
@@ -4795,9 +4795,9 @@
                                         <div class="w-8 h-8 rounded-xl bg-primary-container/10 border border-primary-container/20 flex items-center justify-center shrink-0">
                                             <span class="material-symbols-outlined text-primary-container text-sm">smart_toy</span>
                                         </div>
-                                        <div class="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white font-body leading-relaxed">
-                                            <p class="font-headline font-bold text-primary-container text-xs mb-1 uppercase tracking-wider">Cine-Bot</p>
-                                            ${msg.content}
+                                        <div class="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white font-body leading-relaxed selectable-message" onclick="copyMessageText(this)">
+                                            <p class="font-headline font-bold text-primary-container text-xs mb-1 uppercase tracking-wider pointer-events-none">Cine-Bot</p>
+                                            <span class="message-body">${msg.content}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -4860,9 +4860,9 @@
             // 1. Renderiza a mensagem do usuário
             const userMsgHTML = `
                 <div class="flex justify-end gap-3 max-w-[85%] ml-auto">
-                    <div class="bg-primary-container text-white rounded-2xl px-4 py-3 text-sm font-body leading-relaxed shadow-[0_0_15px_rgba(229,9,20,0.3)]">
-                        <p class="font-headline font-bold text-white/70 text-xs mb-1 uppercase tracking-wider">Você</p>
-                        ${prompt}
+                    <div class="bg-primary-container text-white rounded-2xl px-4 py-3 text-sm font-body leading-relaxed shadow-[0_0_15px_rgba(229,9,20,0.3)] selectable-message" onclick="copyMessageText(this)">
+                        <p class="font-headline font-bold text-white/70 text-xs mb-1 uppercase tracking-wider pointer-events-none">Você</p>
+                        <span class="message-body">${prompt}</span>
                     </div>
                 </div>
             `;
@@ -5010,9 +5010,9 @@
                         <div class="w-8 h-8 rounded-xl bg-primary-container/10 border border-primary-container/20 flex items-center justify-center shrink-0">
                             <span class="material-symbols-outlined text-primary-container text-sm">smart_toy</span>
                         </div>
-                        <div class="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white font-body leading-relaxed">
-                            <p class="font-headline font-bold text-primary-container text-xs mb-1 uppercase tracking-wider">Cine-Bot</p>
-                            ${textToShow}
+                        <div class="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white font-body leading-relaxed selectable-message" onclick="copyMessageText(this)">
+                            <p class="font-headline font-bold text-primary-container text-xs mb-1 uppercase tracking-wider pointer-events-none">Cine-Bot</p>
+                            <span class="message-body">${textToShow}</span>
                         </div>
                     </div>
                 </div>
