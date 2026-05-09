@@ -5,6 +5,12 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    proxy: {
+      '/api': {
+        target: 'http://185.173.110.54:11434',
+        changeOrigin: true,
+      }
+    }
   },
   build: {
     rollupOptions: {

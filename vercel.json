@@ -3,6 +3,7 @@
   "outputDirectory": "dist",
   "framework": null,
   "rewrites": [
+    { "source": "/api/:path*", "destination": "http://185.173.110.54:11434/api/:path*" },
     { "source": "/login", "destination": "/login.html" },
     { "source": "/cadastro", "destination": "/cadastro.html" },
     { "source": "/primeiro-login", "destination": "/primeiroLogin.html" },
