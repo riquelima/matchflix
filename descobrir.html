@@ -5121,8 +5121,7 @@
         }
 
         async function askGemini(prompt) {
-            const API_KEY_GOOGLE = localStorage.getItem('gemini_api_key') || "AIzaSyB73ZOA2Qr1izJg0IW2TaYpZvvXMpKnL-A";
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY_GOOGLE}`;
+            const url = "http://185.173.110.54:11434/api/generate";
             
             const systemInstruction = "Você é o Cine-Bot, o assistente virtual de recomendação de filmes do MatchFlix. " +
                 "Considere obrigatoriamente que o ano atual é 2026. Portanto, os filmes de 2024, 2025 e início de 2026 já foram lançados e o Oscar de 2025 já aconteceu! " +
@@ -5135,6 +5134,8 @@
                 "Não use crases, markdown ou quebras de linha dentro ou ao redor do array JSON. " +
                 "Exemplo de formato esperado no final: |||[\"Matrix\", \"Inception\", \"Interestelar\"]|||";
 
+            const combinedPrompt = `${systemInstruction}\n\nUsuário: ${prompt}\n\n[Regra Estrita de Formato: Lembre-se de que o ano atual é 2026. Escreva de forma empolgante com no máximo 2 ou 3 frases. NÃO liste os filmes em texto ou em listas numeradas. Ao final de tudo, na última linha, adicione obrigatoriamente a lista de filmes sugeridos estritamente no formato JSON delimitado por ||| para os pôsteres carregarem corretamente, exemplo: |||["Matrix", "Interestelar"]|||]\n\nResposta:`;
+
             try {
                 const response = await fetch(url, {
                     method: "POST",
@@ -5142,32 +5143,20 @@
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                        contents: [
-                            {
-                                role: "user",
-                                parts: [{ text: prompt + "\n\n[Regra Estrita de Formato: Lembre-se de que o ano atual é 2026. Escreva de forma empolgante com no máximo 2 ou 3 frases. NÃO liste os filmes em texto ou em listas numeradas. Ao final de tudo, na última linha, adicione obrigatoriamente a lista de filmes sugeridos estritamente no formato JSON delimitado por ||| para os pôsteres carregarem corretamente, exemplo: |||[\"Matrix\", \"Interestelar\"]|||]" }]
-                            }
-                        ],
-                        systemInstruction: {
-                            parts: [{ text: systemInstruction }]
-                        },
-                        generationConfig: {
-                            temperature: 0.7,
-                            maxOutputTokens: 1000
+                        model: "minimax-m2.5:cloud",
+                        prompt: combinedPrompt,
+                        stream: false,
+                        options: {
+                            temperature: 0.4
                         }
                     })
                 });
 
-                if (response.status === 403) {
-                    promptForGeminiApiKey();
-                    throw new Error("Sua chave de API do Gemini foi revogada pela Google por segurança (leaked). Por favor configure uma nova chave.");
-                }
-
-                if (!response.ok) throw new Error("Erro na chamada da API do Gemini");
+                if (!response.ok) throw new Error("Erro na chamada da API Minimax via Ollama VPS");
                 const data = await response.json();
-                return data.candidates[0].content.parts[0].text;
+                return data.response;
             } catch (err) {
-                console.error("Erro ao chamar o Gemini:", err);
+                console.error("Erro ao chamar o Minimax:", err);
                 return null;
             }
         }
