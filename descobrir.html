@@ -5126,15 +5126,15 @@
             const systemInstruction = "Você é o Cine-Bot, o assistente virtual de recomendação de filmes do MatchFlix. " +
                 "Considere obrigatoriamente que o ano atual é 2026. Portanto, os filmes de 2024, 2025 e início de 2026 já foram lançados e o Oscar de 2025 já aconteceu! " +
                 "Seu objetivo é responder em Português do Brasil de forma entusiasmada, concisa e cinéfila. " +
-                "Sugira exatamente de 3 a 5 filmes que correspondam ao gosto e clima que o usuário descreveu. " +
+                "Sugira obrigatoriamente de 5 a 10 filmes (tente sugerir sempre o máximo de filmes possível, ou seja, de preferência 10 filmes) que correspondam ao gosto e clima que o usuário descreveu. " +
                 "Escreva uma resposta de texto curta e empolgante de no máximo 2 ou 3 frases. " +
                 "NÃO liste os nomes dos filmes em texto ou em listas numeradas no corpo do texto principal. " +
                 "Ao final da sua resposta, na última linha, inclua obrigatoriamente a lista dos títulos recomendados " +
                 "no formato de array JSON delimitado estritamente por ||| para que o sistema busque os pôsteres automaticamente. " +
                 "Não use crases, markdown ou quebras de linha dentro ou ao redor do array JSON. " +
-                "Exemplo de formato esperado no final: |||[\"Matrix\", \"Inception\", \"Interestelar\"]|||";
+                "Exemplo de formato esperado no final: |||[\"Matrix\", \"Inception\", \"Interestelar\", \"Avatar\", \"Gladiador\"]|||";
 
-            const combinedPrompt = `${systemInstruction}\n\nUsuário: ${prompt}\n\n[Regra Estrita de Formato: Lembre-se de que o ano atual é 2026. Escreva de forma empolgante com no máximo 2 ou 3 frases. NÃO liste os filmes em texto ou em listas numeradas. Ao final de tudo, na última linha, adicione obrigatoriamente a lista de filmes sugeridos estritamente no formato JSON delimitado por ||| para os pôsteres carregarem corretamente, exemplo: |||["Matrix", "Interestelar"]|||]\n\nResposta:`;
+            const combinedPrompt = `${systemInstruction}\n\nUsuário: ${prompt}\n\n[Regra Estrita de Formato: Lembre-se de que o ano atual é 2026. Escreva de forma empolgante com no máximo 2 ou 3 frases. NÃO liste os filmes em texto ou em listas numeradas. Ao final de tudo, na última linha, adicione obrigatoriamente de 5 a 10 filmes sugeridos (sempre o máximo de filmes que puder, preferencialmente 10) estritamente no formato JSON delimitado por ||| para os pôsteres carregarem corretamente, exemplo: |||["Matrix", "Interestelar", "Inception", "Gladiador", "Avatar"]|||]\n\nResposta:`;
 
             try {
                 const response = await fetch(url, {
