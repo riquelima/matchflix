@@ -3802,7 +3802,7 @@
                         if (sectionAwarded) sectionAwarded.classList.remove('hidden');
                         filteredAwarded.slice(0, 10).forEach((movie, i) => {
                             const card = document.createElement('div');
-                            card.className = 'film-card w-[150px] shrink-0 snap-start aspect-[2/3] relative group';
+                            card.className = 'film-card visible w-[150px] shrink-0 snap-start aspect-[2/3] relative group';
                             card.innerHTML = `
                                 <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title || 'Filme'}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='https://via.placeholder.com/300x450?text=MatchFlix'">
                                 <div class="card-overlay"></div>
@@ -3816,7 +3816,6 @@
                             `;
                             card.addEventListener('click', () => openSynopsis(movie, 'trending', card));
                             if (awardedGrid) awardedGrid.appendChild(card);
-                            setTimeout(() => card.classList.add('visible'), 50 * i);
                         });
                     }
                 }
@@ -3907,7 +3906,7 @@
                         const safeRating = typeof movie.vote_average === 'number' ? movie.vote_average.toFixed(1) : '---';
 
                         const card = document.createElement('div');
-                        card.className = 'film-card w-[160px] shrink-0 snap-start aspect-[2/3] relative group';
+                        card.className = 'film-card visible w-[160px] shrink-0 snap-start aspect-[2/3] relative group';
                         card.innerHTML = `
                             <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title || 'Filme'}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='https://via.placeholder.com/300x450?text=MatchFlix'">
                             <div class="card-overlay"></div>
@@ -3931,7 +3930,6 @@
                         `;
                         card.addEventListener('click', () => openSynopsis(movie, 'trending', card));
                         if (trendingGrid) trendingGrid.appendChild(card);
-                        setTimeout(() => card.classList.add('visible'), 50 * i);
                     });
                 }
             } catch (err) {
