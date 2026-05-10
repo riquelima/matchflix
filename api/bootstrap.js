@@ -66,11 +66,16 @@ export default async function handler(req, res) {
             // ETAPA 1: Obter o histórico já disparado em paralelo
             const userHistory = await historyPromise;
             
-            // 🛡️ SHIELD ANTIVÍES E ANTIDESLIKE
-            const seenIds = new Set(userHistory.map(h => Number(h.filme_id)));
-            console.log(`[Bootstrap-Omni] Escudo ativado. ${seenIds.size} filmes bloqueados de saída.`);
+            // 🛡️ SHIELD CIRÚRGICO: Bloqueia APENAS dislikes e vistos-sem-voto.
+            // Likes NÃO são bloqueados pois são as sementes de afinidade!
+            const dislikedOrWatched = new Set(
+              userHistory
+                .filter(h => h.curtiu === false || (h.assistido === true && h.curtiu !== true))
+                .map(h => Number(h.filme_id))
+            );
+            console.log(`[Bootstrap-Omni] Escudo cirúrgico ativado. ${dislikedOrWatched.size} deslikes/vistos bloqueados.`);
 
-            const likedSeeds = userHistory.filter(h => h.curtiu === true).slice(0, 6);
+            const likedSeeds = userHistory.filter(h => h.curtiu === true).slice(0, 8);
 
             // ETAPA 2: Disparar motores em paralelo
             
@@ -117,8 +122,8 @@ export default async function handler(req, res) {
                 const mid = Number(movieObj.id);
                 if (!mid) return;
 
-                // REGRA ABSOLUTA: Não estar no histórico, não ter deslike, não repetir nesta carga.
-                if (!seenIds.has(mid) && !localDedupe.has(mid)) {
+                // REGRA CIRÚRGICA: Bloqueia DESLIKES/VISTOS SEM VOTO, e deduplica internamente.
+                if (!dislikedOrWatched.has(mid) && !localDedupe.has(mid)) {
                     localDedupe.add(mid);
                     masterPool.push({ ...movieObj, _reason: label });
                 }
@@ -135,9 +140,10 @@ export default async function handler(req, res) {
                 safePush({ id: r.recommended_movie_id }, "baseado na sua Coleção Real");
             }
 
-            // FALLBACK NEUTRO
+            // FALLBACK NEUTRO com rotação de página para evitar sempre os mesmos filmes
             if (masterPool.length === 0) {
-                const elite = await safeFetchTMDB('discover/movie', { sort_by: 'vote_count.desc', 'vote_average.gte': 7.8, without_genres: '16,10751', page: 1 });
+                const randPage = Math.floor(Math.random() * 5) + 1;
+                const elite = await safeFetchTMDB('discover/movie', { sort_by: 'vote_count.desc', 'vote_average.gte': 7.5, without_genres: '16,10751', page: randPage });
                 (elite.results || []).forEach(n => safePush(n, "baseado na sua Coleção Real"));
             }
 
@@ -157,10 +163,17 @@ export default async function handler(req, res) {
                     const best = vids.find(v => v.type === 'Trailer' && v.site === 'YouTube') || vids.find(v => v.site === 'YouTube');
                     if (best) trailerKey = best.key;
 
+                    // Gera Vibe Tags via Ollama de forma não-bloqueante
+                    let vibeTags = null;
+                    if (data.overview && data.overview.length > 30) {
+                        vibeTags = await generateVibeTagsBootstrap(data.title, data.overview);
+                    }
+
                     return {
                         ...data,
                         recommendationReason: item._reason,
-                        pre_fetched_trailer_key: trailerKey
+                        pre_fetched_trailer_key: trailerKey,
+                        vibe_tags: vibeTags
                     };
                 } catch(e) { return null; }
             }));
@@ -248,3 +261,44 @@ export default async function handler(req, res) {
     return res.status(500).json({ success: false, error: error.message });
   }
 }
+
+// ==============================================================================
+// GERADOR DE VIBE TAGS (Chama Ollama na VPS com timeout seguro de 5s)
+// ==============================================================================
+async function generateVibeTagsBootstrap(title, overview) {
+    try {
+        const prompt = `Você é um crítico de cinema ultra-criativo. Analise o filme:
+Título: "${title}"
+Sinopse: "${(overview || '').slice(0, 400)}"
+
+Gere exatamente 3 "Vibe Tags" curtas (2-5 palavras) e criativas que capturam a ESSÊNCIA emocional do filme.
+Não use gêneros convencionais. Use linguagem humana e descontraída com emojis.
+
+Exemplos: "Perfeito com pipoca 🍿", "Chorei demais 😭", "Trama explode a cabeça 🤯"
+
+Responda APENAS com JSON array de 3 strings:
+["tag1", "tag2", "tag3"]`;
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const res = await fetch('http://185.173.110.54:11434/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: 'llama3.2', prompt, stream: false, options: { temperature: 0.85, num_predict: 80 } }),
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) return null;
+        const d = await res.json();
+        const raw = d.response || "";
+        const match = raw.match(/\[\s*"[^"]*"(?:\s*,\s*"[^"]*")*\s*\]/);
+        if (!match) return null;
+        const tags = JSON.parse(match[0]);
+        return Array.isArray(tags) ? tags.slice(0, 3) : null;
+    } catch (e) {
+        return null; // Timeout ou falha silenciosa — não bloqueia o card
+    }
+}
+

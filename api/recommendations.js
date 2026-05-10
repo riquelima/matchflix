@@ -16,9 +16,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Parâmetro 'userId' é obrigatório." });
   }
 
-  console.log(`[OMNI-Engine] Iniciando pipeline de recomendação ultra-filtrada para ${userId}`);
+  console.log(`[OMNI-Engine V3] Iniciando pipeline de recomendação para ${userId}`);
 
-  // Helper central de fetch
+  // Helper central de fetch TMDB
   async function safeFetchTMDB(endpoint, params = {}) {
     try {
       const query = new URLSearchParams({ api_key: TMDB_API_KEY, language: 'pt-BR', ...params });
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
 
   try {
     // ==============================================================================
-    // PASSO 1: OBTENÇÃO DO HISTÓRICO REAL DO USUÁRIO (MANDATÓRIO E IMEDIATO)
+    // PASSO 1: HISTÓRICO COMPLETO — Obrigamos buscar 3000 registros antes de tudo
     // ==============================================================================
     const histUrl = `${SUPABASE_URL}/rest/v1/curtidas_filmes?usuario_id=eq.${userId}&select=filme_id,assistido,curtiu&order=criado_em.desc&limit=3000`;
     const histResp = await fetch(histUrl, {
@@ -39,46 +39,50 @@ export default async function handler(req, res) {
     });
     const userHistory = histResp.ok ? await histResp.json() : [];
 
-    // 🛡️ ESCUDO ABSOLUTO CONTRA REPETIÇÃO E DESLIKES
-    // Pegamos TODOS os IDs com os quais o usuário já interagiu (curtiu, não curtiu ou assistiu).
-    const seenIds = new Set(userHistory.map(h => Number(h.filme_id)));
-    console.log(`[OMNI-Engine] Proteção ativada. ${seenIds.size} filmes bloqueados para evitar repetição/deslike.`);
+    // 🛡️ SHIELD CIRÚRGICO (apenas dislikes e neutros bloqueiam — likes NÃO bloqueiam pois são as sementes!)
+    // Filmes com curtiu = false foram explicitamente rejeitados → bloqueamos para sempre
+    // Filmes com curtiu = true são a COLEÇÃO REAL → usamos como sementes, não como bloqueio
+    // Filmes com assistido = true, curtiu = null → foram assistidos mas sem voto → bloqueamos para não repetir
+    const dislikedOrWatched = new Set(
+      userHistory
+        .filter(h => h.curtiu === false || (h.assistido === true && h.curtiu !== true))
+        .map(h => Number(h.filme_id))
+    );
 
-    // Pegamos as sementes para afinidade (likes reais)
-    const likedSeeds = userHistory.filter(h => h.curtiu === true).slice(0, 6);
+    // IDs de tudo já interagido para evitar repetição na MESMA carga (inclui likes para dedup interno)
+    const allInteractedIds = new Set(userHistory.map(h => Number(h.filme_id)));
+
+    const likedSeeds = userHistory.filter(h => h.curtiu === true).slice(0, 8);
+
+    console.log(`[OMNI-Engine V3] Shield cirúrgico: ${dislikedOrWatched.size} bloqueados (deslikes+vistos). ${likedSeeds.length} sementes curtidas prontas.`);
 
     // ==============================================================================
-    // PASSO 2: DISPARO PARALELO DOS DOIS MOTORES DE BUSCA
+    // PASSO 2: MOTORES DE AFINIDADE + RPC EM PARALELO
     // ==============================================================================
     
-    // MOTOR A: Afinidade Direta (Garante a personalização exata e as Tags pedidas)
-    const runAffinityEngine = async () => {
+    // MOTOR A: Afinidade Direta — Usa filmes curtidos como sementes e busca similares no TMDB
+    const runAffinity = async () => {
         if (likedSeeds.length === 0) return [];
-        console.log(`[OMNI-Engine] Rodando Motor de Afinidade sobre ${likedSeeds.length} sementes...`);
-
-        const fetchBuckets = await Promise.all(likedSeeds.map(async (s) => {
-            const detailsPromise = safeFetchTMDB(`movie/${s.filme_id}`);
-            const recsPromise = safeFetchTMDB(`movie/${s.filme_id}/recommendations`, { page: 1 });
-            
-            const [det, rec] = await Promise.all([detailsPromise, recsPromise]);
-            const movieTitle = det.title || "Filme Salvo";
-            const recList = rec.results || [];
-
-            // Vinculamos o título original ao objeto para renderizar a Tag perfeitamente
-            return recList.map(movie => ({ ...movie, _sourceTitle: movieTitle }));
+        const buckets = await Promise.all(likedSeeds.map(async (s) => {
+            const [det, rec] = await Promise.all([
+                safeFetchTMDB(`movie/${s.filme_id}`),
+                safeFetchTMDB(`movie/${s.filme_id}/recommendations`, { page: 1 })
+            ]);
+            const title = det.title || "Filme Salvo";
+            return (rec.results || []).map(movie => ({ ...movie, _sourceTitle: title }));
         }));
-
-        // Intercalamos os baldes para máxima variabilidade (não saturar um gênero)
-        const maxLen = Math.max(...fetchBuckets.map(b => b.length));
-        const mixedList = [];
+        
+        // Interleave para diversidade de gêneros
+        const maxLen = Math.max(0, ...buckets.map(b => b.length));
+        const mixed = [];
         for (let i = 0; i < maxLen; i++) {
-            fetchBuckets.forEach(b => { if (b[i]) mixedList.push(b[i]); });
+            buckets.forEach(b => { if (b[i]) mixed.push(b[i]); });
         }
-        return mixedList;
+        return mixed;
     };
 
-    // MOTOR B: RPC Inteligente no Postgres (Executa em paralelo como reforço)
-    const runRPCEngine = async () => {
+    // MOTOR B: RPC SQL Inteligente — Correlações por co-ocorrência de likes no banco
+    const runRPC = async () => {
         try {
             const rpcUrl = `${SUPABASE_URL}/rest/v1/rpc/get_ml_recommendations`;
             const r = await fetch(rpcUrl, {
@@ -90,63 +94,57 @@ export default async function handler(req, res) {
         } catch (e) { return []; }
     };
 
-    // Executa ambos e aguarda conclusão
-    const [affinityRaw, rpcRaw] = await Promise.all([runAffinityEngine(), runRPCEngine()]);
+    const [affinityRaw, rpcRaw] = await Promise.all([runAffinity(), runRPC()]);
 
     // ==============================================================================
-    // PASSO 3: FILTRAGEM CRUZADA AGRESSIVA E MERGE DE DADOS
+    // PASSO 3: FUSÃO COM FILTRAGEM CIRÚRGICA
     // ==============================================================================
-    const combinedPool = [];
-    const deduplicationTracker = new Set(); // Garante que não adicionamos o mesmo filme 2x no mesmo response
+    const masterPool = [];
+    const localDedupe = new Set(); // Anti-duplicata intra-request
 
-    // Função utilitária para empurrar no pool final respeitando o SHIELD
-    function safePushToPool(movieObj, sourceLabel) {
-        const mId = Number(movieObj.id);
-        if (!mId) return;
+    function safePush(movieObj, label) {
+        const mid = Number(movieObj.id);
+        if (!mid) return;
 
-        // CRÍTICO: Impede EXIBIR o que já foi visto/descurtido E impede duplicata interna
-        if (!seenIds.has(mId) && !deduplicationTracker.has(mId)) {
-            deduplicationTracker.add(mId);
-            combinedPool.push({
-                ...movieObj,
-                _finalReason: sourceLabel
-            });
+        // REGRA: Bloqueia DESLIKES e VISTOS SEM VOTO, mas deixa novas sugestões passarem.
+        // Não reutilizamos filmes já na mesma resposta.
+        if (!dislikedOrWatched.has(mid) && !localDedupe.has(mid)) {
+            localDedupe.add(mid);
+            masterPool.push({ ...movieObj, _reason: label });
         }
     }
 
-    // 3.1 INJETAMOS A PRIORIDADE 1: Afinidade (Onde estão as TAGS que o user quer!)
-    for (const mov of affinityRaw) {
-        const tag = mov._sourceTitle ? `"${mov._sourceTitle}", baseado na sua Coleção Real` : "baseado na sua Coleção Real";
-        safePushToPool(mov, tag);
+    // PRIORIDADE 1: Afinidade com Tags Personalizadas (o que o usuário pediu!)
+    for (const a of affinityRaw) {
+        const tag = a._sourceTitle ? `"${a._sourceTitle}", baseado na sua Coleção Real` : "baseado na sua Coleção Real";
+        safePush(a, tag);
     }
 
-    // 3.2 INJETAMOS A PRIORIDADE 2: RPC (Preenche as lacunas se houver espaço)
-    // Como o RPC devolve { recommended_movie_id, ... }, convertemos o ID
-    for (const rec of rpcRaw) {
-        const converted = { id: rec.recommended_movie_id };
-        safePushToPool(converted, "baseado na sua Coleção Real"); // Usamos a tag genérica padrão solicitada para uniformidade
+    // PRIORIDADE 2: RPC para complementar com correlações estatísticas
+    for (const r of rpcRaw) {
+        safePush({ id: r.recommended_movie_id }, "baseado na sua Coleção Real");
     }
 
-    // FALLBACK DE EMERGÊNCIA (Se nada restou pós-filtro, ou usuário totalmente novo)
-    if (combinedPool.length === 0) {
-        console.log("[OMNI-Engine] Pool vazio após filtragem. Acionando fallback Elite.");
+    // FALLBACK DE SEGURANÇA: Se após tudo isso o pool ainda estiver vazio, busca alta qualidade geral
+    if (masterPool.length === 0) {
+        console.log("[OMNI-Engine V3] Pool vazio após filtragem. Acionando Fallback de Elite Neutro.");
+        const randomPage = Math.floor(Math.random() * 5) + 1; // Rotaciona para evitar sempre os mesmos filmes
         const neutral = await safeFetchTMDB('discover/movie', { 
             sort_by: 'vote_count.desc', 
-            'vote_average.gte': 7.8, 
+            'vote_average.gte': 7.5, 
             without_genres: '16,10751',
-            page: 1 
+            page: randomPage
         });
-        (neutral.results || []).forEach(n => safePushToPool(n, "baseado na sua Coleção Real"));
+        (neutral.results || []).forEach(n => safePush(n, "baseado na sua Coleção Real"));
     }
 
     // ==============================================================================
-    // PASSO 4: ENRIQUECIMENTO FAT-PAYLOAD PARALELO (TRAILERS, ETC)
+    // PASSO 4: ENRIQUECIMENTO FAT-PAYLOAD COM VIBE TAGS IA (em paralelo!)
     // ==============================================================================
-    // Limitamos ao TOP 25 do pool combinado para garantir latência baixa e alta qualidade.
-    const finalSlice = combinedPool.slice(0, 25);
-    console.log(`[OMNI-Engine] Processando fat-payload para ${finalSlice.length} filmes finais.`);
+    const topSlice = masterPool.slice(0, 20);
+    console.log(`[OMNI-Engine V3] Enriquecendo ${topSlice.length} filmes com fat-payload + Vibe Tags.`);
 
-    const enrichedResult = await Promise.all(finalSlice.map(async (item) => {
+    const enrichedResult = await Promise.all(topSlice.map(async (item) => {
         try {
             const deepUrl = `https://api.themoviedb.org/3/movie/${item.id}?api_key=${TMDB_API_KEY}&language=pt-BR&append_to_response=videos,watch/providers`;
             const r = await fetch(deepUrl);
@@ -158,25 +156,88 @@ export default async function handler(req, res) {
             const chosen = videos.find(v => v.type === 'Trailer' && v.site === 'YouTube') || videos.find(v => v.site === 'YouTube');
             if (chosen) trailerKey = chosen.key;
 
+            // Gera Vibe Tags via Ollama se sinopse disponível
+            let vibeTags = null;
+            if (data.overview && data.overview.length > 30) {
+                vibeTags = await generateVibeTags(data.title, data.overview);
+            }
+
             return {
                 ...data,
-                recommendationReason: item._finalReason,
-                pre_fetched_trailer_key: trailerKey
+                recommendationReason: item._reason,
+                pre_fetched_trailer_key: trailerKey,
+                vibe_tags: vibeTags
             };
         } catch(e) { return null; }
     }));
 
     const outputData = enrichedResult.filter(x => x && x.poster_path);
-    console.log(`[OMNI-Engine] Ciclo completo. Entregando ${outputData.length} filmes refinados.`);
+    console.log(`[OMNI-Engine V3] Ciclo completo. Entregando ${outputData.length} filmes refinados com Vibe Tags.`);
 
     return res.status(200).json({
         success: true,
-        source: 'omni-engine-v2',
+        source: 'omni-engine-v3',
         movies: outputData
     });
 
   } catch (error) {
-    console.error("[OMNI-Engine] FALHA CRÍTICA NO PROCESSO:", error);
+    console.error("[OMNI-Engine V3] FALHA CRÍTICA:", error);
     return res.status(200).json({ success: true, movies: [], error: "Pipeline general failure" });
   }
+}
+
+// ==============================================================================
+// GERADOR DE VIBE TAGS (Chama Ollama na VPS com timeout seguro)
+// ==============================================================================
+async function generateVibeTags(title, overview) {
+    try {
+        const prompt = `Você é um crítico de cinema ultra-criativo e divertido. Analise este filme:
+
+Título: "${title}"
+Sinopse: "${overview.slice(0, 500)}"
+
+Gere exatamente 3 "Vibe Tags" criativas e humanas (não os gêneros convencionais como "Ação" ou "Drama").
+As tags devem ser curtas (2-5 palavras), divertidas e capturar a ESSÊNCIA emocional do filme.
+
+Exemplos de boas tags:
+- "Perfeito com pipoca 🍿"
+- "Chorei demais 😭"
+- "Trama explode a cabeça 🤯"
+- "Assista à noite 🌙"
+- "Família vai adorar 👨‍👩‍👧"
+- "Adrenalina total ⚡"
+
+Responda APENAS com um JSON array de 3 strings, sem mais nada:
+["tag1", "tag2", "tag3"]`;
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // Timeout de 5s para não travar o request
+
+        const ollamaRes = await fetch('http://185.173.110.54:11434/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'llama3.2',
+                prompt,
+                stream: false,
+                options: { temperature: 0.9, num_predict: 100 }
+            }),
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (!ollamaRes.ok) return null;
+        const ollamaData = await ollamaRes.json();
+        const rawText = ollamaData.response || "";
+
+        // Parser robusto para extrair array JSON
+        const jsonMatch = rawText.match(/\[\s*"[^"]*"(?:\s*,\s*"[^"]*")*\s*\]/);
+        if (!jsonMatch) return null;
+        
+        const tags = JSON.parse(jsonMatch[0]);
+        return Array.isArray(tags) ? tags.slice(0, 3) : null;
+    } catch (e) {
+        // Timeout ou falha na VPS → não bloqueia o card, apenas não adiciona as tags
+        return null;
+    }
 }
