@@ -2411,10 +2411,10 @@
                 });
             });
 
-            // Converte para array, ordena por frequência e pega os top 3
+            // Converte para array, ordena por frequência e pega os TOP 5 (para dar margem a nichos como Horror)
             const sortedGenres = Object.entries(genreCounts)
                 .sort((a, b) => b[1] - a[1])
-                .slice(0, 3)
+                .slice(0, 5)
                 .map(entry => entry[0]);
             
             return sortedGenres;
@@ -2544,8 +2544,22 @@
                 const dynamicGenres = calculateDynamicGenres();
                 const activeGenres = filters?.genres?.length > 0 ? filters.genres : (dynamicGenres.length > 0 ? dynamicGenres : (favoriteGenres.length > 0 ? favoriteGenres : []));
                 
-                // 🛡️ ESCUDO ANTIVÍES DEFINITIVO: Se o usuário não tem Animação nos tops reais, NUNCA sugerimos do feed global!
-                const blockAnimation = !activeGenres.map(String).includes('16');
+                // 🛡️ ESCUDO ANTIVÍES HIPER-REFORÇADO:
+                // Bloqueamos ativamente gêneros de 'massa' que poluem o feed global (Animação, Família, Aventura)
+                // A MENOS que o usuário os tenha na sua coleção de verdade!
+                const activeStr = activeGenres.map(String);
+                const blockedGenresArray = [];
+                
+                if (!activeStr.includes('16')) blockedGenresArray.push(16); // Sem Animação se não gostar
+                if (!activeStr.includes('10751')) blockedGenresArray.push(10751); // Sem Família se não gostar
+                
+                // PROTEÇÃO DO NICHO: Aventura(12) em 'popularity.desc' do TMDB engole Suspense e Horror.
+                // Se o usuário gosta de Suspense(53) ou Terror(27) e NÃO curtiu Aventura, bloqueamos a inundação!
+                if (!activeStr.includes('12') && (activeStr.includes('53') || activeStr.includes('27'))) {
+                    blockedGenresArray.push(12);
+                }
+                const hasBlockList = blockedGenresArray.length > 0;
+                const finalBlockStr = blockedGenresArray.join(',');
 
                 // Multi-Stage Progressive Fallback Ladder (Estágios de 0 a 9)
                 let stage = 0; 
@@ -2651,9 +2665,9 @@
                         queryParams.set('page', pageToFetch);
                         
                         // Injeção Preventiva de Segurança na Query (Exceto no endpoint de trending que não aceita filter)
-                        if (blockAnimation && endpoint !== 'trending/movie/week') {
+                        if (hasBlockList && endpoint !== 'trending/movie/week') {
                             const existingWithout = queryParams.get('without_genres');
-                            queryParams.set('without_genres', existingWithout ? `${existingWithout},16` : '16');
+                            queryParams.set('without_genres', existingWithout ? `${existingWithout},${finalBlockStr}` : finalBlockStr);
                         }
 
                         try {
@@ -2683,9 +2697,10 @@
                                 if (moviesQueue.some(q => Number(q.id) === Number(m.id))) return false;
                                 if (results.some(r => r.id === m.id)) return false;
                                 
-                                // Regra 2: ESCUDO ABSOLUTO (Erradica desenhos/anime se o usuário não pediu explicitamente!)
-                                if (blockAnimation && m.genre_ids && m.genre_ids.includes(16)) {
-                                    return false;
+                                // Regra 2: ESCUDO ABSOLUTO MULTI-GÊNERO (Erradica inundação de gêneros indesejados)
+                                if (hasBlockList && m.genre_ids) {
+                                    const hasForbidden = m.genre_ids.some(gId => blockedGenresArray.includes(gId));
+                                    if (hasForbidden) return false;
                                 }
                                 
                                 return true;
@@ -3802,7 +3817,7 @@
                         if (sectionAwarded) sectionAwarded.classList.remove('hidden');
                         filteredAwarded.slice(0, 10).forEach((movie, i) => {
                             const card = document.createElement('div');
-                            card.className = 'film-card visible w-[150px] shrink-0 snap-start aspect-[2/3] relative group';
+                            card.className = 'film-card w-[150px] shrink-0 snap-start aspect-[2/3] relative group';
                             card.innerHTML = `
                                 <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title || 'Filme'}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='https://via.placeholder.com/300x450?text=MatchFlix'">
                                 <div class="card-overlay"></div>
@@ -3815,7 +3830,12 @@
                                 </div>
                             `;
                             card.addEventListener('click', () => openSynopsis(movie, 'trending', card));
-                            if (awardedGrid) awardedGrid.appendChild(card);
+                            if (awardedGrid) {
+                                awardedGrid.appendChild(card);
+                                // FLUSH DE LAYOUT SINCRONO: Garante aplicação da classe no motor webkit
+                                void card.offsetWidth; 
+                                card.classList.add('visible');
+                            }
                         });
                     }
                 }
@@ -3906,7 +3926,7 @@
                         const safeRating = typeof movie.vote_average === 'number' ? movie.vote_average.toFixed(1) : '---';
 
                         const card = document.createElement('div');
-                        card.className = 'film-card visible w-[160px] shrink-0 snap-start aspect-[2/3] relative group';
+                        card.className = 'film-card w-[160px] shrink-0 snap-start aspect-[2/3] relative group';
                         card.innerHTML = `
                             <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title || 'Filme'}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='https://via.placeholder.com/300x450?text=MatchFlix'">
                             <div class="card-overlay"></div>
@@ -3929,7 +3949,12 @@
                             </div>
                         `;
                         card.addEventListener('click', () => openSynopsis(movie, 'trending', card));
-                        if (trendingGrid) trendingGrid.appendChild(card);
+                        if (trendingGrid) {
+                            trendingGrid.appendChild(card);
+                            // FORÇA O NAVEGADOR A LER O ESTADO ATUAL E APLICAR O PRÓXIMO IMEDIATAMENTE
+                            void card.offsetWidth;
+                            card.classList.add('visible');
+                        }
                     });
                 }
             } catch (err) {
