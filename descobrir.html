@@ -810,6 +810,65 @@
             font-display: block;
             overflow: hidden;
         }
+        
+        /* ========================================= */
+        /* OTIMIZAÇÃO EXCLUSIVA PARA ANDROID TV / LANDSCAPE */
+        /* ========================================= */
+        @media (min-aspect-ratio: 4/3) {
+            /* 1. Garante que o card caiba perfeitamente com botões logo abaixo */
+            .card-stack {
+                max-height: 56vh !important; 
+                max-width: 360px !important; 
+                margin-top: 5px !important;
+            }
+            #controls {
+                margin-top: 5px !important;
+                margin-bottom: 10px !important;
+                transform: scale(0.9); /* Encolhe de leve para dar ar na TV */
+            }
+            /* 2. Acelera renderização removendo blur pesado (o vilão de lag na TV) */
+            .glass-panel, 
+            .backdrop-blur-3xl, 
+            .backdrop-blur-2xl, 
+            .backdrop-blur-xl, 
+            .backdrop-blur-md, 
+            .backdrop-blur-\[2px\],
+            .backdrop-blur-\[12px\],
+            .backdrop-blur-\[24px\],
+            .backdrop-blur-\[20px\],
+            .badge-cyber, 
+            .genre-pill {
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
+            }
+            
+            /* 3. Fallbacks de cor sólida para evitar transparências lentas na CPU da TV */
+            .bg-neutral-900\/60, 
+            .bg-neutral-950\/80 { 
+                background-color: rgba(20, 20, 20, 0.98) !important; 
+            }
+            .glass-panel { 
+                background: rgba(30, 30, 30, 0.95) !important; 
+            }
+            
+            /* Remove animação de body na entrada que atrasa exibição no hardware fraco */
+            body { animation: none !important; }
+        }
+
+        /* Indicação Visual Focada (Fundamental para navegação com Controle Remoto) */
+        *:focus {
+            outline: none;
+        }
+        .nav-item:focus, 
+        .action-btn:focus, 
+        button:focus, 
+        input:focus {
+            outline: 3px solid #e50914 !important;
+            outline-offset: 2px;
+            box-shadow: 0 0 20px #e50914 !important;
+            transform: scale(1.05);
+            z-index: 100;
+        }
     </style>
 </head>
 <body class="bg-[#0e0e0e] text-white font-body h-[100dvh] flex flex-col overflow-hidden fixed inset-0 select-none touch-none selection:bg-primary-container selection:text-white">
@@ -5833,6 +5892,98 @@
                         `;
                     }
                 }
+            }
+        });
+
+        // ======================================================================
+        // SUPORTE NATIVO PARA CONTROLE REMOTO ANDROID TV (D-PAD NAVIGATION)
+        // Mapeia setas direcionais para Swipe, Abas e Play
+        // ======================================================================
+        document.addEventListener('keydown', function(e) {
+            // Ignorar se o usuário estiver digitando ativamente
+            const activeNode = document.activeElement;
+            if (activeNode && (activeNode.tagName === 'INPUT' || activeNode.tagName === 'TEXTAREA')) {
+                // Apenas permite ESCAPE ou BACK para remover o foco do input na TV
+                if (e.key === 'Escape' || e.key === 'Backspace' && activeNode.value === '') {
+                    activeNode.blur();
+                }
+                return;
+            }
+
+            // Identifica a tela ativa no momento
+            // 'activeTab' é uma variável global mantida pela lógica do MatchFlix
+            const currentTab = typeof activeTab !== 'undefined' ? activeTab : 'descobrir';
+
+            switch(e.key) {
+                case 'ArrowLeft':
+                    // Se estiver no Tinder Mode (Descobrir), executa Dislike (Não curtir)
+                    if (currentTab === 'descobrir') {
+                        const btnDislike = document.getElementById('btn-dislike');
+                        if (btnDislike) {
+                            btnDislike.focus();
+                            btnDislike.click();
+                            e.preventDefault();
+                        }
+                    }
+                    break;
+
+                case 'ArrowRight':
+                    // Se estiver no Tinder Mode (Descobrir), executa Like (Curtir)
+                    if (currentTab === 'descobrir') {
+                        const btnLike = document.getElementById('btn-like');
+                        if (btnLike) {
+                            btnLike.focus();
+                            btnLike.click();
+                            e.preventDefault();
+                        }
+                    }
+                    break;
+
+                case 'ArrowUp':
+                    // Abre o Modal de Informações (Sinopse)
+                    if (currentTab === 'descobrir') {
+                        const btnInfo = document.getElementById('btn-info');
+                        if (btnInfo) {
+                            btnInfo.focus();
+                            btnInfo.click();
+                            e.preventDefault();
+                        }
+                    }
+                    break;
+
+                case 'ArrowDown':
+                    // Cicla circularmente entre os 3 menus da BottomNavBar (Match -> Likes -> Coleção)
+                    const tvMenuSequence = ['descobrir', 'meusmatches', 'colecoes'];
+                    let nextIndex = 0;
+                    
+                    const currentPos = tvMenuSequence.indexOf(currentTab);
+                    if (currentPos > -1) {
+                        nextIndex = (currentPos + 1) % tvMenuSequence.length;
+                    }
+                    
+                    const nextTab = tvMenuSequence[nextIndex];
+                    console.log(`[TV REMOTE] Pulando da aba '${currentTab}' para '${nextTab}'`);
+                    
+                    if (typeof goToTab === 'function') {
+                        goToTab(nextTab);
+                        // Dá foco automático no botão do menu correspondente para feedback visual
+                        setTimeout(() => {
+                            const navBtn = document.querySelector(`.nav-item[data-page="${nextTab}"]`);
+                            if (navBtn) navBtn.focus();
+                        }, 150);
+                    }
+                    e.preventDefault();
+                    break;
+
+                case 'Enter':
+                case 'Select':
+                    // Se o Player estiver aberto e coberto pelo Ad Shield, clica no shield para liberar vídeo
+                    const shield = document.getElementById('streaming-ad-shield');
+                    if (shield && shield.style.display !== 'none' && !document.getElementById('streaming-player-overlay').classList.contains('translate-y-full')) {
+                        shield.click();
+                        e.preventDefault();
+                    }
+                    break;
             }
         });
     </script>

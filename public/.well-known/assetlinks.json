@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.matchflix.app",
+      "sha256_cert_fingerprints": [
+        "AC:A6:61:71:13:49:9E:2C:74:5E:1C:C7:8B:A0:00:CE:97:A8:A1:71:F9:0D:70:D4:F3:2F:EC:0B:0E:6F:24:A9"
+      ]
+    }
+  }
+]
