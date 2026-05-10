@@ -799,6 +799,41 @@
             animation: pulse-neon 2s infinite alternate;
         }
 
+        /* Container inline das Vibe Tags (irmão dos genre pills dentro do trailer-genres-container) */
+        .vibe-tags-inline-container {
+            display: contents; /* Faz os filhos participarem diretamente do flex-wrap do pai */
+        }
+
+        /* Vibe Tag — versão compacta para o contexto do trailer (mesmo tamanho dos genre pills) */
+        .vibe-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px 11px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 900;
+            font-family: 'Outfit', sans-serif;
+            letter-spacing: 0.04em;
+            background: rgba(139, 92, 246, 0.25);
+            border: 1px solid rgba(196, 132, 252, 0.6);
+            color: #d8b4fe;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35), inset 0 0 10px rgba(139, 92, 246, 0.15);
+            white-space: nowrap;
+            animation: vibe-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both, pulse-vibe 2s infinite alternate;
+        }
+
+        @keyframes vibe-pop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        @keyframes pulse-vibe {
+            0%   { box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35), inset 0 0 10px rgba(139, 92, 246, 0.15); border-color: rgba(196, 132, 252, 0.6); }
+            100% { box-shadow: 0 4px 25px rgba(139, 92, 246, 0.65), inset 0 0 12px rgba(139, 92, 246, 0.3); border-color: rgba(196, 132, 252, 0.9); }
+        }
+
         @keyframes pulse-neon {
             0% {
                 box-shadow: 0 4px 15px rgba(229, 9, 20, 0.35), inset 0 0 10px rgba(229, 9, 20, 0.15);
@@ -2936,22 +2971,15 @@
 
                 if (!data.vibe_tags || !Array.isArray(data.vibe_tags) || data.vibe_tags.length === 0) return;
 
-                // Injeta no card se ele ainda estiver no DOM
-                const container = cardElement.querySelector('.vibe-tags-container');
-                if (container) {
-                    // Atualiza container existente
-                    container.innerHTML = data.vibe_tags.map(tag => `<span class="vibe-tag">${tag}</span>`).join('');
-                } else {
-                    // Cria container se não existir (primeiro card que recebe tags)
-                    const infoContent = cardElement.querySelector('.card-info-content');
-                    if (infoContent) {
-                        const tagsDiv = document.createElement('div');
-                        tagsDiv.className = 'flex flex-wrap gap-2 mt-3 vibe-tags-container';
-                        tagsDiv.innerHTML = data.vibe_tags.map(tag => `<span class="vibe-tag">${tag}</span>`).join('');
-                        infoContent.appendChild(tagsDiv);
-                    }
+                // Injeta no slot correto: dentro do trailer-genres-container, junto dos gêneros
+                const vibeSlot = cardElement.querySelector(`#vibe-tags-${movie.id}`);
+                if (vibeSlot) {
+                    vibeSlot.innerHTML = data.vibe_tags.map(tag => `<span class="vibe-tag">${tag}</span>`).join('');
+                    // Ativa o container para as tags ficarem sempre visíveis (não só durante o trailer)
+                    const genresCont = cardElement.querySelector('.trailer-genres-container');
+                    if (genresCont) genresCont.classList.add('active');
+                    console.log(`✨ [Vibe-AI] Tags injetadas no trailer-genres para "${movie.title}":`, data.vibe_tags);
                 }
-                console.log(`✨ [Vibe-AI] Tags injetadas para "${movie.title}":`, data.vibe_tags);
             } catch(e) {
                 // Silencioso — nunca bloqueia nada
             }
@@ -3161,6 +3189,7 @@
                 
                 <div class="trailer-genres-container" id="trailer-genres-${movie.id}">
                     ${generateTrailerGenreLabelsHTML(movie)}
+                    <div id="vibe-tags-${movie.id}" class="vibe-tags-inline-container"></div>
                 </div>
 
                 <!-- Trailer Preview System -->
@@ -3180,15 +3209,6 @@
                         <span class="text-on-surface-variant font-medium text-sm tracking-wider uppercase">${releaseYear}</span>
                     </div>
                     <h2 class="text-3xl font-headline font-extrabold tracking-tighter leading-none text-white drop-shadow-lg pointer-events-none">${movie.title}</h2>
-
-                    ${Array.isArray(movie.vibe_tags) && movie.vibe_tags.length > 0 ? `
-                    <div class="flex flex-wrap gap-2 mt-3 vibe-tags-container">
-                        ${movie.vibe_tags.map(tag => `
-                            <span class="vibe-tag">
-                                ${tag}
-                            </span>
-                        `).join('')}
-                    </div>` : ''}
                 </div>
 
 
@@ -3475,7 +3495,11 @@
                 w.innerHTML = `<div id="trailer-preview-${movieId}"></div>`;
             });
             document.querySelectorAll('.trailer-genres-container').forEach(c => {
-                c.classList.remove('active');
+                // Se o container tem Vibe Tags injetadas, mantém ativo para ficarem sempre visíveis
+                const hasVibeTags = c.querySelector('.vibe-tag');
+                if (!hasVibeTags) {
+                    c.classList.remove('active');
+                }
             });
             document.querySelectorAll('.unmute-btn').forEach(b => b.classList.remove('visible'));
         }
