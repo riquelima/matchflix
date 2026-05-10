@@ -89,7 +89,7 @@ export default async function handler(req, res) {
                 const userHistory = await historyPromise;
                 const lastLiked = userHistory
                     .filter(h => h.curtiu === true)
-                    .slice(0, 3); // Pega os 3 últimos likes reais
+                    .slice(0, 5); // Aumentamos para os 5 últimos likes reais para maior espectro
                 
                 let fallbackMovies = [];
 
@@ -97,12 +97,25 @@ export default async function handler(req, res) {
                     console.log(`[ML-Engine] Extraindo sementes de afinidade de ${lastLiked.length} filmes do histórico.`);
                     // 2. Dispara Recomendações Cruzadas baseadas nos filmes específicos que o usuário gosta!
                     const simResults = await Promise.all(lastLiked.map(async (h) => {
-                        const data = await safeFetchTMDB(`movie/${h.filme_id}/recommendations`, { page: 1 });
-                        return data.results || [];
+                        const sourceDataPromise = safeFetchTMDB(`movie/${h.filme_id}`);
+                        const dataPromise = safeFetchTMDB(`movie/${h.filme_id}/recommendations`, { page: 1 });
+                        
+                        const [sourceData, data] = await Promise.all([sourceDataPromise, dataPromise]);
+                        const sourceTitle = sourceData.title || "filme salvo";
+                        const results = data.results || [];
+                        
+                        return results.map(r => ({ ...r, _sourceTitle: sourceTitle }));
                     }));
                     
-                    // Achata a lista de arrays e elimina duplicatas
-                    const combined = [].concat(...simResults);
+                    // Intercalar os resultados de diferentes sementes para maximizar a diversidade de gêneros instantaneamente
+                    const maxLen = Math.max(...simResults.map(r => r.length));
+                    const combined = [];
+                    for (let i = 0; i < maxLen; i++) {
+                        simResults.forEach(list => {
+                            if (list[i]) combined.push(list[i]);
+                        });
+                    }
+
                     const uniqueMap = new Map();
                     combined.forEach(m => { if(m && m.id) uniqueMap.set(m.id, m); });
                     
@@ -110,7 +123,7 @@ export default async function handler(req, res) {
                     const historyIds = new Set(userHistory.map(h => Number(h.filme_id)));
                     fallbackMovies = Array.from(uniqueMap.values())
                         .filter(m => !historyIds.has(Number(m.id)))
-                        .slice(0, 20);
+                        .slice(0, 30); // Retém um pool maior de 30 para mixar no front
                 }
 
                 // Se por acaso o usuário não tem histórico NENHUM (usuário zero), 
@@ -139,9 +152,12 @@ export default async function handler(req, res) {
                         const trailer = v.find(x => x.type === 'Trailer' && x.site === 'YouTube') || v.find(x => x.site === 'YouTube');
                         if (trailer) trailerKey = trailer.key;
 
+                        const source = movie._sourceTitle;
+                        const finalReason = source ? `"${source}", baseado na sua Coleção Real` : "baseado na sua Coleção Real";
+
                         return {
                             ...movieData,
-                            recommendationReason: "Baseado na sua Coleção Real",
+                            recommendationReason: finalReason,
                             pre_fetched_trailer_key: trailerKey
                         };
                     } catch (err) { return null; }
