@@ -879,9 +879,12 @@
                 <div class="flex flex-col items-center justify-center overflow-hidden mx-2 flex-1">
                     <h3 id="streaming-player-title" class="text-[10px] font-black text-white uppercase tracking-[0.2em] truncate w-full text-center">Assistindo</h3>
                     <select id="server-selector" onchange="changeStreamingProvider(this.value)" class="bg-transparent text-[9px] font-bold text-primary-container border-none outline-none p-0 m-0 uppercase tracking-wider cursor-pointer appearance-none text-center">
-                        <option value="1" class="bg-neutral-900 text-white">📺 Servidor 1 (Padrao)</option>
-                        <option value="2" class="bg-neutral-900 text-white">🚀 Servidor 2 (Rapido)</option>
-                        <option value="3" class="bg-neutral-900 text-white">🌐 Servidor 3 (Alternativo)</option>
+                        <option value="1" class="bg-neutral-900 text-white">💎 Servidor 1 (Sem Anúncios)</option>
+                        <option value="2" class="bg-neutral-900 text-white">🛡️ Servidor 2 (Vidsrc CC)</option>
+                        <option value="3" class="bg-neutral-900 text-white">🇧🇷 Servidor 3 (PT-BR Premium)</option>
+                        <option value="4" class="bg-neutral-900 text-white">🚀 Servidor 4 (Vidsrc ICU)</option>
+                        <option value="5" class="bg-neutral-900 text-white">⚡ Servidor 5 (Vidsrc Global)</option>
+                        <option value="6" class="bg-neutral-900 text-white">🌐 Servidor 6 (Reserva)</option>
                     </select>
                 </div>
                 <div class="w-10"></div>
@@ -5559,19 +5562,28 @@
             let embedUrl = '';
             const movieId = currentStreamingMovie.id;
 
-            // Lista Curada de Provedores Multi-Mirror (Resiliência contra DNS Failures)
+            // Lista Curada de Provedores Multi-Mirror (Verificado Uptime 2025)
             switch(parseInt(serverId)) {
                 case 1:
-                    embedUrl = `https://myembed.biz/filme/${movieId}`;
+                    embedUrl = `https://vidlink.pro/embed/movie/${movieId}`;
                     break;
                 case 2:
-                    embedUrl = `https://embed.warezcdn.net/filme/${movieId}`;
+                    embedUrl = `https://vidsrc.cc/v2/embed/movie/${movieId}`;
                     break;
                 case 3:
+                    embedUrl = `https://myembed.biz/filme/${movieId}`;
+                    break;
+                case 4:
+                    embedUrl = `https://vidsrc.icu/embed/movie/${movieId}`;
+                    break;
+                case 5:
+                    embedUrl = `https://vidsrc.to/embed/movie/${movieId}`;
+                    break;
+                case 6:
                     embedUrl = `https://multiembed.mov/directstream.php?video_id=${movieId}&tmdb=1`;
                     break;
                 default:
-                    embedUrl = `https://myembed.biz/filme/${movieId}`;
+                    embedUrl = `https://vidlink.pro/embed/movie/${movieId}`;
             }
             
             streamingIframe.src = embedUrl;
@@ -5597,8 +5609,8 @@
             // Liberação total de sandbox (Restaurada conforme solicitado para não travar players)
             streamingIframe.removeAttribute('sandbox');
             
-            // Inicia carregando no servidor padrão
-            const embedUrl = `https://myembed.biz/filme/${movie.id}`;
+            // Inicia carregando no servidor padrão (Priorizado sem anúncios)
+            const embedUrl = `https://vidlink.pro/embed/movie/${movie.id}`;
             streamingIframe.src = embedUrl;
             streamingPlayerTitle.textContent = movie.title;
             

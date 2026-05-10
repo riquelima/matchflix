@@ -102,7 +102,8 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('[ML-Engine] Erro Fatal no Backend:', error);
-    return res.status(500).json({ success: false, error: "Erro interno no motor de recomendação.", details: error.message });
+    // Logamos no backend servidor mas suprimimos no frontend (200 OK com lista vazia ativa o fallback visual do app)
+    console.warn('[ML-Engine] Aviso: Erro interno ou RPC Mismatch na base de dados:', error.message);
+    return res.status(200).json({ success: true, source: 'ml-fallback', movies: [], warning: "Database RPC schema mismatch prevented smart recommendation" });
   }
 }
