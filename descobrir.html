@@ -4334,7 +4334,7 @@
             card.innerHTML = `
                 <img src="${optimizedUrl}" 
                      alt="${movie.title}" 
-                     loading="lazy" 
+                     loading="eager" 
                      onerror="this.onerror=null; this.src='${backupUrl}';">
                 <div class="card-overlay"></div>
                 <div class="card-info">
@@ -4343,9 +4343,9 @@
             `;
             card.addEventListener('click', () => openSynopsis(movie, 'match', card));
             matchesGrid.appendChild(card);
-            // Se já carregamos antes, aparece instantâneo, senão escalona
-            if (isMatchesLoaded) card.classList.add('visible');
-            else setTimeout(() => card.classList.add('visible'), 50 * index);
+            
+            // Renderização Instantânea e Estática (Atende pedido direto do usuário de zero animação)
+            card.classList.add('visible');
         }
 
         async function removeMatch(movieId, element) {
@@ -4500,7 +4500,7 @@
                 card.innerHTML = `
                     <img src="${optimizedUrl}" 
                          alt="${movie.title || 'Sem Título'}" 
-                         loading="lazy" 
+                         loading="eager" 
                          onerror="this.onerror=null; this.src='${backupUrl}';"
                          class="rounded-xl overflow-hidden shadow-lg">
                     <div class="card-overlay rounded-xl"></div>
@@ -4510,8 +4510,9 @@
                 `;
                 card.addEventListener('click', () => openSynopsis(movie, 'collection', card));
                 gridElement.appendChild(card);
-                if (isCollectionLoaded) card.classList.add('visible');
-                else setTimeout(() => card.classList.add('visible'), 50 * i);
+                
+                // Liberação Estática Instantânea para Coleção
+                card.classList.add('visible');
             });
         }
 
