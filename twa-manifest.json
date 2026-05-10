@@ -21,8 +21,8 @@
     "path": "C:\\Users\\henri\\OneDrive\\Documentos\\Henrique\\Projetos Sistemas\\MatchFlix\\android.keystore",
     "alias": "android"
   },
-  "appVersionName": "2",
-  "appVersionCode": 2,
+  "appVersionName": "4",
+  "appVersionCode": 4,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://mymatchflix.vercel.app/manifest.json",
@@ -44,5 +44,5 @@
   "fileHandlers": [],
   "launchHandlerClientMode": "",
   "displayOverride": [],
-  "appVersion": "2"
+  "appVersion": "4"
 }
