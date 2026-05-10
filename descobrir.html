@@ -2917,6 +2917,46 @@
 
 
         // Renderizar a fila (Otimizado estilo Tinder)
+        // 🎬 VIBE TAGS — Busca lazy via /api/vibe para o card do topo
+        // Set de IDs que já tiveram Vibe Tags buscadas nessa sessão (evita re-buscar)
+        const vibeTagsFetched = new Set();
+
+        async function fetchAndInjectVibeTags(movie, cardElement) {
+            if (!movie || !movie.id || !movie.overview || vibeTagsFetched.has(movie.id)) return;
+            vibeTagsFetched.add(movie.id);
+
+            try {
+                const params = new URLSearchParams({ 
+                    title: movie.title || '', 
+                    overview: (movie.overview || '').slice(0, 500) 
+                });
+                const res = await fetch(`/api/vibe?${params.toString()}`);
+                if (!res.ok) return;
+                const data = await res.json();
+
+                if (!data.vibe_tags || !Array.isArray(data.vibe_tags) || data.vibe_tags.length === 0) return;
+
+                // Injeta no card se ele ainda estiver no DOM
+                const container = cardElement.querySelector('.vibe-tags-container');
+                if (container) {
+                    // Atualiza container existente
+                    container.innerHTML = data.vibe_tags.map(tag => `<span class="vibe-tag">${tag}</span>`).join('');
+                } else {
+                    // Cria container se não existir (primeiro card que recebe tags)
+                    const infoContent = cardElement.querySelector('.card-info-content');
+                    if (infoContent) {
+                        const tagsDiv = document.createElement('div');
+                        tagsDiv.className = 'flex flex-wrap gap-2 mt-3 vibe-tags-container';
+                        tagsDiv.innerHTML = data.vibe_tags.map(tag => `<span class="vibe-tag">${tag}</span>`).join('');
+                        infoContent.appendChild(tagsDiv);
+                    }
+                }
+                console.log(`✨ [Vibe-AI] Tags injetadas para "${movie.title}":`, data.vibe_tags);
+            } catch(e) {
+                // Silencioso — nunca bloqueia nada
+            }
+        }
+
         function renderTopCards() {
             const stackContainer = document.getElementById('card-stack');
             if (!stackContainer) return;
@@ -2992,6 +3032,9 @@
                             // Se já estava inicializado, garante que o timer do trailer inicie
                             if (existing._startTrailerTimer) existing._startTrailerTimer();
                         }
+
+                        // 🎬 VIBE TAGS LAZY: Busca tags IA de forma assíncrona (não bloqueia o card)
+                        fetchAndInjectVibeTags(movie, existing);
                     } else {
 
                         existing.classList.remove('active-drag');
@@ -3012,8 +3055,16 @@
                     
                 } else {
                     // Se não estiver no DOM, cria
-                    createCardDOM(movie, i);
+                    const newCard = createCardDOM(movie, i);
+                    // Se for o card do topo recém-criado, dispara Vibe Tags assim que o DOM for pintado
+                    if (i === 0) {
+                        requestAnimationFrame(() => {
+                            const el = document.querySelector(`.movie-card-wrapper[data-movie-id="${movie.id}"]`);
+                            if (el) fetchAndInjectVibeTags(movie, el);
+                        });
+                    }
                 }
+
             }
 
             // Remove cards que saíram totalmente da janela de visibilidade (buffer de 5)

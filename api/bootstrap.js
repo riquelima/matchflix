@@ -163,17 +163,11 @@ export default async function handler(req, res) {
                     const best = vids.find(v => v.type === 'Trailer' && v.site === 'YouTube') || vids.find(v => v.site === 'YouTube');
                     if (best) trailerKey = best.key;
 
-                    // Gera Vibe Tags via Ollama de forma não-bloqueante
-                    let vibeTags = null;
-                    if (data.overview && data.overview.length > 30) {
-                        vibeTags = await generateVibeTagsBootstrap(data.title, data.overview);
-                    }
-
                     return {
                         ...data,
                         recommendationReason: item._reason,
-                        pre_fetched_trailer_key: trailerKey,
-                        vibe_tags: vibeTags
+                        pre_fetched_trailer_key: trailerKey
+                        // vibe_tags são geradas lazily pelo front-end via /api/vibe para não travar o Vercel
                     };
                 } catch(e) { return null; }
             }));
