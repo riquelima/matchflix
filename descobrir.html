@@ -886,6 +886,8 @@
                     <iframe id="streaming-iframe" 
                             class="absolute inset-0 w-full h-full border-none" 
                             allowfullscreen 
+                            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts"
+                            referrerpolicy="no-referrer"
                             style="width: 100%; height: 100%;"></iframe>
                 </div>
                 <p class="mt-8 text-white/10 text-[8px] font-black tracking-[0.4em] uppercase">MatchFlix Experience</p>
@@ -1720,9 +1722,7 @@
                 }
                 
                 currentUser = session.user;
-                await fetchInteractedMovies(); 
-                
-                // Dispara a inicialização global do App
+                // A inicialização global disparará todas as chamadas em paralelo!
                 initApp();
             }
         })();
@@ -1768,16 +1768,22 @@
             console.log("🎬 Iniciando MatchFlix...");
             initTrendingElements();
             try {
-                await fetchTMDBGenres(); // Busca gêneros antes de tudo
-                // Carrega TUDO em paralelo (Match, Tendências, Matches e Coleção)
-                await Promise.all([
-                    fetchMovies(),      // Aba Match
-                    fetchTrending(),    // Aba Tendências (Hall da Fama, etc)
-                    fetchMatches(),     // Aba Likes
-                    fetchCollection()   // Aba Coleção
+                console.log("⚡ Orquestrando carregamento concorrente global na VPS...");
+                // ETAPA 1: Disparar TODAS as chamadas em paralelo para quebrar o Splash Screen o mais rápido possível!
+                const parallelData = await Promise.all([
+                    fetchTMDBGenres(),
+                    fetchTrending(),        // Traz notícias e filmes em alta
+                    fetchMatches(),         // Carrega Aba de Likes via Hydrator
+                    fetchCollection(),      // Carrega Aba Coleção via Hydrator
+                    fetchInteractedMovies() // Carrega Histórico e Calibra Algoritmo de Gêneros!
                 ]);
                 
-                console.log("✅ Conteúdo carregado em background.");
+                const trendingRes = parallelData[1]; // Coleta o resultado do Trending já carregado
+                
+                // ETAPA 2: Agora que o histórico calibrou, busca a fila de swipes com a inteligência calibrada!
+                await fetchMovies();
+                
+                console.log("✅ Conteúdo inicial consolidado em tempo recorde.");
 
                 // Inicializa os componentes de UI
                 initMatches();
@@ -1800,8 +1806,8 @@
                     });
                 }
 
-                // 2. Pôsteres das Tendências (os 4 primeiros de cada seção principal)
-                const trendingData = await fetchTrending();
+                // 2. Pôsteres das Tendências (usando o dado já capturado na Etapa 1)
+                const trendingData = trendingRes || cachedTrendingData;
                 if (trendingData) {
                     if (trendingData.day && trendingData.day.results) {
                         trendingData.day.results.slice(0, 4).forEach(m => {
@@ -2091,28 +2097,30 @@
                 
                 console.log(`✅ Histórico carregado: ${interactedMovieIds.size} filmes.`);
 
-                // Pré-popular likedMoviesLocal com os filmes que o usuário curtiu no banco de dados para o algoritmo dinâmico de sugestões
-                const likedRecent = allData
-                    .filter(item => item.curtiu && !item.assistido)
+                // NOVA ESTRATÉGIA: Hiper-Calibragem do Algoritmo Dinâmico
+                // Analisamos o topo do histórico real: FILMES CURTIDOS OU ASSISTIDOS (Rica fonte de preferências)
+                const historyTargets = allData
+                    .filter(item => item.curtiu === true || item.assistido === true)
                     .sort((a, b) => new Date(b.criado_em) - new Date(a.criado_em))
-                    .slice(0, 10);
+                    .slice(0, 40); // Amostragem ampliada de 10 para 40 para traçar perfil preciso
 
-                if (likedRecent.length > 0) {
-                    const fetchPromises = likedRecent.map(async (item) => {
-                        try {
-                            const res = await fetch(`https://api.themoviedb.org/3/movie/${item.filme_id}?api_key=${API_KEY}&language=pt-BR`);
-                            if (res.ok) {
-                                const movie = await res.json();
-                                if (!likedMoviesLocal.find(m => m.id === movie.id)) {
-                                    likedMoviesLocal.push(movie);
-                                }
+                if (historyTargets.length > 0) {
+                    const rawIds = historyTargets.map(h => h.filme_id);
+                    try {
+                        // MEGA FAT HYDRATOR: Carrega metadados de gêneros de 40 filmes de uma vez via VPS
+                        console.log(`🧠 Calibrando perfil com ${rawIds.length} títulos do seu histórico...`);
+                        const hRes = await fetch(`/api/hydrator?ids=${rawIds.join(',')}`);
+                        const fullMovies = await hRes.json();
+                        
+                        fullMovies.forEach(movie => {
+                            if (!likedMoviesLocal.find(m => m.id === movie.id)) {
+                                likedMoviesLocal.push(movie); // Alimenta o container central de conhecimento
                             }
-                        } catch (err) {
-                            console.error(`Erro ao pré-carregar filme curtido ${item.filme_id}:`, err);
-                        }
-                    });
-                    await Promise.all(fetchPromises);
-                    console.log(`🧠 [Algoritmo Dinâmico] ${likedMoviesLocal.length} filmes carregados do banco para sugestões baseadas em likes.`);
+                        });
+                        console.log(`✅ [Algoritmo Inteligente] Perfil calibrado com ${likedMoviesLocal.length} filmes reais. Adeus viés genérico!`);
+                    } catch(e) {
+                        console.warn("⚠️ Falha ao calibrar perfil via VPS. Mantendo preferência de registro.");
+                    }
                 }
             } catch(e) {
                 console.error("Erro ao carregar histórico", e);
@@ -2463,6 +2471,12 @@
                 }
                 // ===========================================================
 
+                const dynamicGenres = calculateDynamicGenres();
+                const activeGenres = filters?.genres?.length > 0 ? filters.genres : (dynamicGenres.length > 0 ? dynamicGenres : (favoriteGenres.length > 0 ? favoriteGenres : []));
+                
+                // 🛡️ ESCUDO ANTIVÍES DEFINITIVO: Se o usuário não tem Animação nos tops reais, NUNCA sugerimos do feed global!
+                const blockAnimation = !activeGenres.map(String).includes('16');
+
                 // Multi-Stage Progressive Fallback Ladder (Estágios de 0 a 9)
                 let stage = 0; 
                 
@@ -2470,9 +2484,6 @@
                     console.log(`🧠 [Filtro Master] Buscando filmes - Estágio ${stage}`);
                     let queryParams = new URLSearchParams(baseParams);
                     let endpoint = 'discover/movie';
-
-                    const dynamicGenres = calculateDynamicGenres();
-                    const activeGenres = filters?.genres?.length > 0 ? filters.genres : (dynamicGenres.length > 0 ? dynamicGenres : (favoriteGenres.length > 0 ? favoriteGenres : []));
 
                     if (stage === 0) {
                         // Estágio 0: Filtros Completos e Estritos
@@ -2568,6 +2579,13 @@
 
                     while (results.length < 60 && attempts < maxAttempts) {
                         queryParams.set('page', pageToFetch);
+                        
+                        // Injeção Preventiva de Segurança na Query (Exceto no endpoint de trending que não aceita filter)
+                        if (blockAnimation && endpoint !== 'trending/movie/week') {
+                            const existingWithout = queryParams.get('without_genres');
+                            queryParams.set('without_genres', existingWithout ? `${existingWithout},16` : '16');
+                        }
+
                         try {
                             // ESTRATÉGIA FAT-PAYLOAD: Tentamos rotear a chamada pela VPS Orquestradora primeiro
                             const proxyUrl = `/api/movies?endpoint=${encodeURIComponent(endpoint)}&${queryParams.toString()}`;
@@ -2589,11 +2607,19 @@
                                 continue;
                             }
 
-                            const filtered = data.results.filter(m => 
-                                !interactedMovieIds.has(Number(m.id)) && 
-                                !moviesQueue.some(q => Number(q.id) === Number(m.id)) &&
-                                !results.some(r => r.id === m.id)
-                            );
+                            const filtered = data.results.filter(m => {
+                                // Regra 1: Elimina itens repetidos ou já interagidos
+                                if (interactedMovieIds.has(Number(m.id))) return false;
+                                if (moviesQueue.some(q => Number(q.id) === Number(m.id))) return false;
+                                if (results.some(r => r.id === m.id)) return false;
+                                
+                                // Regra 2: ESCUDO ABSOLUTO (Erradica desenhos/anime se o usuário não pediu explicitamente!)
+                                if (blockAnimation && m.genre_ids && m.genre_ids.includes(16)) {
+                                    return false;
+                                }
+                                
+                                return true;
+                            });
 
                             console.log(`📍 Estágio ${stage} (pág ${pageToFetch}): Encontrados ${data.results.length} filmes, ${filtered.length} novos.`);
                             results = [...results, ...filtered];
@@ -3992,10 +4018,31 @@
                 // Só limpa e re-renderiza se for a primeira carga ou estiver dirty
                 matchesGrid.innerHTML = ''; 
                 
-                // Renderizar em ordem (locais primeiro)
+                // NOVA ESTRATÉGIA: Hidratação em lote via Hydrator da VPS em vez de disparo massivo no browser
+                const remoteIdsToHydrate = combinedMatches.filter(m => m.isRemote).map(m => m.id);
+                let hydratedMap = new Map();
+
+                if (remoteIdsToHydrate.length > 0) {
+                    try {
+                        console.log(`⚡ Hidratando ${remoteIdsToHydrate.length} matches via VPS...`);
+                        const hRes = await fetch(`/api/hydrator?ids=${remoteIdsToHydrate.join(',')}`);
+                        const hydratedData = await hRes.json();
+                        hydratedData.forEach(m => hydratedMap.set(Number(m.id), m));
+                    } catch(e) {
+                        console.warn("⚠️ Fallback Hydrator Matches. Carregando via browser...");
+                        const fallbackData = await Promise.all(remoteIdsToHydrate.map(async (id) => {
+                            const r = await fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${API_KEY}&language=pt-BR`);
+                            return r.ok ? await r.json() : null;
+                        }));
+                        fallbackData.forEach(m => { if(m) hydratedMap.set(Number(m.id), m); });
+                    }
+                }
+
+                // Renderizar tudo instantaneamente sem bloqueio de rede
                 combinedMatches.forEach((item, i) => {
                     if (item.isRemote) {
-                        renderMatchItem(item.id, i);
+                        const fullObj = hydratedMap.get(Number(item.id));
+                        if (fullObj) renderMatchItemFromObject(fullObj, i);
                     } else {
                         renderMatchItemFromObject(item, i);
                     }
@@ -4018,8 +4065,15 @@
         function renderMatchItemFromObject(movie, index) {
             const card = document.createElement('div');
             card.className = 'film-card aspect-[2/3] relative group';
+            const pPath = movie.poster_path;
+            const backupUrl = `https://image.tmdb.org/t/p/w500${pPath}`;
+            const optimizedUrl = pPath ? `${IMAGE_BASE_URL}${pPath}` : 'https://via.placeholder.com/500x750?text=Sem+Imagem';
+
             card.innerHTML = `
-                <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title}" loading="lazy">
+                <img src="${optimizedUrl}" 
+                     alt="${movie.title}" 
+                     loading="lazy" 
+                     onerror="this.onerror=null; this.src='${backupUrl}';">
                 <div class="card-overlay"></div>
                 <div class="card-info">
                     <h3 class="text-white font-bold text-[10px] line-clamp-1 uppercase tracking-tight">${movie.title}</h3>
@@ -4126,19 +4180,30 @@
                 gridPending.innerHTML = '';
                 gridWatched.innerHTML = '';
                 
-                // Processar e enriquecer os filmes
-                const enriched = await Promise.all(data.map(async (item) => {
+                // Sincroniza Sets e coleta lista consolidada para a VPS
+                const idList = [];
+                data.forEach(item => {
                     const id = Number(item.filme_id);
-                    // Sincroniza o Set de assistidos
                     if (item.assistido) watchedMovieIds.add(id);
                     else watchedMovieIds.delete(id);
+                    idList.push(id);
+                });
 
-                    // Busca detalhes no TMDB
-                    try {
-                        const res = await fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${API_KEY}&language=pt-BR`);
-                        return await res.json();
-                    } catch { return { id }; }
-                }));
+                // MEGA FAT CALL: Hidrata a Coleção INTEIRA em uma única pancada via Backbone da VPS
+                let enriched = [];
+                try {
+                    console.log(`⚡ Hidratando ${idList.length} itens da Coleção via VPS...`);
+                    const hRes = await fetch(`/api/hydrator?ids=${idList.join(',')}`);
+                    enriched = await hRes.json();
+                } catch(e) {
+                    console.warn("⚠️ Fallback Hydrator Collection. Utilizando browser...");
+                    enriched = await Promise.all(idList.map(async (id) => {
+                        try {
+                            const res = await fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${API_KEY}&language=pt-BR`);
+                            return await res.json();
+                        } catch { return { id }; }
+                    }));
+                }
 
                 const pending = enriched.filter(m => !watchedMovieIds.has(Number(m.id)));
                 const watched = enriched.filter(m => watchedMovieIds.has(Number(m.id)));
@@ -4165,8 +4230,17 @@
             movies.forEach((movie, i) => {
                 const card = document.createElement('div');
                 card.className = 'film-card aspect-[2/3] w-full relative group snap-start';
+                
+                const pPath = movie.poster_path;
+                const backupUrl = `https://image.tmdb.org/t/p/w500${pPath}`;
+                const optimizedUrl = pPath ? `${IMAGE_BASE_URL}${pPath}` : 'https://via.placeholder.com/500x750?text=Sem+Imagem';
+
                 card.innerHTML = `
-                    <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title}" loading="lazy" class="rounded-xl overflow-hidden shadow-lg">
+                    <img src="${optimizedUrl}" 
+                         alt="${movie.title || 'Sem Título'}" 
+                         loading="lazy" 
+                         onerror="this.onerror=null; this.src='${backupUrl}';"
+                         class="rounded-xl overflow-hidden shadow-lg">
                     <div class="card-overlay rounded-xl"></div>
                     <div class="card-info p-2">
                         <h3 class="text-white font-bold text-[8px] line-clamp-1 uppercase tracking-tight">${movie.title || 'Sem Título'}</h3>
@@ -5457,8 +5531,8 @@
             const streamingPlayerTitle = document.getElementById('streaming-player-title');
             const streamingPlayerOverlay = document.getElementById('streaming-player-overlay');
             
-            // Remove explicitamente qualquer restrição de sandbox para evitar bloqueios do provedor
-            streamingIframe.removeAttribute('sandbox');
+            // Configura sandbox seguro: permite scripts vitais, mas bloqueia popups e navegações de nível superior indesejadas
+            streamingIframe.setAttribute('sandbox', 'allow-forms allow-pointer-lock allow-same-origin allow-scripts');
             
             const embedUrl = `https://myembed.biz/filme/${movie.id}`;
             streamingIframe.src = embedUrl;

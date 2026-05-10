@@ -220,6 +220,32 @@ function viteAiOrchestratorPlugin() {
           return;
         }
         
+        // NOVO: Intercepta chamadas para /api/hydrator (Batch Multi-Movie Hydrator)
+        if (parsedUrl === '/api/hydrator') {
+          console.log(`[Vite-Hydrator] Simulador de Hidratação em Lote.`);
+          const urlParams = new URL(req.url, `http://${req.headers.host}`).searchParams;
+          const idsStr = urlParams.get('ids') || '';
+          const ids = idsStr.split(',').map(s => s.trim()).filter(Boolean);
+
+          (async () => {
+            try {
+              const promises = ids.map(async (id) => {
+                try {
+                  const r = await fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_API_KEY}&language=pt-BR`);
+                  return r.ok ? await r.json() : null;
+                } catch(e) { return null; }
+              });
+              const movies = (await Promise.all(promises)).filter(Boolean);
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify(movies));
+            } catch (err) {
+              res.writeHead(500, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify([]));
+            }
+          })();
+          return;
+        }
+        
         // NOVO: Intercepta chamadas para /api/image (Edge Image Optimizer Simulator)
         if (parsedUrl === '/api/image') {
           const urlParams = new URL(req.url, `http://${req.headers.host}`).searchParams;
