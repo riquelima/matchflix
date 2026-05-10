@@ -63,134 +63,111 @@ export default async function handler(req, res) {
     // 3. Recomendações / Fila Inicial (Motor de IA do backend)
     const initialQueuePromise = (async () => {
         try {
-            const rpcUrl = `${SUPABASE_URL}/rest/v1/rpc/get_ml_recommendations`;
-            const dbResponse = await fetch(rpcUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`
-                },
-                body: JSON.stringify({ p_user_id: userId, p_limit: 20 })
-            });
+            // ETAPA 1: Obter o histórico já disparado em paralelo
+            const userHistory = await historyPromise;
             
-            let recommendations = [];
-            if (dbResponse.ok) {
-                recommendations = await dbResponse.json();
-            }
+            // 🛡️ SHIELD ANTIVÍES E ANTIDESLIKE
+            const seenIds = new Set(userHistory.map(h => Number(h.filme_id)));
+            console.log(`[Bootstrap-Omni] Escudo ativado. ${seenIds.size} filmes bloqueados de saída.`);
 
-            // NOVO MECANISMO DE SEGURANÇA MÁXIMA: Se o ML falhar ou vier vazio, 
-            // NÃO CAÍMOS MAIS NO BIAS GENÉRICO DE "POPULAR".
-            // Nós analisamos o histórico real do usuário na hora e puxamos recomendações estruturais no TMDB!
-            if (!Array.isArray(recommendations) || recommendations.length === 0) {
-                console.log(`[ML-Engine] Fallback Inteligente Acionado para ${userId}. Aguardando histórico para extração de gosto...`);
-                
-                // 1. Pega o Histórico que já está sendo baixado na Promise paralela
-                const userHistory = await historyPromise;
-                const lastLiked = userHistory
-                    .filter(h => h.curtiu === true)
-                    .slice(0, 5); // Aumentamos para os 5 últimos likes reais para maior espectro
-                
-                let fallbackMovies = [];
+            const likedSeeds = userHistory.filter(h => h.curtiu === true).slice(0, 6);
 
-                if (lastLiked.length > 0) {
-                    console.log(`[ML-Engine] Extraindo sementes de afinidade de ${lastLiked.length} filmes do histórico.`);
-                    // 2. Dispara Recomendações Cruzadas baseadas nos filmes específicos que o usuário gosta!
-                    const simResults = await Promise.all(lastLiked.map(async (h) => {
-                        const sourceDataPromise = safeFetchTMDB(`movie/${h.filme_id}`);
-                        const dataPromise = safeFetchTMDB(`movie/${h.filme_id}/recommendations`, { page: 1 });
-                        
-                        const [sourceData, data] = await Promise.all([sourceDataPromise, dataPromise]);
-                        const sourceTitle = sourceData.title || "filme salvo";
-                        const results = data.results || [];
-                        
-                        return results.map(r => ({ ...r, _sourceTitle: sourceTitle }));
-                    }));
-                    
-                    // Intercalar os resultados de diferentes sementes para maximizar a diversidade de gêneros instantaneamente
-                    const maxLen = Math.max(...simResults.map(r => r.length));
-                    const combined = [];
-                    for (let i = 0; i < maxLen; i++) {
-                        simResults.forEach(list => {
-                            if (list[i]) combined.push(list[i]);
-                        });
-                    }
-
-                    const uniqueMap = new Map();
-                    combined.forEach(m => { if(m && m.id) uniqueMap.set(m.id, m); });
-                    
-                    // Filtra filmes já assistidos pelo usuário
-                    const historyIds = new Set(userHistory.map(h => Number(h.filme_id)));
-                    fallbackMovies = Array.from(uniqueMap.values())
-                        .filter(m => !historyIds.has(Number(m.id)))
-                        .slice(0, 30); // Retém um pool maior de 30 para mixar no front
-                }
-
-                // Se por acaso o usuário não tem histórico NENHUM (usuário zero), 
-                // puxamos filmes com alta classificação, mas NÃO permitimos virar 'festa da aventura' genérica
-                if (fallbackMovies.length === 0) {
-                    console.log(`[ML-Engine] Usuário Virgem detectado. Usando filtro de elite global.`);
-                    const elite = await safeFetchTMDB('discover/movie', { 
-                        sort_by: 'vote_count.desc', 
-                        'vote_average.gte': 7.5,
-                        without_genres: '16', // Anti-animação por padrão pra iniciantes neutros
-                        page: 1 
-                    });
-                    fallbackMovies = elite.results || [];
-                }
-
-                // Enriquecimento server-side idêntico ao fluxo ML
-                const enrichedFallback = await Promise.all(fallbackMovies.slice(0, 15).map(async (movie) => {
-                    const mUrl = `https://api.themoviedb.org/3/movie/${movie.id}?api_key=${TMDB_API_KEY}&language=pt-BR&append_to_response=videos`;
-                    try {
-                        const r = await fetch(mUrl);
-                        if (!r.ok) return null;
-                        const movieData = await r.json();
-                        
-                        let trailerKey = null;
-                        const v = movieData.videos?.results || [];
-                        const trailer = v.find(x => x.type === 'Trailer' && x.site === 'YouTube') || v.find(x => x.site === 'YouTube');
-                        if (trailer) trailerKey = trailer.key;
-
-                        const source = movie._sourceTitle;
-                        const finalReason = source ? `"${source}", baseado na sua Coleção Real` : "baseado na sua Coleção Real";
-
-                        return {
-                            ...movieData,
-                            recommendationReason: finalReason,
-                            pre_fetched_trailer_key: trailerKey
-                        };
-                    } catch (err) { return null; }
+            // ETAPA 2: Disparar motores em paralelo
+            
+            // MOTOR A: Afinidade Direta
+            const runAffinity = async () => {
+                if (likedSeeds.length === 0) return [];
+                const buckets = await Promise.all(likedSeeds.map(async (s) => {
+                    const [detPromise, recsPromise] = await Promise.all([
+                        safeFetchTMDB(`movie/${s.filme_id}`),
+                        safeFetchTMDB(`movie/${s.filme_id}/recommendations`, { page: 1 })
+                    ]);
+                    const title = detPromise.title || "Filme Salvo";
+                    return (recsPromise.results || []).map(x => ({ ...x, _sourceTitle: title }));
                 }));
                 
-                return enrichedFallback.filter(x => x && x.poster_path);
+                const maxLen = Math.max(...buckets.map(b => b.length));
+                const mixed = [];
+                for(let i=0; i<maxLen; i++) {
+                    buckets.forEach(b => { if (b[i]) mixed.push(b[i]); });
+                }
+                return mixed;
+            };
+
+            // MOTOR B: RPC Inteligente Postgres
+            const runRPC = async () => {
+                try {
+                    const rpcUrl = `${SUPABASE_URL}/rest/v1/rpc/get_ml_recommendations`;
+                    const resRPC = await fetch(rpcUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
+                        body: JSON.stringify({ p_user_id: userId, p_limit: 30 })
+                    });
+                    return resRPC.ok ? await resRPC.json() : [];
+                } catch (e) { return []; }
+            };
+
+            const [affinityRaw, rpcRaw] = await Promise.all([runAffinity(), runRPC()]);
+
+            // ETAPA 3: Fusão com Filtragem Violenta
+            const masterPool = [];
+            const localDedupe = new Set();
+
+            function safePush(movieObj, label) {
+                const mid = Number(movieObj.id);
+                if (!mid) return;
+
+                // REGRA ABSOLUTA: Não estar no histórico, não ter deslike, não repetir nesta carga.
+                if (!seenIds.has(mid) && !localDedupe.has(mid)) {
+                    localDedupe.add(mid);
+                    masterPool.push({ ...movieObj, _reason: label });
+                }
             }
 
-            // FLUXO NORMAL: Enriquecimento dos dados ML quando o algoritmo encontra correlações
-            const enriched = await Promise.all(recommendations.slice(0, 15).map(async (rec) => {
-                const mId = rec.recommended_movie_id;
-                const mUrl = `https://api.themoviedb.org/3/movie/${mId}?api_key=${TMDB_API_KEY}&language=pt-BR&append_to_response=videos`;
+            // PRIORIDADE MÁXIMA: Afinidade Real (Exatamente o que o usuário pediu)
+            for (const a of affinityRaw) {
+                const tag = a._sourceTitle ? `"${a._sourceTitle}", baseado na sua Coleção Real` : "baseado na sua Coleção Real";
+                safePush(a, tag);
+            }
+
+            // PRIORIDADE COMPLEMENTAR: RPC
+            for (const r of rpcRaw) {
+                safePush({ id: r.recommended_movie_id }, "baseado na sua Coleção Real");
+            }
+
+            // FALLBACK NEUTRO
+            if (masterPool.length === 0) {
+                const elite = await safeFetchTMDB('discover/movie', { sort_by: 'vote_count.desc', 'vote_average.gte': 7.8, without_genres: '16,10751', page: 1 });
+                (elite.results || []).forEach(n => safePush(n, "baseado na sua Coleção Real"));
+            }
+
+            // ETAPA 4: Enriquecimento Simultâneo
+            const topSlice = masterPool.slice(0, 20);
+            console.log(`[Bootstrap-Omni] Processando fat-payload para fila inicial de ${topSlice.length} cards.`);
+
+            const enriched = await Promise.all(topSlice.map(async (item) => {
+                const url = `https://api.themoviedb.org/3/movie/${item.id}?api_key=${TMDB_API_KEY}&language=pt-BR&append_to_response=videos`;
                 try {
-                    const r = await fetch(mUrl);
+                    const r = await fetch(url);
                     if (!r.ok) return null;
-                    const movieData = await r.json();
+                    const data = await r.json();
                     
                     let trailerKey = null;
-                    const v = movieData.videos?.results || [];
-                    const trailer = v.find(x => x.type === 'Trailer' && x.site === 'YouTube') || v.find(x => x.site === 'YouTube');
-                    if (trailer) trailerKey = trailer.key;
+                    const vids = data.videos?.results || [];
+                    const best = vids.find(v => v.type === 'Trailer' && v.site === 'YouTube') || vids.find(v => v.site === 'YouTube');
+                    if (best) trailerKey = best.key;
 
                     return {
-                        ...movieData,
-                        recommendationReason: "Motor Inteligente na VPS",
+                        ...data,
+                        recommendationReason: item._reason,
                         pre_fetched_trailer_key: trailerKey
                     };
-                } catch (err) { return null; }
+                } catch(e) { return null; }
             }));
 
             return enriched.filter(x => x && x.poster_path);
         } catch (e) {
-            console.error("[Bootstrap] Critical queue failure:", e);
+            console.error("[Bootstrap-Omni] Critical Engine Failure:", e);
             return [];
         }
     })();

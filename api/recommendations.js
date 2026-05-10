@@ -3,25 +3,22 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "https://kewwqxfpjzrxduhoq
 const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtld3dxeGZwanpyeGR1aG9xZnh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5NTY4MzEsImV4cCI6MjA5MjUzMjgzMX0.Ane5nDJf_4FjBDPEfiNWlKN3C7RAlEmk5pDlMMsxmZs";
 
 export default async function handler(req, res) {
-  // Cabeçalhos CORS
+  // Cabeçalhos CORS Mandatórios
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { userId } = req.query;
   if (!userId) {
     return res.status(400).json({ error: "Parâmetro 'userId' é obrigatório." });
   }
 
-  console.log(`[ML-Engine] Solicitando recomendações robustas para o usuário ${userId}`);
+  console.log(`[OMNI-Engine] Iniciando pipeline de recomendação ultra-filtrada para ${userId}`);
 
-  // Helper local para TMDB
+  // Helper central de fetch
   async function safeFetchTMDB(endpoint, params = {}) {
     try {
       const query = new URLSearchParams({ api_key: TMDB_API_KEY, language: 'pt-BR', ...params });
@@ -29,166 +26,157 @@ export default async function handler(req, res) {
       const resp = await fetch(url);
       if (!resp.ok) return { results: [] };
       return await resp.json();
-    } catch (e) {
-      return { results: [] };
-    }
+    } catch (e) { return { results: [] }; }
   }
 
   try {
-    // ESTRATÉGIA 1: Tentar o Motor Inteligente de Vetores no Supabase RPC
-    const rpcUrl = `${SUPABASE_URL}/rest/v1/rpc/get_ml_recommendations`;
-    
-    let recommendations = [];
-    try {
-        const dbResponse = await fetch(rpcUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`
-          },
-          body: JSON.stringify({ p_user_id: userId, p_limit: 20 })
-        });
-        if (dbResponse.ok) {
-            recommendations = await dbResponse.json();
-        }
-    } catch (err) {
-        console.warn("[ML-Engine] RPC INDISPONÍVEL. Escalonando para o Fallback de Afinidade.");
-    }
-
-    // Se o RPC retornou dados, segue o enriquecimento padrão do ML.
-    if (Array.isArray(recommendations) && recommendations.length > 0) {
-      console.log(`[ML-Engine] RPC entregou ${recommendations.length} filmes. Iniciando Enriquecimento.`);
-      const finalMovies = await enrichDefaultRecommendations(recommendations, "Match Inteligente ML");
-      return res.status(200).json({ success: true, source: 'ml-rpc', movies: finalMovies });
-    }
-
-    // ==========================================================================
-    // ESTRATÉGIA 2 (NOVA): MOTOR DE AFINIDADE BASEADO NA COLEÇÃO REAL DO USUÁRIO
-    // ==========================================================================
-    console.log(`[ML-Engine] Acionando Motor de Afinidade Contextual para ${userId}`);
-
-    // 1. Puxar histórico direto no Supabase REST
-    const histUrl = `${SUPABASE_URL}/rest/v1/curtidas_filmes?usuario_id=eq.${userId}&select=filme_id,assistido,curtiu&order=criado_em.desc&limit=500`;
+    // ==============================================================================
+    // PASSO 1: OBTENÇÃO DO HISTÓRICO REAL DO USUÁRIO (MANDATÓRIO E IMEDIATO)
+    // ==============================================================================
+    const histUrl = `${SUPABASE_URL}/rest/v1/curtidas_filmes?usuario_id=eq.${userId}&select=filme_id,assistido,curtiu&order=criado_em.desc&limit=3000`;
     const histResp = await fetch(histUrl, {
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
     });
     const userHistory = histResp.ok ? await histResp.json() : [];
+
+    // 🛡️ ESCUDO ABSOLUTO CONTRA REPETIÇÃO E DESLIKES
+    // Pegamos TODOS os IDs com os quais o usuário já interagiu (curtiu, não curtiu ou assistiu).
+    const seenIds = new Set(userHistory.map(h => Number(h.filme_id)));
+    console.log(`[OMNI-Engine] Proteção ativada. ${seenIds.size} filmes bloqueados para evitar repetição/deslike.`);
+
+    // Pegamos as sementes para afinidade (likes reais)
+    const likedSeeds = userHistory.filter(h => h.curtiu === true).slice(0, 6);
+
+    // ==============================================================================
+    // PASSO 2: DISPARO PARALELO DOS DOIS MOTORES DE BUSCA
+    // ==============================================================================
     
-    // Pega as últimas 5 curtidas (representam a Coleção Real)
-    const lastLiked = userHistory.filter(h => h.curtiu === true).slice(0, 5);
+    // MOTOR A: Afinidade Direta (Garante a personalização exata e as Tags pedidas)
+    const runAffinityEngine = async () => {
+        if (likedSeeds.length === 0) return [];
+        console.log(`[OMNI-Engine] Rodando Motor de Afinidade sobre ${likedSeeds.length} sementes...`);
 
-    let poolMovies = [];
+        const fetchBuckets = await Promise.all(likedSeeds.map(async (s) => {
+            const detailsPromise = safeFetchTMDB(`movie/${s.filme_id}`);
+            const recsPromise = safeFetchTMDB(`movie/${s.filme_id}/recommendations`, { page: 1 });
+            
+            const [det, rec] = await Promise.all([detailsPromise, recsPromise]);
+            const movieTitle = det.title || "Filme Salvo";
+            const recList = rec.results || [];
 
-    if (lastLiked.length > 0) {
-        console.log(`[ML-Engine] Extraindo afinidades de ${lastLiked.length} filmes curtidos...`);
-        
-        // 2. Paralelismo: Busca o título do filme semente e as recomendações dele
-        const simResults = await Promise.all(lastLiked.map(async (h) => {
-            const sourcePromise = safeFetchTMDB(`movie/${h.filme_id}`);
-            const recPromise = safeFetchTMDB(`movie/${h.filme_id}/recommendations`, { page: 1 });
-            
-            const [sourceData, recData] = await Promise.all([sourcePromise, recPromise]);
-            const title = sourceData.title || "Filme Salvo";
-            const recs = recData.results || [];
-            
-            // Vincula a semente de origem no filme recomendado
-            return recs.map(r => ({ ...r, _sourceTitle: title }));
+            // Vinculamos o título original ao objeto para renderizar a Tag perfeitamente
+            return recList.map(movie => ({ ...movie, _sourceTitle: movieTitle }));
         }));
 
-        // 3. Algoritmo de Intercalação (Interleaving) para MIXAR as recomendações e não saturar
-        const maxLen = Math.max(...simResults.map(arr => arr.length));
-        const mixedArray = [];
+        // Intercalamos os baldes para máxima variabilidade (não saturar um gênero)
+        const maxLen = Math.max(...fetchBuckets.map(b => b.length));
+        const mixedList = [];
         for (let i = 0; i < maxLen; i++) {
-            simResults.forEach(bucket => {
-                if (bucket[i]) mixedArray.push(bucket[i]);
+            fetchBuckets.forEach(b => { if (b[i]) mixedList.push(b[i]); });
+        }
+        return mixedList;
+    };
+
+    // MOTOR B: RPC Inteligente no Postgres (Executa em paralelo como reforço)
+    const runRPCEngine = async () => {
+        try {
+            const rpcUrl = `${SUPABASE_URL}/rest/v1/rpc/get_ml_recommendations`;
+            const r = await fetch(rpcUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
+                body: JSON.stringify({ p_user_id: userId, p_limit: 30 })
+            });
+            return r.ok ? await r.json() : [];
+        } catch (e) { return []; }
+    };
+
+    // Executa ambos e aguarda conclusão
+    const [affinityRaw, rpcRaw] = await Promise.all([runAffinityEngine(), runRPCEngine()]);
+
+    // ==============================================================================
+    // PASSO 3: FILTRAGEM CRUZADA AGRESSIVA E MERGE DE DADOS
+    // ==============================================================================
+    const combinedPool = [];
+    const deduplicationTracker = new Set(); // Garante que não adicionamos o mesmo filme 2x no mesmo response
+
+    // Função utilitária para empurrar no pool final respeitando o SHIELD
+    function safePushToPool(movieObj, sourceLabel) {
+        const mId = Number(movieObj.id);
+        if (!mId) return;
+
+        // CRÍTICO: Impede EXIBIR o que já foi visto/descurtido E impede duplicata interna
+        if (!seenIds.has(mId) && !deduplicationTracker.has(mId)) {
+            deduplicationTracker.add(mId);
+            combinedPool.push({
+                ...movieObj,
+                _finalReason: sourceLabel
             });
         }
-
-        // Remove duplicatas e filtra o que o usuário já interagiu
-        const seen = new Set(userHistory.map(h => Number(h.filme_id)));
-        const uniqueMap = new Map();
-        mixedArray.forEach(m => {
-            if (m && m.id && !seen.has(Number(m.id))) uniqueMap.set(m.id, m);
-        });
-
-        poolMovies = Array.from(uniqueMap.values()).slice(0, 25);
     }
 
-    // Fallback Neutro Seguro para Usuários Sem Histórico
-    if (poolMovies.length === 0) {
-        console.log(`[ML-Engine] Nenhuma afinidade disponível. Disparando Neutro de Alta Qualidade.`);
+    // 3.1 INJETAMOS A PRIORIDADE 1: Afinidade (Onde estão as TAGS que o user quer!)
+    for (const mov of affinityRaw) {
+        const tag = mov._sourceTitle ? `"${mov._sourceTitle}", baseado na sua Coleção Real` : "baseado na sua Coleção Real";
+        safePushToPool(mov, tag);
+    }
+
+    // 3.2 INJETAMOS A PRIORIDADE 2: RPC (Preenche as lacunas se houver espaço)
+    // Como o RPC devolve { recommended_movie_id, ... }, convertemos o ID
+    for (const rec of rpcRaw) {
+        const converted = { id: rec.recommended_movie_id };
+        safePushToPool(converted, "baseado na sua Coleção Real"); // Usamos a tag genérica padrão solicitada para uniformidade
+    }
+
+    // FALLBACK DE EMERGÊNCIA (Se nada restou pós-filtro, ou usuário totalmente novo)
+    if (combinedPool.length === 0) {
+        console.log("[OMNI-Engine] Pool vazio após filtragem. Acionando fallback Elite.");
         const neutral = await safeFetchTMDB('discover/movie', { 
             sort_by: 'vote_count.desc', 
             'vote_average.gte': 7.8, 
-            without_genres: '16,10751', // Sem animação/família por padrão no neutro
+            without_genres: '16,10751',
             page: 1 
         });
-        poolMovies = (neutral.results || []).slice(0, 20);
+        (neutral.results || []).forEach(n => safePushToPool(n, "baseado na sua Coleção Real"));
     }
 
-    // 4. Enriquecimento Turbo (Puxa Trailer e Metadata Profunda para o Front)
-    const enrichedFallback = await Promise.all(poolMovies.map(async (movie) => {
+    // ==============================================================================
+    // PASSO 4: ENRIQUECIMENTO FAT-PAYLOAD PARALELO (TRAILERS, ETC)
+    // ==============================================================================
+    // Limitamos ao TOP 25 do pool combinado para garantir latência baixa e alta qualidade.
+    const finalSlice = combinedPool.slice(0, 25);
+    console.log(`[OMNI-Engine] Processando fat-payload para ${finalSlice.length} filmes finais.`);
+
+    const enrichedResult = await Promise.all(finalSlice.map(async (item) => {
         try {
-            const fullUrl = `https://api.themoviedb.org/3/movie/${movie.id}?api_key=${TMDB_API_KEY}&language=pt-BR&append_to_response=videos,watch/providers`;
-            const resD = await fetch(fullUrl);
-            if (!resD.ok) return null;
-            const data = await resD.json();
+            const deepUrl = `https://api.themoviedb.org/3/movie/${item.id}?api_key=${TMDB_API_KEY}&language=pt-BR&append_to_response=videos,watch/providers`;
+            const r = await fetch(deepUrl);
+            if (!r.ok) return null;
+            const data = await r.json();
 
-            let tKey = null;
-            const vArr = data.videos?.results || [];
-            const trailer = vArr.find(v => v.type === 'Trailer' && v.site === 'YouTube') || vArr.find(v => v.site === 'YouTube');
-            if (trailer) tKey = trailer.key;
-
-            const seed = movie._sourceTitle;
-            const dynamicReason = seed ? `"${seed}", baseado na sua Coleção Real` : "baseado na sua Coleção Real";
+            let trailerKey = null;
+            const videos = data.videos?.results || [];
+            const chosen = videos.find(v => v.type === 'Trailer' && v.site === 'YouTube') || videos.find(v => v.site === 'YouTube');
+            if (chosen) trailerKey = chosen.key;
 
             return {
                 ...data,
-                recommendationReason: dynamicReason,
-                pre_fetched_trailer_key: tKey
+                recommendationReason: item._finalReason,
+                pre_fetched_trailer_key: trailerKey
             };
-        } catch (e) { return null; }
+        } catch(e) { return null; }
     }));
 
-    const finalOutput = enrichedFallback.filter(x => x && x.poster_path);
-    console.log(`[ML-Engine] Entregando ${finalOutput.length} filmes customizados baseados na coleção.`);
+    const outputData = enrichedResult.filter(x => x && x.poster_path);
+    console.log(`[OMNI-Engine] Ciclo completo. Entregando ${outputData.length} filmes refinados.`);
 
     return res.status(200).json({
         success: true,
-        source: 'ml-collection-affinity',
-        movies: finalOutput
+        source: 'omni-engine-v2',
+        movies: outputData
     });
 
   } catch (error) {
-    console.error('[ML-Engine] ERRO CRÍTICO:', error);
-    return res.status(200).json({ success: true, movies: [], error: "Unexpected error prevented dynamic recommendations" });
-  }
-
-  // Função Auxiliar para Enriquecer o RPC
-  async function enrichDefaultRecommendations(recs, defaultLabel) {
-      const fetchPromises = recs.map(async (rec) => {
-          try {
-            const mId = rec.recommended_movie_id;
-            const u = `https://api.themoviedb.org/3/movie/${mId}?api_key=${TMDB_API_KEY}&language=pt-BR&append_to_response=videos,watch/providers`;
-            const r = await fetch(u);
-            if (!r.ok) return null;
-            const md = await r.json();
-            
-            let tk = null;
-            const v = md.videos?.results || [];
-            const vid = v.find(x => x.type === 'Trailer' && x.site === 'YouTube') || v.find(x => x.site === 'YouTube');
-            if (vid) tk = vid.key;
-
-            return {
-                ...md,
-                recommendationReason: defaultLabel,
-                ml_score: rec.similarity_score,
-                pre_fetched_trailer_key: tk
-            };
-          } catch (e) { return null; }
-      });
-      const results = await Promise.all(fetchPromises);
-      return results.filter(m => m && m.poster_path);
+    console.error("[OMNI-Engine] FALHA CRÍTICA NO PROCESSO:", error);
+    return res.status(200).json({ success: true, movies: [], error: "Pipeline general failure" });
   }
 }
