@@ -2568,10 +2568,18 @@
 
                     while (results.length < 10 && attempts < maxAttempts) {
                         queryParams.set('page', pageToFetch);
-                        const url = `https://api.themoviedb.org/3/${endpoint}?${queryParams.toString()}`;
-                        
                         try {
-                            const res = await fetch(url);
+                            // ESTRATÉGIA FAT-PAYLOAD: Tentamos rotear a chamada pela VPS Orquestradora primeiro
+                            const proxyUrl = `/api/movies?endpoint=${encodeURIComponent(endpoint)}&${queryParams.toString()}`;
+                            let res = await fetch(proxyUrl);
+                            
+                            // MECANISMO DE RESILIÊNCIA: Se o Proxy falhar, roteia DIRETO no TMDB para garantir uptime infinito do APP
+                            if (!res.ok) {
+                                console.warn("⚠️ VPS Ocupada ou Off. Roteando direto para fallback TMDB...");
+                                const directUrl = `https://api.themoviedb.org/3/${endpoint}?${queryParams.toString()}`;
+                                res = await fetch(directUrl);
+                            }
+                            
                             const data = await res.json();
                             
                             if (!data.results || data.results.length === 0) {
@@ -2609,6 +2617,15 @@
                 if (results.length > 0) {
                     const finalResults = results.filter((v,i,a) => a.findIndex(t => (t.id === v.id)) === i);
                     moviesQueue = [...finalResults.reverse(), ...moviesQueue];
+
+                    // AQUECIMENTO DE CACHE (FAT PAYLOAD): Alimenta o cache de trailers preventivamente 
+                    // com os dados trazidos pela VPS, eliminando requisições futuras instantaneamente.
+                    finalResults.forEach(movie => {
+                        if (movie.pre_fetched_trailer_key) {
+                            trailersCache.set(movie.id, movie.pre_fetched_trailer_key);
+                        }
+                    });
+
                     preloadMoviePosters(finalResults);
                     
                     if (stackContainer.querySelectorAll('.movie-card-wrapper').length === 0) {

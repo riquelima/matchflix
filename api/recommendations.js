@@ -58,17 +58,29 @@ export default async function handler(req, res) {
     const fetchPromises = recommendations.map(async (rec) => {
       try {
         const movieId = rec.recommended_movie_id;
-        const tmdbUrl = `https://api.themoviedb.org/3/movie/${movieId}?api_key=${TMDB_API_KEY}&language=pt-BR&append_to_response=images`;
+        // FAT PAYLOAD: Trazemos vídeos e provedores na mesma chamada HTTP!
+        const tmdbUrl = `https://api.themoviedb.org/3/movie/${movieId}?api_key=${TMDB_API_KEY}&language=pt-BR&append_to_response=videos,watch/providers`;
         const tRes = await fetch(tmdbUrl);
         if (!tRes.ok) return null;
         
         const movieData = await tRes.json();
         
-        // Injetamos uma flag customizada para a UI saber a razão da recomendação
+        // Processamento do Trailer Server-Side (Lógica robusta)
+        let trailerKey = null;
+        const videos = movieData.videos?.results || [];
+        if (videos.length > 0) {
+            let video = videos.find(v => v.type === 'Trailer' && v.site === 'YouTube');
+            if (!video) video = videos.find(v => v.type === 'Teaser' && v.site === 'YouTube');
+            if (!video) video = videos.find(v => v.site === 'YouTube');
+            trailerKey = video ? video.key : null;
+        }
+
+        // Injetamos a "Gordura" útil pro frontend consumir instantaneamente
         return {
           ...movieData,
-          recommendationReason: "Match Inteligente ML", // Pode ser personalizado futuramente
-          ml_score: rec.similarity_score
+          recommendationReason: "Match Inteligente ML",
+          ml_score: rec.similarity_score,
+          pre_fetched_trailer_key: trailerKey // FAT KEY!
         };
       } catch (err) {
         console.error(`[ML-Engine] Falha ao buscar detalhes do filme ID ${rec.recommended_movie_id}:`, err);

@@ -164,6 +164,61 @@ function viteAiOrchestratorPlugin() {
           return; // Finaliza o interceptador para esta rota
         }
         
+        // NOVO: Intercepta chamadas para /api/movies (Data Orchestrator)
+        if (parsedUrl === '/api/movies') {
+          console.log(`[Vite-Data-Orchestrator] Proxy local acionado.`);
+          const urlParams = new URL(req.url, `http://${req.headers.host}`).searchParams;
+          const endpoint = urlParams.get('endpoint') || 'discover/movie';
+          
+          // Clona parâmetros omitindo 'endpoint' para repassar ao TMDB
+          const queryMap = {};
+          urlParams.forEach((val, key) => { if(key !== 'endpoint') queryMap[key] = val; });
+
+          (async () => {
+            try {
+              const qs = new URLSearchParams({ api_key: TMDB_API_KEY, language: 'pt-BR', ...queryMap }).toString();
+              const tmdbUrl = `https://api.themoviedb.org/3/${endpoint}?${qs}`;
+              
+              const r = await fetch(tmdbUrl);
+              const data = await r.json();
+              const movies = data.results || [];
+
+              if (movies.length === 0) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(data));
+                return;
+              }
+
+              // Enriquecimento Paralelo em Dev (igual produção)
+              const subSlice = movies.slice(0, 15);
+              const promises = subSlice.map(async (m) => {
+                try {
+                  const tr = await fetch(`https://api.themoviedb.org/3/movie/${m.id}?api_key=${TMDB_API_KEY}&language=pt-BR&append_to_response=videos`);
+                  if (!tr.ok) return m;
+                  const full = await tr.json();
+                  let tk = null;
+                  const v = full.videos?.results || [];
+                  if (v.length > 0) {
+                    const f = v.find(x => x.type === 'Trailer' && x.site === 'YouTube') || v.find(x => x.type === 'Teaser') || v[0];
+                    tk = f ? f.key : null;
+                  }
+                  return { ...m, ...full, pre_fetched_trailer_key: tk };
+                } catch(e) { return m; }
+              });
+
+              const enriched = await Promise.all(promises);
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ ...data, results: enriched }));
+
+            } catch (err) {
+              console.error('[Vite-Data-Orchestrator] ERRO:', err);
+              res.writeHead(500, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: false, error: err.message }));
+            }
+          })();
+          return;
+        }
+        
         next(); // Passa para o próximo middleware do Vite para requisições normais
       });
     }
