@@ -814,19 +814,59 @@
         /* ========================================= */
         /* OTIMIZAÇÃO EXCLUSIVA PARA ANDROID TV / LANDSCAPE */
         /* ========================================= */
+        /* ========================================= */
+        /* ULTRA-OTIMIZAÇÃO ANDROID TV / LANDSCAPE */
+        /* ========================================= */
         @media (min-aspect-ratio: 4/3) {
-            /* 1. Garante que o card caiba perfeitamente com botões logo abaixo */
+            /* 1. REDIMENSIONAMENTO RADICAL DO CARD TINDER */
             .card-stack {
-                max-height: 56vh !important; 
-                max-width: 360px !important; 
-                margin-top: 5px !important;
+                max-height: 40vh !important; /* Diminuído para 40% da tela. Garante 100% que botões caibam! */
+                max-width: 280px !important; /* Estreitado para TV não achatar */
+                margin-top: 0px !important;
+                perspective: none !important; /* Nivelar 3D poupa toneladas de GPU */
+            }
+            .card-wrapper {
+                box-shadow: 0 15px 30px rgba(0,0,0,0.7) !important;
+                transform: none !important; /* Desliga efeitos de tilt/inclinação automáticos */
             }
             #controls {
-                margin-top: 5px !important;
-                margin-bottom: 10px !important;
-                transform: scale(0.9); /* Encolhe de leve para dar ar na TV */
+                margin-top: 2px !important;
+                margin-bottom: 5px !important;
+                transform: scale(0.8); /* Encolhe levemente botões de ação */
+                z-index: 150 !important;
             }
-            /* 2. Acelera renderização removendo blur pesado (o vilão de lag na TV) */
+            
+            /* 2. FORÇA FLUÍDEZ MÁXIMA: Oculta o stack traseiro na TV */
+            /* Desenhar múltiplos cards sobrepostos derrete o processador de TV Box. Mantemos apenas 1! */
+            .movie-card-wrapper:not(.z-20) {
+                display: none !important; 
+            }
+
+            /* 3. PADRONIZAÇÃO DE GRIDS PARA TV (Busca, Matches e Coleções) */
+            /* Transforma as telas "enormes" de 2 colunas em grids enxutos de 4 a 6 colunas adaptáveis */
+            #matches-grid, 
+            #search-results-grid, 
+            .grid-cols-2 {
+                display: grid !important;
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important; /* Multiplica colunas no espaço da TV */
+                gap: 16px !important;
+                padding-bottom: 80px !important;
+            }
+            
+            /* Encolhe os itens individuais da lista de Coleção horizontal */
+            #grid-watched, #grid-pending, .grid-flow-col {
+                 auto-cols-[120px] !important; 
+                 gap: 12px !important;
+            }
+            .film-card {
+                height: 180px !important; /* Força posters menores na coleção da TV */
+                transition: none !important; /* Sem lag de transição em hover */
+            }
+
+            /* 4. EXTERMINA ASSASSINOS DE FPS (Blurs, Shadows e Opacidade Animada) */
+            * {
+                text-shadow: none !important;
+            }
             .glass-panel, 
             .backdrop-blur-3xl, 
             .backdrop-blur-2xl, 
@@ -837,21 +877,27 @@
             .backdrop-blur-\[24px\],
             .backdrop-blur-\[20px\],
             .badge-cyber, 
-            .genre-pill {
+            .genre-pill,
+            #main-header,
+            #ia-chat-input-container > div,
+            nav.bg-neutral-900\/60 {
                 backdrop-filter: none !important;
                 -webkit-backdrop-filter: none !important;
+                background: #141414 !important; /* Fundos opacos = performance imediata */
+                box-shadow: none !important;
+                border: 1px solid #333 !important;
             }
             
-            /* 3. Fallbacks de cor sólida para evitar transparências lentas na CPU da TV */
-            .bg-neutral-900\/60, 
-            .bg-neutral-950\/80 { 
-                background-color: rgba(20, 20, 20, 0.98) !important; 
-            }
-            .glass-panel { 
-                background: rgba(30, 30, 30, 0.95) !important; 
+            /* Mata o degradê de fundo da tela que consome fill-rate na TV */
+            .fixed.inset-0.pointer-events-none .bg-primary-container\/5 {
+                display: none !important;
             }
             
-            /* Remove animação de body na entrada que atrasa exibição no hardware fraco */
+            /* Desliga todas as transições lentas CSS em hover que engasgam o hardware */
+            button, .nav-item, a {
+                transition: transform 0.1s linear !important;
+            }
+            
             body { animation: none !important; }
         }
 
