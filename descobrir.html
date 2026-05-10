@@ -503,8 +503,8 @@
         }
         .nav-item.active {
             color: #e50914;
-            background: rgba(229, 9, 20, 0.15);
-            box-shadow: 0 0 20px rgba(229, 9, 20, 0.1);
+            background: rgba(229, 9, 20, 0.08); /* Menos opaco, mais luxuoso */
+            transform: scale(1.02); /* Levíssimo boost de escala em vez de sombra agressiva */
         }
         .nav-item.active .material-symbols-outlined {
             font-variation-settings: 'FILL' 1;
@@ -901,19 +901,27 @@
             body { animation: none !important; }
         }
 
-        /* Indicação Visual Focada (Fundamental para navegação com Controle Remoto) */
+        /* Indicação Visual Focada Inteligente (Fundamental para TV, invisível no Mobile) */
         *:focus {
             outline: none;
         }
-        .nav-item:focus, 
-        .action-btn:focus, 
-        button:focus, 
-        input:focus {
-            outline: 3px solid #e50914 !important;
+        /* Só exibe a borda se o foco veio de um teclado ou controle remoto (D-Pad) */
+        .nav-item:focus-visible, 
+        .action-btn:focus-visible, 
+        button:focus-visible, 
+        input:focus-visible {
+            outline: 2px solid #e50914 !important; /* Um pouco mais fino e elegante */
             outline-offset: 2px;
-            box-shadow: 0 0 20px #e50914 !important;
-            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(229, 9, 20, 0.4) !important; /* Glow mais disperso e suave */
+            transform: scale(1.04);
             z-index: 100;
+        }
+        
+        /* Previne qualquer anel grotesco ao clicar ou tocar na tela do celular */
+        .nav-item:focus:not(:focus-visible),
+        button:focus:not(:focus-visible) {
+            outline: none !important;
+            box-shadow: none !important;
         }
     </style>
 </head>
