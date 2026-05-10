@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import sharp from 'sharp';
 
 const TMDB_API_KEY = "416394469462693ee5727abe4c864848";
 
@@ -219,6 +220,44 @@ function viteAiOrchestratorPlugin() {
           return;
         }
         
+        // NOVO: Intercepta chamadas para /api/image (Edge Image Optimizer Simulator)
+        if (parsedUrl === '/api/image') {
+          const urlParams = new URL(req.url, `http://${req.headers.host}`).searchParams;
+          const pathArg = urlParams.get('path');
+          let widthArg = parseInt(urlParams.get('w') || '500', 10);
+
+          if (!pathArg) {
+            res.writeHead(400);
+            res.end("Missing path param");
+            return;
+          }
+
+          (async () => {
+            try {
+              const target = `https://image.tmdb.org/t/p/original${pathArg.startsWith('/') ? '' : '/'}${pathArg}`;
+              const imgReq = await fetch(target);
+              if (!imgReq.ok) throw new Error("Failed orig");
+              const buf = await imgReq.arrayBuffer();
+              
+              const optimized = await sharp(Buffer.from(buf))
+                .resize(widthArg, null, { withoutEnlargement: true })
+                .webp({ quality: 80 })
+                .toBuffer();
+              
+              res.writeHead(200, { 
+                'Content-Type': 'image/webp',
+                'Cache-Control': 'max-age=3600' 
+              });
+              res.end(optimized);
+            } catch(e) {
+              // Fallback instantâneo direto pro TMDB JPG para não quebrar Dev
+              res.writeHead(307, { 'Location': `https://image.tmdb.org/t/p/w${widthArg}${pathArg}` });
+              res.end();
+            }
+          })();
+          return;
+        }
+
         next(); // Passa para o próximo middleware do Vite para requisições normais
       });
     }

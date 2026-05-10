@@ -1497,8 +1497,8 @@
         import { supabase } from './js/supabase.js';
 
         const API_KEY = "416394469462693ee5727abe4c864848";
-        const IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500";
-        const BACKDROP_BASE_URL = "https://image.tmdb.org/t/p/w1280";
+        const IMAGE_BASE_URL = window.location.origin + "/api/image?w=500&path=";
+        const BACKDROP_BASE_URL = window.location.origin + "/api/image?w=1000&path=";
 
         let genresList = [];
 
@@ -2466,7 +2466,7 @@
                 // Multi-Stage Progressive Fallback Ladder (Estágios de 0 a 9)
                 let stage = 0; 
                 
-                while (results.length < 5 && stage <= 9) {
+                while (results.length < 60 && stage <= 9) {
                     console.log(`🧠 [Filtro Master] Buscando filmes - Estágio ${stage}`);
                     let queryParams = new URLSearchParams(baseParams);
                     let endpoint = 'discover/movie';
@@ -2564,9 +2564,9 @@
                     // Define qual página buscar baseando-se no estágio
                     let pageToFetch = (stage === 0) ? currentPage : (stage === 8 ? currentTrendingFallbackPage : 1);
                     let attempts = 0;
-                    const maxAttempts = (stage === 0) ? 6 : 3;
+                    const maxAttempts = (stage === 0) ? 12 : 6; // Insistência dobrada para forçar filas cheias
 
-                    while (results.length < 10 && attempts < maxAttempts) {
+                    while (results.length < 60 && attempts < maxAttempts) {
                         queryParams.set('page', pageToFetch);
                         try {
                             // ESTRATÉGIA FAT-PAYLOAD: Tentamos rotear a chamada pela VPS Orquestradora primeiro

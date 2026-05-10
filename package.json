@@ -10,6 +10,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.104.1",
     "gsap": "^3.12.2",
+    "sharp": "^0.34.5",
     "vanilla-tilt": "^1.8.1"
   },
   "devDependencies": {
