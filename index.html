@@ -705,5 +705,15 @@
             }
         })();
     </script>
+    <script>
+        // Registro do Service Worker para Certificação PWA e Suporte Android Bubblewrap
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => console.log('MatchFlix PWA Service Worker registrado com sucesso!', registration.scope))
+                    .catch(err => console.error('Falha ao registrar Service Worker:', err));
+            });
+        }
+    </script>
 </body>
 </html>
