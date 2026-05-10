@@ -769,13 +769,21 @@
             left: 24px;
             right: 24px;
             display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
+            flex-direction: column;   /* Coluna: gêneros acima, vibe tags abaixo */
+            align-items: flex-start;
+            gap: 8px;
             z-index: 50;
             opacity: 0;
             transform: translateY(-10px);
             transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
             pointer-events: none;
+        }
+
+        /* Row interna dos gêneros */
+        .genres-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
         }
 
         .trailer-genres-container.active {
@@ -799,9 +807,16 @@
             animation: pulse-neon 2s infinite alternate;
         }
 
-        /* Container inline das Vibe Tags (irmão dos genre pills dentro do trailer-genres-container) */
+        /* Container das Vibe Tags — linha separada abaixo dos gêneros */
         .vibe-tags-inline-container {
-            display: contents; /* Faz os filhos participarem diretamente do flex-wrap do pai */
+            display: none;            /* Oculto até ter tags injetadas */
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        /* Quando tiver tags, o container se torna visível */
+        .vibe-tags-inline-container:not(:empty) {
+            display: flex;
         }
 
         /* Vibe Tag — versão compacta para o contexto do trailer (mesmo tamanho dos genre pills) */
@@ -3060,9 +3075,6 @@
                             // Se já estava inicializado, garante que o timer do trailer inicie
                             if (existing._startTrailerTimer) existing._startTrailerTimer();
                         }
-
-                        // 🎬 VIBE TAGS LAZY: Busca tags IA de forma assíncrona (não bloqueia o card)
-                        fetchAndInjectVibeTags(movie, existing);
                     } else {
 
                         existing.classList.remove('active-drag');
@@ -3083,14 +3095,7 @@
                     
                 } else {
                     // Se não estiver no DOM, cria
-                    const newCard = createCardDOM(movie, i);
-                    // Se for o card do topo recém-criado, dispara Vibe Tags assim que o DOM for pintado
-                    if (i === 0) {
-                        requestAnimationFrame(() => {
-                            const el = document.querySelector(`.movie-card-wrapper[data-movie-id="${movie.id}"]`);
-                            if (el) fetchAndInjectVibeTags(movie, el);
-                        });
-                    }
+                    createCardDOM(movie, i);
                 }
 
             }
@@ -3188,7 +3193,7 @@
                 <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent opacity-90 pointer-events-none z-15"></div>
                 
                 <div class="trailer-genres-container" id="trailer-genres-${movie.id}">
-                    ${generateTrailerGenreLabelsHTML(movie)}
+                    <div class="genres-row">${generateTrailerGenreLabelsHTML(movie)}</div>
                     <div id="vibe-tags-${movie.id}" class="vibe-tags-inline-container"></div>
                 </div>
 
@@ -3454,6 +3459,17 @@
                                 if (frontEl) {
                                     const genresCont = frontEl.querySelector('.trailer-genres-container');
                                     if (genresCont) genresCont.classList.add('active');
+                                }
+                            }
+
+                            // 🎬 VIBE TAGS: Dispara agora que o trailer está rodando e o container está ativo
+                            const cardWrapper = document.querySelector(`.movie-card-wrapper[data-movie-id="${movieId}"]`);
+                            if (cardWrapper) {
+                                // Encontra o filme na fila para pegar title e overview
+                                const movieData = moviesQueue.find(m => String(m.id) === String(movieId)) 
+                                               || likedMoviesLocal.find(m => String(m.id) === String(movieId));
+                                if (movieData && movieData.overview) {
+                                    fetchAndInjectVibeTags(movieData, cardWrapper);
                                 }
                             }
                         },
