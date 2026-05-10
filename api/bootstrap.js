@@ -114,28 +114,52 @@ export default async function handler(req, res) {
         }
     })();
 
-    // 4. Trending/Destaques (Agregado de múltiplas abas em paralelo)
+    // 4. Super Aggregate Trending/Destaques (Busca TODOS os subsets e notícias em paralelo)
     const trendingPromise = (async () => {
         try {
+            const currentYear = new Date().getFullYear();
             const dateTo = new Date().toISOString().split('T')[0];
             const sixtyAgo = new Date();
             sixtyAgo.setDate(sixtyAgo.getDate() - 60);
             const sixtyAgoStr = sixtyAgo.toISOString().split('T')[0];
+            
+            const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
+            const hallOfFameSeed = Math.floor(Date.now() / threeDaysMs);
+            const hallOfFamePage = (hallOfFameSeed % 10) + 1;
+            const releasePage = Math.floor(Math.random() * 2) + 1;
 
-            // Otimização: Pegamos só as 3 abas críticas na inicialização e o resto pode ser lazy-loaded
-            const [day, week, upcoming] = await Promise.all([
+            // Executa 6 Chamadas TMDB e 1 Chamada Supabase REST simultaneamente!
+            const [day, week, people, upcoming, awarded, newReleases, newsResp] = await Promise.all([
                 safeFetchTMDB('discover/movie', { sort_by: 'popularity.desc', 'primary_release_date.gte': sixtyAgoStr, 'primary_release_date.lte': dateTo }),
                 safeFetchTMDB('trending/movie/week'),
-                safeFetchTMDB('movie/upcoming', { region: 'BR' })
+                safeFetchTMDB('trending/person/day'),
+                safeFetchTMDB('movie/upcoming', { region: 'BR' }),
+                safeFetchTMDB('discover/movie', { sort_by: 'vote_count.desc', 'vote_average.gte': 8, 'with_runtime.gte': 60, page: hallOfFamePage }),
+                safeFetchTMDB('discover/movie', { primary_release_year: currentYear, sort_by: 'popularity.desc', page: releasePage }),
+                (async () => {
+                    try {
+                        const nUrl = `${SUPABASE_URL}/rest/v1/news?select=*&order=published_at.desc&limit=40`;
+                        const r = await fetch(nUrl, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                        return r.ok ? await r.json() : [];
+                    } catch (e) { return []; }
+                })()
             ]);
 
             return {
                 day: { results: day.results || [] },
                 week: { results: week.results || [] },
-                upcoming: { results: upcoming.results || [] }
+                people: { results: people.results || [] },
+                upcoming: { results: upcoming.results || [] },
+                awarded: { results: awarded.results || [] },
+                newReleases: { results: newReleases.results || [] },
+                news: newsResp || []
             };
         } catch (e) {
-            return { day: { results: [] }, week: { results: [] }, upcoming: { results: [] } };
+            console.error("[Bootstrap] Trending aggregation error:", e);
+            return { 
+                day: { results: [] }, week: { results: [] }, upcoming: { results: [] }, 
+                awarded: { results: [] }, newReleases: { results: [] }, news: [] 
+            };
         }
     })();
 
