@@ -1434,7 +1434,6 @@
                 <path class="heart-path core" pathLength="100" d="M 50,30 C 60,10 90,10 90,40 C 90,70 65,85 50,95 C 35,85 10,70 10,40 C 10,10 40,10 50,30 Z" />
             </svg>
             <h2 class="match-text-title">It's a Match</h2>
-            <p class="match-text-subtitle" id="match-film-name-display"></p>
         </div>
     </div>
 
@@ -1794,17 +1793,66 @@
             try {
                 console.log("⚡ Orquestrando carregamento ULTRARRÁPIDO global na VPS...");
                 
-                // ETAPA 1: Carrega Apenas o Estritamente Necessário para Exibir a Primeira Tela
-                // 1. Carrega os Gêneros e o Histórico (Críticos para os filtros do algoritmo)
-                await Promise.all([
-                    fetchTMDBGenres(),
-                    fetchInteractedMovies() 
-                ]);
+                console.log("🚀 Acionando SUPER BOOTSTRAP AGGREGATOR (Payload Único)...");
                 
-                // 2. Preenchemos a fila do Match com o histórico calibrado
-                // OTIMIZAÇÃO RADICAL: Durante o boot, buscamos apenas 6 filmes para garantir LIBERAÇÃO INSTANTÂNEA!
-                // O resto do "buffer" de 60 itens será preenchido em background.
-                await fetchMovies(6);
+                let bootstrapSuccess = false;
+                
+                try {
+                    const bRes = await fetch(`/api/bootstrap?userId=${currentUser.id}`);
+                    if (bRes.ok) {
+                        const payload = await bRes.json();
+                        if (payload.success && payload.data) {
+                            const bData = payload.data;
+                            
+                            // 1. Injeção Instantânea de Gêneros
+                            if (bData.genres) genresList = bData.genres;
+
+                            // 2. Injeção Instantânea de Histórico
+                            if (bData.history) {
+                                bData.history.forEach(item => {
+                                    const id = Number(item.filme_id);
+                                    if (id) interactedMovieIds.add(id);
+                                    if (item.assistido) watchedMovieIds.add(id);
+                                });
+                                console.log(`✅ [Bootstrap] Histórico pré-carregado: ${interactedMovieIds.size} itens.`);
+                            }
+
+                            // 3. Injeção da Fila Inicial de Filmes (Vinda do Motor de IA da VPS)
+                            if (bData.initialQueue && bData.initialQueue.length > 0) {
+                                // Reverte e injeta para virar o stack correto de renderização
+                                moviesQueue = [...bData.initialQueue.reverse()];
+                                preloadMoviePosters(bData.initialQueue);
+                                console.log(`✅ [Bootstrap] Fila inicial populada com ${moviesQueue.length} recomendações.`);
+                            }
+
+                            // 4. Pré-aquecimento de Tendências (Remove esqueletos instantaneamente no próximo tab)
+                            if (bData.trending) {
+                                cachedTrendingData = bData.trending;
+                                isTrendingLoaded = true;
+                                renderTrendingData(bData.trending);
+                                console.log("✅ [Bootstrap] Destaques/Tendências pré-hidratados.");
+                            }
+
+                            bootstrapSuccess = true;
+                            console.log("💎 [Bootstrap] Carga total concluída com SUCESSO absoluto!");
+                        }
+                    }
+                } catch (err) {
+                    console.warn("⚠️ Super Bootstrap falhou (Rede?). Ativando rota legado de resiliência...", err);
+                }
+
+                // Mecanismo de Tolerância a Falhas Críticas: Se o bootstrap falhar por DNS/Rede, o app NÃO para.
+                // Ele automaticamente reverte para buscar o estritamente necessário do jeito tradicional.
+                if (!bootstrapSuccess) {
+                    console.log("🔄 Executando Fallback Resiliente de emergência...");
+                    await Promise.all([
+                        fetchTMDBGenres(),
+                        fetchInteractedMovies() 
+                    ]);
+                    if (moviesQueue.length === 0) {
+                        await fetchMovies(6);
+                    }
+                }
                 
                 // 3. Renderização inicial (Antes de qualquer imagem para Skeleton Instantâneo)
                 if (typeof renderTopCards === 'function') renderTopCards();
@@ -2163,9 +2211,6 @@
 
         // Animação elegante de Match (sem abrir a sinopse)
         function showMatchToast(movieTitle, onComplete) {
-            const filmDisplay = document.getElementById('match-film-name-display');
-            if (filmDisplay) filmDisplay.innerHTML = `Você combinou com <strong>${movieTitle}</strong>`;
-
             const tl = gsap.timeline({ 
                 defaults: { force3D: true, ease: "power3.out" },
                 onComplete: () => {
@@ -2183,7 +2228,6 @@
             gsap.set('.heart-path', { strokeDasharray: 100, strokeDashoffset: 100 });
             gsap.set('.heart-svg', { scale: 0.4, rotation: -10 });
             gsap.set('.match-text-title', { opacity: 0, y: 25 });
-            gsap.set('.match-text-subtitle', { opacity: 0, y: 15 });
             
             // 2. Flash Inicial (Impacto suave Cyber-Noir)
             tl.to(matchFlash, {
@@ -2222,14 +2266,6 @@
                 duration: 0.55,
                 ease: "back.out(1.6)"
             }, "-=0.45")
-
-            // 7. Revelar o Subtítulo (Nome do Filme)
-            .to('.match-text-subtitle', {
-                opacity: 1,
-                y: 0,
-                duration: 0.45,
-                ease: "power2.out"
-            }, "-=0.35")
 
             // 8. Pequeno pulso de respiração do Neon Heart antes de fechar
             .to('.heart-svg', {
