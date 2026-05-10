@@ -105,6 +105,11 @@
             opacity: 0.8;
             transform: scale(0.99);
         }
+        .ia-input-hidden {
+            transform: translate(-50%, 200px) !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
 
         /* Settings Styles Ported */
         .settings-group {
@@ -1367,12 +1372,13 @@
     </div>
 
     <!-- Input Bar (Posicionado de forma global e fixa, 100% imune a transformações do slider) -->
-    <div id="ia-chat-input-container" class="hidden fixed bottom-[124px] left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] z-[310]">
-        <div class="glass-panel border border-white/10 rounded-2xl p-2 flex items-center gap-2 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-neutral-900/60 backdrop-blur-3xl">
-            <input type="text" id="ia-chat-input" placeholder="Ex: Um suspense chuvoso e noir..." 
-                   class="flex-grow bg-transparent text-white font-body placeholder:text-white/25 text-sm focus:outline-none pl-3 py-2">
-            <button id="ia-chat-send-btn" class="w-10 h-10 rounded-xl bg-primary-container text-white flex items-center justify-center active:scale-90 transition-transform">
-                <span class="material-symbols-outlined text-sm">send</span>
+    <!-- Input Bar (Posicionado de forma global e fixa, 100% imune a transformações do slider) -->
+    <div id="ia-chat-input-container" class="hidden fixed bottom-[124px] left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] z-[310] transition-all duration-500 will-change-[transform,opacity]">
+        <div class="glass-panel border border-white/10 rounded-full p-1.5 pl-4 flex items-center gap-2 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-neutral-900/60 backdrop-blur-3xl border-t border-white/20">
+            <input type="text" id="ia-chat-input" placeholder="Ex: Ação no espaço" 
+                   class="flex-grow bg-transparent text-white font-body placeholder:text-white/40 text-sm focus:outline-none border-0 focus:ring-0 py-3">
+            <button id="ia-chat-send-btn" class="w-10 h-10 rounded-full bg-primary-container text-white flex items-center justify-center active:scale-90 transition-all shadow-lg shadow-primary-container/30 hover:bg-primary-container/90">
+                <span class="material-symbols-outlined text-sm fill-current" style="font-variation-settings: 'FILL' 1">send</span>
             </button>
         </div>
     </div>
@@ -1411,8 +1417,8 @@
     </div>
 
     <!-- Universal Modal (Synopsis) -->
-    <div id="modal-backdrop" class="fixed inset-0 bg-black/80 backdrop-blur-md opacity-0 pointer-events-none z-[290] will-change-[opacity]"></div>
-    <div id="synopsis-modal" class="fixed inset-x-0 bottom-0 z-[300] translate-y-full will-change-transform">
+    <div id="modal-backdrop" class="fixed inset-0 bg-black/80 backdrop-blur-md opacity-0 pointer-events-none z-[390] will-change-[opacity]"></div>
+    <div id="synopsis-modal" class="fixed inset-x-0 bottom-0 z-[400] translate-y-full will-change-transform">
         <div class="relative bg-neutral-900 rounded-t-[2.5rem] border-t border-white/10 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
             <div class="w-12 h-1.5 bg-white/20 rounded-full mx-auto mt-4 mb-2 shrink-0"></div>
             <div id="modal-scroll-container" class="overflow-y-auto pb-20">
@@ -1677,6 +1683,22 @@
         const headerTitle = document.getElementById('header-title');
         const headerIaBtn = document.getElementById('header-ia-btn');
         const iaInputContainer = document.getElementById('ia-chat-input-container');
+
+        // Lógica Avançada de UI: Auto-Hide/Show do Campo de Chat na rolagem (Scroll)
+        const iaMessagesScroll = document.getElementById('ia-chat-messages');
+        let lastChatScroll = 0;
+        if (iaMessagesScroll && iaInputContainer) {
+            iaMessagesScroll.addEventListener('scroll', () => {
+                const currentSt = iaMessagesScroll.scrollTop;
+                // Rolar para baixo (esconde), rolar para cima (mostra)
+                if (currentSt > lastChatScroll && currentSt > 60) {
+                    iaInputContainer.classList.add('ia-input-hidden');
+                } else {
+                    iaInputContainer.classList.remove('ia-input-hidden');
+                }
+                lastChatScroll = currentSt <= 0 ? 0 : currentSt; 
+            }, { passive: true });
+        }
 
         // Check Auth
         (async () => {
@@ -4900,13 +4922,14 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
             // 3. Chama a API do Gemini
-            const rawResponse = await askGemini(prompt);
+            // 3. Chama a API do Orquestrador (Delegado para o Servidor)
+            const aiData = await askGemini(prompt);
             
             // Remove o typing indicator
             const typingEl = document.getElementById(typingId);
             if (typingEl) typingEl.remove();
 
-            if (!rawResponse) {
+            if (!aiData || !aiData.success) {
                 // Mensagem de erro amigável
                 const errorHTML = `
                     <div class="flex gap-3 max-w-[85%]">
@@ -4925,141 +4948,12 @@
                 return;
             }
 
-            // 4. Trata a resposta do Gemini (separa o texto do JSON de filmes)
-            let textToShow = rawResponse;
-            let recommendedMovies = [];
-
-            if (rawResponse.includes('|||')) {
-                const parts = rawResponse.split('|||');
-                textToShow = parts[0].trim();
-                const jsonPart = parts[1] ? parts[1].trim() : '';
-                
-                let cleanJson = jsonPart;
-                cleanJson = cleanJson.replace(/```json/gi, '').replace(/```/g, '').trim();
-                cleanJson = cleanJson.replace(/[“”]/g, '"').replace(/[‘’]/g, '"');
-                
-                try {
-                    const jsonToParse = cleanJson.replace(/'/g, '"');
-                    recommendedMovies = JSON.parse(jsonToParse);
-                } catch (e) {
-                    console.warn("Falha no JSON.parse padrão, ativando recuperação por Regex:", e);
-                    const regexDouble = /"([^"\r\n]+)"/g;
-                    const regexSingle = /'([^'\r\n]+)'/g;
-                    let match;
-                    recommendedMovies = [];
-                    
-                    while ((match = regexDouble.exec(cleanJson)) !== null) {
-                        const val = match[1].trim();
-                        if (val && val !== '[' && val !== ']') {
-                            recommendedMovies.push(val);
-                        }
-                    }
-                    if (recommendedMovies.length === 0) {
-                        while ((match = regexSingle.exec(cleanJson)) !== null) {
-                            const val = match[1].trim();
-                            if (val && val !== '[' && val !== ']') {
-                                recommendedMovies.push(val);
-                            }
-                        }
-                    }
-                }
-            } else {
-                // Se o Gemini não incluiu ||| mas colocou um array [ "Filme" ] em algum lugar
-                const bracketMatch = rawResponse.match(/\[\s*["'][\s\S]*?["']\s*\]/);
-                if (bracketMatch) {
-                    const jsonPart = bracketMatch[0].trim();
-                    textToShow = rawResponse.replace(jsonPart, '').trim();
-                    
-                    let cleanJson = jsonPart.replace(/```json/gi, '').replace(/```/g, '').trim();
-                    cleanJson = cleanJson.replace(/[“”]/g, '"').replace(/[‘’]/g, '"');
-                    
-                    try {
-                        recommendedMovies = JSON.parse(cleanJson.replace(/'/g, '"'));
-                    } catch (e) {
-                        const regexDouble = /"([^"\r\n]+)"/g;
-                        let match;
-                        recommendedMovies = [];
-                        while ((match = regexDouble.exec(cleanJson)) !== null) {
-                            const val = match[1].trim();
-                            if (val && val !== '[' && val !== ']') {
-                                recommendedMovies.push(val);
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Garante que é uma lista válida
-            if (!Array.isArray(recommendedMovies)) {
-                if (recommendedMovies && recommendedMovies.movies && Array.isArray(recommendedMovies.movies)) {
-                    recommendedMovies = recommendedMovies.movies;
-                } else {
-                    recommendedMovies = [];
-                }
-            }
+            let textToShow = aiData.text || "Aqui estão minhas sugestões!";
+            const validMovies = aiData.movies || [];
 
             // Sanitiza markdown do texto se houver
             textToShow = textToShow.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             textToShow = textToShow.replace(/\*(.*?)\*/g, '<em>$1</em>');
-
-            // --- PRÉ-BUSCA E VALIDAÇÃO DOS FILMES NO TMDB (Blinda total do chat - Garante que só exibe com pôster) ---
-            let validMovies = [];
-            if (recommendedMovies.length > 0) {
-                const promises = recommendedMovies.slice(0, 5).map(async (title) => {
-                    try {
-                        const searchUrl = `https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(title)}&language=pt-BR`;
-                        const res = await fetch(searchUrl);
-                        if (!res.ok) return null;
-                        const searchData = await res.json();
-                        // Filtra apenas filmes que realmente existam e tenham um poster_path no TMDB
-                        return searchData.results && searchData.results[0] && searchData.results[0].poster_path ? searchData.results[0] : null;
-                    } catch (err) {
-                        console.error(`Erro na pré-busca do filme ${title}:`, err);
-                        return null;
-                    }
-                });
-                const results = await Promise.all(promises);
-                validMovies = results.filter(m => m !== null);
-            }
-
-            // Fallback de primeiro nível por palavra-chave se não houver filmes válidos com pôster
-            if (validMovies.length === 0) {
-                console.warn("⚠️ Sem filmes com pôsteres válidos, iniciando busca por palavras-chave...");
-                const keywords = prompt
-                    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"")
-                    .split(/\s+/)
-                    .filter(w => w.length > 3 && !['para', 'com', 'mais', 'sobre', 'filme', 'filmes', 'como', 'onde', 'quero', 'dicas', 'sugira', 'indique', 'meu', 'minha', 'tudo', 'esta'].includes(w.toLowerCase()));
-                
-                if (keywords.length > 0) {
-                    try {
-                        const searchTerm = keywords.slice(0, 3).join(' ');
-                        const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&language=pt-BR&query=${encodeURIComponent(searchTerm)}&page=1`);
-                        if (res.ok) {
-                            const data = await res.json();
-                            if (data.results) {
-                                validMovies = data.results.filter(m => m.poster_path).slice(0, 5);
-                            }
-                        }
-                    } catch (err) {
-                        console.error("Erro na busca de fallback pré-render:", err);
-                    }
-                }
-            }
-
-            // Fallback de segundo nível por trending se ainda assim estiver vazio
-            if (validMovies.length === 0) {
-                try {
-                    const res = await fetch(`https://api.themoviedb.org/3/trending/movie/week?api_key=${API_KEY}&language=pt-BR&page=1`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data.results) {
-                            validMovies = data.results.filter(m => m.poster_path).slice(0, 5);
-                        }
-                    }
-                } catch (err) {
-                    console.error("Erro na busca secundária de trending pré-render:", err);
-                }
-            }
 
             // Renderiza a resposta de texto do Cine-Bot
             const botResponseId = 'bot-resp-' + Date.now();
@@ -5078,7 +4972,7 @@
             `;
             messagesContainer.insertAdjacentHTML('beforeend', botMsgHTML);
 
-            // Renderiza o carrossel de pôsteres (Agora 100% garantido e sincronizado!)
+            // Renderiza o carrossel de pôsteres (Vem 100% pronto do Servidor via Orquestração em 1 request)
             if (validMovies.length > 0) {
                 const carouselId = 'ia-carousel-' + Date.now();
                 const carouselHTML = `
@@ -5126,38 +5020,34 @@
             const systemInstruction = "Você é o Cine-Bot, o assistente virtual de recomendação de filmes do MatchFlix. " +
                 "Considere obrigatoriamente que o ano atual é 2026. Portanto, os filmes de 2024, 2025 e início de 2026 já foram lançados e o Oscar de 2025 já aconteceu! " +
                 "Seu objetivo é responder em Português do Brasil de forma entusiasmada, concisa e cinéfila. " +
-                "Sugira obrigatoriamente de 5 a 10 filmes (tente sugerir sempre o máximo de filmes possível, ou seja, de preferência 10 filmes) que correspondam ao gosto e clima que o usuário descreveu. " +
+                "Sugira obrigatoriamente de 5 a 10 filmes (tente sugerir sempre 10 filmes, se possível) que correspondam ao gosto e clima que o usuário descreveu. " +
                 "Escreva uma resposta de texto curta e empolgante de no máximo 2 ou 3 frases. " +
                 "NÃO liste os nomes dos filmes em texto ou em listas numeradas no corpo do texto principal. " +
-                "Ao final da sua resposta, na última linha, inclua obrigatoriamente a lista dos títulos recomendados " +
-                "no formato de array JSON delimitado estritamente por ||| para que o sistema busque os pôsteres automaticamente. " +
-                "Não use crases, markdown ou quebras de linha dentro ou ao redor do array JSON. " +
-                "Exemplo de formato esperado no final: |||[\"Matrix\", \"Inception\", \"Interestelar\", \"Avatar\", \"Gladiador\"]|||";
+                "Ao final da sua resposta, na última linha, inclua obrigatoriamente a lista dos títulos recomendados ACOMPANHADOS DO ANO DE LANÇAMENTO ENTRE PARÊNTESES, " +
+                "no formato de array JSON delimitado estritamente por ||| para que o sistema busque os pôsteres automaticamente com 100% de precisão. " +
+                "Exemplo de formato esperado no final: |||[\"Matrix (1999)\", \"Inception (2010)\", \"Interestelar (2014)\", \"Avatar (2009)\"]|||";
 
-            const combinedPrompt = `${systemInstruction}\n\nUsuário: ${prompt}\n\n[Regra Estrita de Formato: Lembre-se de que o ano atual é 2026. Escreva de forma empolgante com no máximo 2 ou 3 frases. NÃO liste os filmes em texto ou em listas numeradas. Ao final de tudo, na última linha, adicione obrigatoriamente de 5 a 10 filmes sugeridos (sempre o máximo de filmes que puder, preferencialmente 10) estritamente no formato JSON delimitado por ||| para os pôsteres carregarem corretamente, exemplo: |||["Matrix", "Interestelar", "Inception", "Gladiador", "Avatar"]|||]\n\nResposta:`;
+            const combinedPrompt = `${systemInstruction}\n\nUsuário: ${prompt}\n\n[Regra Estrita: Escreva de forma empolgante (2-3 frases). NÃO liste os filmes no texto. Ao final, adicione o array JSON no formato exato: |||["Nome (Ano)", "Nome (Ano)"]|||]\n\nResposta:`;
 
             try {
                 const response = await fetch(url, {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         model: "minimax-m2.5:cloud",
                         prompt: combinedPrompt,
                         stream: false,
-                        options: {
-                            temperature: 0.4
-                        }
+                        options: { temperature: 0.4 }
                     })
                 });
 
-                if (!response.ok) throw new Error("Erro na chamada da API Minimax via Ollama VPS");
+                if (!response.ok) throw new Error("Erro na orquestração VPS");
+                // Agora retornamos o objeto JSON completo enriquecido pelo Servidor, não apenas data.response
                 const data = await response.json();
-                return data.response;
+                return data; 
             } catch (err) {
-                console.error("Erro ao chamar o Minimax:", err);
-                return null;
+                console.error("Erro ao chamar o Orquestrador:", err);
+                return { success: false };
             }
         }
 
