@@ -13,6 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="MatchFlix">
     <link rel="apple-touch-icon" href="https://i.imgur.com/1m1iVsm.png">
+    <link rel="icon" type="image/png" href="https://i.imgur.com/1m1iVsm.png">
 
     <!-- Open Graph / Social Preview -->
     <meta property="og:type" content="website">
@@ -40,11 +41,19 @@
     <script type="module">
         import { supabase } from './js/supabase.js';
         
-        // Verificação de sessão persistente ao carregar
+        // Verificação de sessão persistente com imunidade a erros de refresh token obsoletos
         (async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                window.location.href = "descobrir.html";
+            try {
+                const { data, error } = await supabase.auth.getSession();
+                if (data?.session) {
+                    window.location.href = "descobrir.html";
+                } else if (error) {
+                    // Se o token de refresh está corrompido/expirado no servidor, limpamos localmente
+                    // para suprimir o spam de erros no console nas próximas cargas.
+                    await supabase.auth.signOut(); 
+                }
+            } catch (err) {
+                // Falha silenciosa, apenas não redireciona
             }
         })();
     </script>
@@ -370,42 +379,7 @@
 
 
     <script>
-        // === Lógica PWA Install Prompt (Top Priority) ===
-        (function() {
-            const pwaPrompt = document.getElementById('pwa-install-prompt');
-            const pwaOverlay = document.getElementById('pwa-tutorial-overlay');
-            const btnInstall = document.getElementById('btn-install-pwa');
-            const btnClosePwa = document.getElementById('btn-close-pwa');
-            const btnCloseTutorial = document.getElementById('btn-close-tutorial');
-
-            if (pwaPrompt) {
-                console.log("PWA Script Found Elements");
-                setTimeout(() => {
-                    console.log("PWA Animation Triggered");
-                    gsap.fromTo(pwaPrompt, 
-                        { bottom: -200, opacity: 0, visibility: 'visible' },
-                        { bottom: 24, opacity: 1, duration: 1.5, ease: "power4.out" }
-                    );
-                }, 1000);
-
-                btnInstall.addEventListener('click', () => {
-                    pwaOverlay.style.display = 'flex';
-                    gsap.fromTo(pwaOverlay, { opacity: 0 }, { opacity: 1, duration: 0.5 });
-                    gsap.from(".tutorial-card", { scale: 0.8, opacity: 0, duration: 0.6, ease: "back.out(1.7)" });
-                });
-
-                btnCloseTutorial.addEventListener('click', () => {
-                    gsap.to(pwaOverlay, { opacity: 0, duration: 0.4, onComplete: () => pwaOverlay.style.display = 'none' });
-                    gsap.to(pwaPrompt, { bottom: -200, opacity: 0, duration: 0.8 });
-                });
-
-                btnClosePwa.addEventListener('click', () => {
-                    gsap.to(pwaPrompt, { bottom: -200, opacity: 0, duration: 0.8 });
-                });
-            } else {
-                console.error("PWA Prompt Element NOT FOUND");
-            }
-        })();
+        // Logic PWA redundante removida daqui e preservada no fim do arquivo para evitar erro de elemento inexistente no parser.
 
         // Init Tilt
         VanillaTilt.init(document.querySelectorAll(".glass-card"), {

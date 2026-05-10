@@ -932,13 +932,13 @@
 
                     <!-- Swiping FABs -->
                     <div class="relative w-full flex justify-center items-center gap-6 z-40 py-2" id="controls">
-                        <button id="btn-dislike" class="w-16 h-16 rounded-full glass-panel border border-error/20 flex items-center justify-center text-error shadow-lg active:scale-90 transition-transform duration-200 p-0">
+                        <button type="button" id="btn-dislike" class="w-16 h-16 rounded-full glass-panel border border-error/20 flex items-center justify-center text-error shadow-lg active:scale-90 transition-transform duration-200 p-0">
                             <span class="material-symbols-outlined text-3xl font-bold leading-none block text-center" data-icon="close">close</span>
                         </button>
-                        <button id="btn-info" class="w-14 h-14 rounded-full glass-panel border border-on-surface/10 flex items-center justify-center text-white active:scale-90 transition-transform duration-200 p-0">
+                        <button type="button" id="btn-info" class="w-14 h-14 rounded-full glass-panel border border-on-surface/10 flex items-center justify-center text-white active:scale-90 transition-transform duration-200 p-0">
                             <span class="material-symbols-outlined text-2xl leading-none block text-center" data-icon="info">info</span>
                         </button>
-                        <button id="btn-like" class="w-16 h-16 rounded-full bg-gradient-to-br from-primary-container to-secondary-container shadow-[0_0_25px_rgba(229,9,20,0.5)] flex items-center justify-center text-white active:scale-90 transition-transform duration-200 p-0">
+                        <button type="button" id="btn-like" class="w-16 h-16 rounded-full bg-gradient-to-br from-primary-container to-secondary-container shadow-[0_0_25px_rgba(229,9,20,0.5)] flex items-center justify-center text-white active:scale-90 transition-transform duration-200 p-0">
                             <span class="material-symbols-outlined text-3xl leading-none block text-center" data-icon="favorite" style="font-variation-settings: 'FILL' 1;">favorite</span>
                         </button>
                     </div>
@@ -1627,18 +1627,21 @@
             const btnDislike = document.getElementById('btn-dislike');
             const btnInfo = document.getElementById('btn-info');
 
-            if (btnLike) btnLike.onpointerdown = (e) => {
+            if (btnLike) btnLike.onclick = (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 if (isAnimating) return; 
                 if (currentCardDOM && currentCardDOM._triggerLike) currentCardDOM._triggerLike();
             };
-            if (btnDislike) btnDislike.onpointerdown = (e) => {
+            if (btnDislike) btnDislike.onclick = (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 if (isAnimating) return;
                 if (currentCardDOM && currentCardDOM._triggerDislike) currentCardDOM._triggerDislike();
             };
             if (btnInfo) btnInfo.onclick = (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 if (isAnimating) return;
                 if (currentCardDOM && currentCardDOM._toggleSynopsis) currentCardDOM._toggleSynopsis();
             };
@@ -1785,90 +1788,61 @@
         window.triggerHaptic = triggerHaptic;
 
         async function initApp() {
-            console.log("🎬 Iniciando MatchFlix...");
+            console.log("🎬 Iniciando MatchFlix (Boot Acelerado)...");
             initTrendingElements();
+            
             try {
-                console.log("⚡ Orquestrando carregamento concorrente global na VPS...");
-                // ETAPA 1: Disparar TODAS as chamadas em paralelo para quebrar o Splash Screen o mais rápido possível!
-                const parallelData = await Promise.all([
+                console.log("⚡ Orquestrando carregamento ULTRARRÁPIDO global na VPS...");
+                
+                // ETAPA 1: Carrega Apenas o Estritamente Necessário para Exibir a Primeira Tela
+                // 1. Carrega os Gêneros e o Histórico (Críticos para os filtros do algoritmo)
+                await Promise.all([
                     fetchTMDBGenres(),
-                    fetchTrending(),        // Traz notícias e filmes em alta
-                    fetchMatches(),         // Carrega Aba de Likes via Hydrator
-                    fetchCollection(),      // Carrega Aba Coleção via Hydrator
-                    fetchInteractedMovies() // Carrega Histórico e Calibra Algoritmo de Gêneros!
+                    fetchInteractedMovies() 
                 ]);
                 
-                const trendingRes = parallelData[1]; // Coleta o resultado do Trending já carregado
+                // 2. Preenchemos a fila do Match com o histórico calibrado
+                // OTIMIZAÇÃO RADICAL: Durante o boot, buscamos apenas 6 filmes para garantir LIBERAÇÃO INSTANTÂNEA!
+                // O resto do "buffer" de 60 itens será preenchido em background.
+                await fetchMovies(6);
                 
-                // ETAPA 2: Agora que o histórico calibrou, busca a fila de swipes com a inteligência calibrada!
-                await fetchMovies();
-                
-                console.log("✅ Conteúdo inicial consolidado em tempo recorde.");
-
-                // Inicializa os componentes de UI
-                initMatches();
-                initCollection();
-                
-                // Força a renderização inicial dos cards do Match
+                // 3. Renderização inicial (Antes de qualquer imagem para Skeleton Instantâneo)
                 if (typeof renderTopCards === 'function') renderTopCards();
                 
-                // Define aba inicial (Match)
+                // 4. Foca na aba principal e DESBLOQUEIA O USUÁRIO IMEDIATAMENTE!
                 goToTab('descobrir', false);
                 
-                // O Splash Screen só morre após garantir que os dados estão prontos
-                // E aguardamos as primeiras imagens (Match + Tendências) para evitar "piscagem"
-                const postersToLoad = [];
-                
-                // 1. Pôsteres do Match (os 2 primeiros)
-                if (moviesQueue.length > 0) {
-                    moviesQueue.slice(0, 2).forEach(m => {
-                        if (m.poster_path) postersToLoad.push(`${IMAGE_BASE_URL}${m.poster_path}`);
-                    });
-                }
-
-                // 2. Pôsteres das Tendências (usando o dado já capturado na Etapa 1)
-                const trendingData = trendingRes || cachedTrendingData;
-                if (trendingData) {
-                    if (trendingData.day && trendingData.day.results) {
-                        trendingData.day.results.slice(0, 4).forEach(m => {
-                            if (m.poster_path) postersToLoad.push(`${IMAGE_BASE_URL}${m.poster_path}`);
-                        });
-                    }
-                    if (trendingData.awarded && trendingData.awarded.results) {
-                        trendingData.awarded.results.slice(0, 4).forEach(m => {
-                            if (m.poster_path) postersToLoad.push(`${IMAGE_BASE_URL}${m.poster_path}`);
-                        });
-                    }
-                }
-
-                // Aguarda o carregamento de todas as imagens críticas
-                if (postersToLoad.length > 0) {
-                    console.log(`🖼️ Pré-carregando ${postersToLoad.length} pôsteres críticos...`);
-                    await Promise.all(postersToLoad.map(url => {
-                        return new Promise(resolve => {
-                            const img = new Image();
-                            img.onload = img.onerror = resolve;
-                            img.src = url;
-                        });
-                    }));
-                }
-
+                // Liberação imediata da Splash sem aguardar rede de imagens externas
                 setTimeout(() => {
                     hideSplashScreen();
-                    console.log("🚀 App pronto!");
-                }, 400);
-                
-            } catch (error) {
-                console.error("❌ Erro crítico na inicialização:", error);
-                // Em caso de erro, removemos o splash após 3s para não travar o usuário
-                setTimeout(hideSplashScreen, 3000);
-            }
+                    console.log("🚀 Splash Liberada em Tempo Recorde!");
+                }, 50); 
 
-            // Suporte a Deep Linking (SPA)
-            const urlParams = new URLSearchParams(window.location.search);
-            const pageParam = urlParams.get('page');
-            if (pageParam && pageParam !== 'descobrir') {
-                setTimeout(() => goToTab(pageParam, false), 100);
+                // ETAPA 2: Background Hydration
+                // Isso roda silenciosamente sem travar a interface do usuário.
+                Promise.all([
+                    fetchTrending().catch(e => console.error("Erro Silent Trending:", e)),
+                    fetchMovies(60).catch(e => console.error("Erro Silent Filling Queue:", e)), // Preenchimento silencioso da fila cheia!
+                    fetchMatches().then(() => {
+                        initMatches();
+                        console.log("✅ Matches Hydrated in BG.");
+                    }).catch(e => console.error("Erro Silent Matches:", e)),
+                    fetchCollection().then(() => {
+                        initCollection();
+                        console.log("✅ Coleções Hydrated in BG.");
+                    }).catch(e => console.error("Erro Silent Coleções:", e))
+                ]);
+
+                // ETAPA 3: Suporte a Deep Linking (SPA)
+                const urlParams = new URLSearchParams(window.location.search);
+                const pageParam = urlParams.get('page');
+                if (pageParam && pageParam !== 'descobrir') {
+                    setTimeout(() => goToTab(pageParam, false), 100);
+                }
+
+            } catch (error) {
+                console.error("⚠️ Falha controlada no boot:", error);
+                hideSplashScreen();
             }
         }
 
@@ -2371,7 +2345,7 @@
         }
 
         // Inicializar a fila (Algorítimo de Filtros Nível Master com Multi-Stage Progressive Fallback)
-        async function fetchMovies() {
+        async function fetchMovies(targetCount = 60) {
             if (isFetching) return;
             isFetching = true;
             loadingIndicator.style.display = "flex";
@@ -2500,7 +2474,7 @@
                 // Multi-Stage Progressive Fallback Ladder (Estágios de 0 a 9)
                 let stage = 0; 
                 
-                while (results.length < 60 && stage <= 9) {
+                while (results.length < targetCount && stage <= 9) {
                     console.log(`🧠 [Filtro Master] Buscando filmes - Estágio ${stage}`);
                     let queryParams = new URLSearchParams(baseParams);
                     let endpoint = 'discover/movie';
@@ -2597,7 +2571,7 @@
                     let attempts = 0;
                     const maxAttempts = (stage === 0) ? 12 : 6; // Insistência dobrada para forçar filas cheias
 
-                    while (results.length < 60 && attempts < maxAttempts) {
+                    while (results.length < targetCount && attempts < maxAttempts) {
                         queryParams.set('page', pageToFetch);
                         
                         // Injeção Preventiva de Segurança na Query (Exceto no endpoint de trending que não aceita filter)
@@ -3327,6 +3301,7 @@
             let currentX = 0;
             let currentY = 0;
             let isMatched = false; // Flag for match
+            let isDisliked = false; // Flag for dislike safeguard
             let isInfoOpen = false; // Flag for info toggle
 
             const btnAcaoOverlay = element.querySelector('.btn-acao-overlay');
@@ -3465,6 +3440,13 @@
 
             // Quando for dispensado
             function triggerDislike() {
+                if (isDisliked) return;
+                isDisliked = true;
+                
+                // Salva no banco (background) imediatamente, assim como no Like.
+                // Isso isola efeitos colaterais e previne qualquer crash no meio da animação.
+                saveActionToSupabase(movie, false);
+                
                 throwOut(-1);
             }
 
@@ -3480,9 +3462,8 @@
                 moviesQueue = moviesQueue.filter(m => Number(m.id) !== Number(movie.id));
                 interactedMovieIds.add(Number(movie.id));
                 
-                if (direction === -1) {
-                    saveActionToSupabase(movie, false);
-                }
+                // saveActionToSupabase foi removido daqui pois agora é chamado PREVENTIVAMENTE 
+                // dentro de triggerDislike() e triggerMatch() para isolar o estado e evitar concorrência async.
 
                 // Micro-delay para garantir que o frame inicial da animação de saída seja fluido
                 requestAnimationFrame(() => renderTopCards());
@@ -3598,8 +3579,10 @@
                     gsap.killTweensOf(element);
                     triggerMatch();
                 } else if (currentX < -threshold) {
-                    // Dislike (Swipe Left)
-                    throwOut(-1);
+                    // Dislike (Swipe Left) - Chama agora a função padrão e unificada!
+                    isAnimating = true;
+                    gsap.killTweensOf(element);
+                    triggerDislike();
                 } else {
                     // Snap back
                     gsap.to(element, {
