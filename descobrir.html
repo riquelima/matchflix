@@ -872,22 +872,39 @@
 
         <!-- PLAYER DE STREAMING GLOBAL (FORA DO SLIDER) -->
         <div id="streaming-player-overlay" class="fixed inset-0 z-[300] bg-black translate-y-full transition-transform duration-500 flex flex-col pointer-events-none">
-            <header class="h-16 flex items-center justify-between px-6 bg-neutral-950 border-b border-white/5 shrink-0">
+            <header class="h-16 flex items-center justify-between px-4 bg-neutral-950 border-b border-white/5 shrink-0">
                 <button onclick="closeStreamingPlayer()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 text-white active:scale-90 transition-transform">
                     <span class="material-symbols-outlined">close</span>
                 </button>
-                <h3 id="streaming-player-title" class="text-[10px] font-black text-white uppercase tracking-[0.2em] truncate max-w-[180px]">Assistindo</h3>
+                <div class="flex flex-col items-center justify-center overflow-hidden mx-2 flex-1">
+                    <h3 id="streaming-player-title" class="text-[10px] font-black text-white uppercase tracking-[0.2em] truncate w-full text-center">Assistindo</h3>
+                    <select id="server-selector" onchange="changeStreamingProvider(this.value)" class="bg-transparent text-[9px] font-bold text-primary-container border-none outline-none p-0 m-0 uppercase tracking-wider cursor-pointer appearance-none text-center">
+                        <option value="1" class="bg-neutral-900 text-white">📺 Servidor 1 (Padrao)</option>
+                        <option value="2" class="bg-neutral-900 text-white">🚀 Servidor 2 (Rapido)</option>
+                        <option value="3" class="bg-neutral-900 text-white">🌐 Servidor 3 (Alternativo)</option>
+                    </select>
+                </div>
                 <div class="w-10"></div>
             </header>
             <div class="flex-1 bg-black flex flex-col items-center justify-center p-4">
                 <!-- Container 16:9 Estilo Mobile -->
                 <div class="w-full shadow-[0_0_100px_rgba(0,0,0,1)] border border-white/10 rounded-xl overflow-hidden bg-neutral-900" 
                      style="aspect-ratio: 16 / 9; position: relative;">
+                    
+                    <!-- Ad Trap Shield (Proteção Visual contra Popups Iniciais) -->
+                    <div id="streaming-ad-shield" 
+                         onclick="this.style.opacity='0'; setTimeout(() => this.style.display='none', 300);" 
+                         class="absolute inset-0 z-[50] cursor-pointer flex flex-col items-center justify-center transition-all duration-300 bg-black/30 backdrop-blur-[2px] active:backdrop-blur-0">
+                        <div class="bg-black/80 border border-white/10 px-6 py-4 rounded-3xl text-white text-[11px] font-black flex flex-col items-center gap-3 backdrop-blur-xl shadow-2xl transform transition-all hover:scale-105 active:scale-95">
+                            <div class="w-12 h-12 rounded-full bg-primary-container/20 border border-primary-container flex items-center justify-center animate-pulse">
+                                <span class="material-symbols-outlined text-2xl text-primary-container">play_arrow</span>
+                            </div>
+                            <span class="tracking-[0.2em]">LIBERAR PLAYER</span>
+                        </div>
+                    </div>
                     <iframe id="streaming-iframe" 
                             class="absolute inset-0 w-full h-full border-none" 
                             allowfullscreen 
-                            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts"
-                            referrerpolicy="no-referrer"
                             style="width: 100%; height: 100%;"></iframe>
                 </div>
                 <p class="mt-8 text-white/10 text-[8px] font-black tracking-[0.4em] uppercase">MatchFlix Experience</p>
@@ -5526,19 +5543,66 @@
             });
         }
 
+        let currentStreamingMovie = null;
+        
+        window.changeStreamingProvider = function(serverId) {
+            if (!currentStreamingMovie) return;
+            const streamingIframe = document.getElementById('streaming-iframe');
+            const shield = document.getElementById('streaming-ad-shield');
+            
+            // Reativa o escudo para absorver possíveis cliques no carregamento do novo servidor
+            if (shield) {
+                shield.style.display = 'flex';
+                setTimeout(() => shield.style.opacity = '1', 10);
+            }
+            
+            let embedUrl = '';
+            const movieId = currentStreamingMovie.id;
+
+            // Lista Curada de Provedores Multi-Mirror (Resiliência contra DNS Failures)
+            switch(parseInt(serverId)) {
+                case 1:
+                    embedUrl = `https://myembed.biz/filme/${movieId}`;
+                    break;
+                case 2:
+                    embedUrl = `https://embed.warezcdn.net/filme/${movieId}`;
+                    break;
+                case 3:
+                    embedUrl = `https://multiembed.mov/directstream.php?video_id=${movieId}&tmdb=1`;
+                    break;
+                default:
+                    embedUrl = `https://myembed.biz/filme/${movieId}`;
+            }
+            
+            streamingIframe.src = embedUrl;
+        };
+
         window.openStreamingPlayer = function(movie) {
+            currentStreamingMovie = movie;
             const streamingIframe = document.getElementById('streaming-iframe');
             const streamingPlayerTitle = document.getElementById('streaming-player-title');
             const streamingPlayerOverlay = document.getElementById('streaming-player-overlay');
+            const serverSelector = document.getElementById('server-selector');
+            const shield = document.getElementById('streaming-ad-shield');
             
-            // Configura sandbox seguro: permite scripts vitais, mas bloqueia popups e navegações de nível superior indesejadas
-            streamingIframe.setAttribute('sandbox', 'allow-forms allow-pointer-lock allow-same-origin allow-scripts');
+            // Garante que o escudo visual esteja ativo para barrar cliques indesejados do load
+            if (shield) {
+                shield.style.display = 'flex';
+                shield.style.opacity = '1';
+            }
             
+            // Reseta o seletor visual para o padrão 1
+            if (serverSelector) serverSelector.value = "1";
+            
+            // Liberação total de sandbox (Restaurada conforme solicitado para não travar players)
+            streamingIframe.removeAttribute('sandbox');
+            
+            // Inicia carregando no servidor padrão
             const embedUrl = `https://myembed.biz/filme/${movie.id}`;
             streamingIframe.src = embedUrl;
             streamingPlayerTitle.textContent = movie.title;
             
-            // Ativa o overlay global
+            // Anima e exibe o modal global
             streamingPlayerOverlay.classList.remove('translate-y-full');
             streamingPlayerOverlay.classList.remove('pointer-events-none');
             streamingPlayerOverlay.style.pointerEvents = 'auto';
