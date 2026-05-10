@@ -3721,182 +3721,221 @@
             const { day, week, upcoming, awarded, newReleases, news } = data;
             
             // 0. Renderizar Notícias
-            if (news && news.length > 0 && newsList) {
-                newsList.innerHTML = '';
-                news.slice(0, 20).forEach(article => {
-                    const newsCard = document.createElement('div');
-                    newsCard.className = 'shrink-0 w-[280px] snap-start relative group';
-                    newsCard.innerHTML = `
-                        <div class="aspect-[16/9] rounded-2xl overflow-hidden border border-white/5 relative shadow-2xl">
-                            <img src="${article.image_url}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy">
-                            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
-                            <div class="absolute top-2 right-2 bg-black/40 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10">
-                                <p class="text-[7px] font-black text-white/60 uppercase tracking-tighter">${article.source_name}</p>
+            try {
+                if (news && news.length > 0 && newsList) {
+                    newsList.innerHTML = '';
+                    news.slice(0, 20).forEach(article => {
+                        const newsCard = document.createElement('div');
+                        newsCard.className = 'shrink-0 w-[280px] snap-start relative group';
+                        
+                        const safeTitle = article.title || 'Notícia';
+                        const safeSrc = article.image_url || 'https://via.placeholder.com/600x340?text=MatchFlix+News';
+                        
+                        newsCard.innerHTML = `
+                            <div class="aspect-[16/9] rounded-2xl overflow-hidden border border-white/5 relative shadow-2xl">
+                                <img src="${safeSrc}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" onerror="this.src='https://via.placeholder.com/600x340?text=MatchFlix+News'">
+                                <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
+                                <div class="absolute top-2 right-2 bg-black/40 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10">
+                                    <p class="text-[7px] font-black text-white/60 uppercase tracking-tighter">${article.source_name || 'MÍDIA'}</p>
+                                </div>
+                                <div class="absolute bottom-3 left-3 right-3">
+                                    <h4 class="text-[11px] font-bold text-white line-clamp-2 leading-tight uppercase tracking-tight">${safeTitle}</h4>
+                                </div>
                             </div>
-                            <div class="absolute bottom-3 left-3 right-3">
-                                <h4 class="text-[11px] font-bold text-white line-clamp-2 leading-tight uppercase tracking-tight">${article.title}</h4>
-                            </div>
-                        </div>
-                    `;
-                    newsCard.onclick = () => window.open(article.article_url, '_blank');
-                    newsList.appendChild(newsCard);
-                });
+                        `;
+                        newsCard.onclick = () => { if (article.article_url) window.open(article.article_url, '_blank'); };
+                        newsList.appendChild(newsCard);
+                    });
+                }
+            } catch (err) {
+                console.warn("Falha segura ao renderizar 'Notícias':", err);
             }
 
             // 2. Renderizar Próximos Lançamentos
-            if (upcoming && upcoming.results) {
-                const filteredUpcoming = upcoming.results.filter(m => !interactedMovieIds.has(Number(m.id)));
-                if (upcomingList) upcomingList.innerHTML = '';
-                
-                const sectionUpcoming = upcomingList ? upcomingList.closest('section') : null;
-                if (filteredUpcoming.length === 0) {
-                    if (sectionUpcoming) sectionUpcoming.classList.add('hidden');
-                } else {
-                    if (sectionUpcoming) sectionUpcoming.classList.remove('hidden');
-                    filteredUpcoming.slice(0, 10).forEach(movie => {
-                        const movieDiv = document.createElement('div');
-                        movieDiv.className = 'shrink-0 w-[140px] snap-start';
-                        movieDiv.innerHTML = `
-                            <div class="aspect-[2/3] rounded-2xl overflow-hidden border border-white/10 mb-2 relative group">
-                                <img src="${IMAGE_BASE_URL}${movie.poster_path}" class="w-full h-full object-cover" loading="lazy">
-                                <div class="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg">
-                                    <p class="text-[8px] font-black text-primary-container">EM BREVE</p>
+            try {
+                if (upcoming && upcoming.results) {
+                    const filteredUpcoming = upcoming.results.filter(m => !interactedMovieIds.has(Number(m.id)));
+                    if (upcomingList) upcomingList.innerHTML = '';
+                    
+                    const sectionUpcoming = upcomingList ? upcomingList.closest('section') : null;
+                    if (filteredUpcoming.length === 0) {
+                        if (sectionUpcoming) sectionUpcoming.classList.add('hidden');
+                    } else {
+                        if (sectionUpcoming) sectionUpcoming.classList.remove('hidden');
+                        filteredUpcoming.slice(0, 10).forEach(movie => {
+                            const movieDiv = document.createElement('div');
+                            movieDiv.className = 'shrink-0 w-[140px] snap-start';
+                            
+                            // Tratamento seguro da data para evitar crash no split()
+                            const safeDateStr = (movie.release_date && movie.release_date.includes('-')) 
+                                ? movie.release_date.split('-').reverse().join('/') 
+                                : 'Em breve';
+
+                            movieDiv.innerHTML = `
+                                <div class="aspect-[2/3] rounded-2xl overflow-hidden border border-white/10 mb-2 relative group">
+                                    <img src="${IMAGE_BASE_URL}${movie.poster_path}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='https://via.placeholder.com/300x450?text=Sem+Poster'">
+                                    <div class="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg">
+                                        <p class="text-[8px] font-black text-primary-container">EM BREVE</p>
+                                    </div>
                                 </div>
-                            </div>
-                            <h4 class="text-[10px] font-bold text-white line-clamp-1 uppercase">${movie.title}</h4>
-                            <p class="text-[8px] text-white/40 font-medium">${movie.release_date.split('-').reverse().join('/')}</p>
-                        `;
-                        movieDiv.onclick = () => openSynopsis(movie, 'trending', movieDiv);
-                        if (upcomingList) upcomingList.appendChild(movieDiv);
-                    });
+                                <h4 class="text-[10px] font-bold text-white line-clamp-1 uppercase">${movie.title || 'Título Desconhecido'}</h4>
+                                <p class="text-[8px] text-white/40 font-medium">${safeDateStr}</p>
+                            `;
+                            movieDiv.onclick = () => openSynopsis(movie, 'trending', movieDiv);
+                            if (upcomingList) upcomingList.appendChild(movieDiv);
+                        });
+                    }
                 }
+            } catch (err) {
+                console.warn("Falha segura ao renderizar 'Próximos Lançamentos':", err);
             }
 
             // 3. Renderizar Hall da Fama
-            if (awarded && awarded.results) {
-                const filteredAwarded = awarded.results.filter(m => !interactedMovieIds.has(Number(m.id)));
-                if (awardedGrid) awardedGrid.innerHTML = '';
-                
-                if (filteredAwarded.length === 0) {
-                    if (sectionAwarded) sectionAwarded.classList.add('hidden');
-                } else {
-                    if (sectionAwarded) sectionAwarded.classList.remove('hidden');
-                    filteredAwarded.slice(0, 10).forEach((movie, i) => {
-                        const card = document.createElement('div');
-                        card.className = 'film-card w-[150px] shrink-0 snap-start aspect-[2/3] relative group';
-                        card.innerHTML = `
-                            <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title}" class="w-full h-full object-cover" loading="lazy">
-                            <div class="card-overlay"></div>
-                            <div class="absolute top-2 left-2 bg-yellow-500 text-black font-black text-[8px] px-2 py-1 rounded-md flex items-center gap-1 shadow-xl z-20">
-                                <span class="material-symbols-outlined text-[10px]">trophy</span>
-                                PREMIADO
-                            </div>
-                            <div class="card-info">
-                                <h3 class="text-white font-bold text-[10px] line-clamp-1 uppercase tracking-tight">${movie.title}</h3>
-                            </div>
-                        `;
-                        card.addEventListener('click', () => openSynopsis(movie, 'trending', card));
-                        if (awardedGrid) awardedGrid.appendChild(card);
-                        setTimeout(() => card.classList.add('visible'), 50 * i);
-                    });
+            try {
+                if (awarded && awarded.results) {
+                    const filteredAwarded = awarded.results.filter(m => !interactedMovieIds.has(Number(m.id)));
+                    if (awardedGrid) awardedGrid.innerHTML = '';
+                    
+                    if (filteredAwarded.length === 0) {
+                        if (sectionAwarded) sectionAwarded.classList.add('hidden');
+                    } else {
+                        if (sectionAwarded) sectionAwarded.classList.remove('hidden');
+                        filteredAwarded.slice(0, 10).forEach((movie, i) => {
+                            const card = document.createElement('div');
+                            card.className = 'film-card w-[150px] shrink-0 snap-start aspect-[2/3] relative group';
+                            card.innerHTML = `
+                                <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title || 'Filme'}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='https://via.placeholder.com/300x450?text=MatchFlix'">
+                                <div class="card-overlay"></div>
+                                <div class="absolute top-2 left-2 bg-yellow-500 text-black font-black text-[8px] px-2 py-1 rounded-md flex items-center gap-1 shadow-xl z-20">
+                                    <span class="material-symbols-outlined text-[10px]">trophy</span>
+                                    PREMIADO
+                                </div>
+                                <div class="card-info">
+                                    <h3 class="text-white font-bold text-[10px] line-clamp-1 uppercase tracking-tight">${movie.title || 'Sem Título'}</h3>
+                                </div>
+                            `;
+                            card.addEventListener('click', () => openSynopsis(movie, 'trending', card));
+                            if (awardedGrid) awardedGrid.appendChild(card);
+                            setTimeout(() => card.classList.add('visible'), 50 * i);
+                        });
+                    }
                 }
+            } catch (err) {
+                console.warn("Falha segura ao renderizar 'Hall da Fama':", err);
             }
 
             // 4. Renderizar Lançamentos Recentes
-            if (newReleases && newReleases.results) {
-                if (newReleasesList) newReleasesList.innerHTML = '';
-                const currentYear = new Date().getFullYear();
-                
-                let moviesToShow = newReleases.results.filter(m => !interactedMovieIds.has(Number(m.id)));
-                if (moviesToShow.length < 5) moviesToShow = newReleases.results; 
-                
-                if (moviesToShow.length > 0) {
-                    moviesToShow.slice(0, 10).forEach(movie => {
-                        const relDate = new Date(movie.release_date);
-                        let badgeText = '';
-                        let badgeClass = '';
+            try {
+                if (newReleases && newReleases.results) {
+                    if (newReleasesList) newReleasesList.innerHTML = '';
+                    const currentYear = new Date().getFullYear();
+                    
+                    let moviesToShow = newReleases.results.filter(m => !interactedMovieIds.has(Number(m.id)));
+                    if (moviesToShow.length < 5) moviesToShow = newReleases.results; 
+                    
+                    if (moviesToShow.length > 0) {
+                        moviesToShow.slice(0, 10).forEach(movie => {
+                            const relDateStr = movie.release_date;
+                            const relDate = relDateStr ? new Date(relDateStr) : new Date(0);
+                            let badgeText = '';
+                            let badgeClass = 'hidden';
 
-                        if (movie.release_date && (new Date() - relDate) < (30 * 24 * 60 * 60 * 1000)) {
-                            badgeText = 'ESSA SEMANA';
-                            badgeClass = 'bg-green-600';
-                        } else if (relDate.getFullYear() === currentYear) {
-                            badgeText = '2026';
-                            badgeClass = 'bg-white/10 backdrop-blur-md border border-white/20';
-                        }
+                            if (relDateStr) {
+                                if ((new Date() - relDate) < (30 * 24 * 60 * 60 * 1000)) {
+                                    badgeText = 'ESSA SEMANA';
+                                    badgeClass = 'bg-green-600';
+                                } else if (relDate.getFullYear() === currentYear) {
+                                    badgeText = currentYear.toString();
+                                    badgeClass = 'bg-white/10 backdrop-blur-md border border-white/20';
+                                }
+                            }
 
-                        const card = document.createElement('div');
-                        card.className = 'shrink-0 w-[140px] snap-start group cursor-pointer';
-                        card.innerHTML = `
-                            <div class="relative aspect-[2/3] rounded-xl overflow-hidden mb-2 border border-white/5 shadow-lg">
-                                <img src="${IMAGE_BASE_URL}${movie.poster_path}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy">
-                                <div class="absolute top-2 left-2 ${badgeClass} text-[7px] font-black px-1.5 py-0.5 rounded text-white tracking-widest shadow-lg">
-                                    ${badgeText}
+                            const safeDateFmt = (relDateStr && relDateStr.includes('-')) 
+                                ? relDateStr.split('-').reverse().join('/') 
+                                : 'Disponível';
+
+                            const card = document.createElement('div');
+                            card.className = 'shrink-0 w-[140px] snap-start group cursor-pointer';
+                            card.innerHTML = `
+                                <div class="relative aspect-[2/3] rounded-xl overflow-hidden mb-2 border border-white/5 shadow-lg">
+                                    <img src="${IMAGE_BASE_URL}${movie.poster_path}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" onerror="this.src='https://via.placeholder.com/300x450?text=MatchFlix'">
+                                    <div class="absolute top-2 left-2 ${badgeClass} text-[7px] font-black px-1.5 py-0.5 rounded text-white tracking-widest shadow-lg">
+                                        ${badgeText}
+                                    </div>
+                                    <div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black via-black/40 to-transparent">
+                                        <p class="text-[8px] text-white/70 font-medium">${safeDateFmt}</p>
+                                    </div>
                                 </div>
-                                <div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black via-black/40 to-transparent">
-                                    <p class="text-[8px] text-white/70 font-medium">${movie.release_date.split('-').reverse().join('/')}</p>
-                                </div>
-                            </div>
-                            <p class="text-[10px] font-bold text-white line-clamp-1 uppercase tracking-tight">${movie.title}</p>
-                        `;
-                        card.onclick = () => openSynopsis(movie, 'trending', card);
-                        if (newReleasesList) newReleasesList.appendChild(card);
-                    });
+                                <p class="text-[10px] font-bold text-white line-clamp-1 uppercase tracking-tight">${movie.title || 'Filme'}</p>
+                            `;
+                            card.onclick = () => openSynopsis(movie, 'trending', card);
+                            if (newReleasesList) newReleasesList.appendChild(card);
+                        });
+                    }
                 }
+            } catch (err) {
+                console.warn("Falha segura ao renderizar 'Lançamentos Recentes':", err);
             }
 
             // 5. Renderizar Grid Principal (Em Alta)
-            if (day && day.results) {
-                const weeklyResults = week ? (week.results || []) : [];
-                if (trendingGrid) trendingGrid.innerHTML = '';
-                
-                let filteredDay = day.results.filter(m => !interactedMovieIds.has(Number(m.id)));
-                if (filteredDay.length === 0) {
-                    filteredDay = day.results.slice(0, 10);
-                }
-                
-                filteredDay.forEach((movie, i) => {
-                    const dayRank = i + 1;
-                    const weekRank = weeklyResults.findIndex(m => m.id === movie.id) + 1;
+            try {
+                if (day && day.results) {
+                    const weeklyResults = week ? (week.results || []) : [];
+                    if (trendingGrid) trendingGrid.innerHTML = '';
                     
-                    let trendHTML = '';
-                    if (weekRank > 0) {
-                        const diff = weekRank - dayRank;
-                        if (diff > 0) {
-                            trendHTML = `<span class="text-green-500 flex items-center gap-0.5"><span class="material-symbols-outlined text-[10px]">trending_up</span>+${diff}</span>`;
-                        } else if (diff < 0) {
-                            trendHTML = `<span class="text-error flex items-center gap-0.5"><span class="material-symbols-outlined text-[10px]">trending_down</span>${diff}</span>`;
-                        }
-                    } else {
-                        trendHTML = `<span class="text-primary-container font-black">NEW</span>`;
+                    let filteredDay = day.results.filter(m => !interactedMovieIds.has(Number(m.id)));
+                    if (filteredDay.length === 0) {
+                        filteredDay = day.results.slice(0, 10);
                     }
-
-                    const card = document.createElement('div');
-                    card.className = 'film-card w-[160px] shrink-0 snap-start aspect-[2/3] relative group';
-                    card.innerHTML = `
-                        <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title}" class="w-full h-full object-cover" loading="lazy">
-                        <div class="card-overlay"></div>
+                    
+                    filteredDay.forEach((movie, i) => {
+                        const dayRank = i + 1;
+                        const weekRank = weeklyResults.findIndex(m => m.id === movie.id) + 1;
                         
-                        <div class="absolute top-3 left-3 flex flex-col gap-1">
-                            <div class="bg-black/60 backdrop-blur-xl border border-white/20 w-8 h-8 rounded-xl flex items-center justify-center shadow-2xl">
-                                <span class="text-white font-black text-xs">#${dayRank}</span>
-                            </div>
-                            <div class="bg-black/80 backdrop-blur-md px-2 py-0.5 rounded-full text-[8px] font-bold flex items-center justify-center border border-white/5">
-                                ${trendHTML}
-                            </div>
-                        </div>
+                        let trendHTML = '';
+                        if (weekRank > 0) {
+                            const diff = weekRank - dayRank;
+                            if (diff > 0) {
+                                trendHTML = `<span class="text-green-500 flex items-center gap-0.5"><span class="material-symbols-outlined text-[10px]">trending_up</span>+${diff}</span>`;
+                            } else if (diff < 0) {
+                                trendHTML = `<span class="text-error flex items-center gap-0.5"><span class="material-symbols-outlined text-[10px]">trending_down</span>${diff}</span>`;
+                            }
+                        } else {
+                            trendHTML = `<span class="text-primary-container font-black">NEW</span>`;
+                        }
 
-                        <div class="card-info">
-                            <div class="flex items-center gap-1 mb-1">
-                                <span class="material-symbols-outlined text-yellow-500 text-[10px]" style="font-variation-settings: 'FILL' 1;">star</span>
-                                <span class="text-yellow-500 font-bold text-[10px]">${movie.vote_average.toFixed(1)}</span>
+                        const safeRating = typeof movie.vote_average === 'number' ? movie.vote_average.toFixed(1) : '---';
+
+                        const card = document.createElement('div');
+                        card.className = 'film-card w-[160px] shrink-0 snap-start aspect-[2/3] relative group';
+                        card.innerHTML = `
+                            <img src="${IMAGE_BASE_URL}${movie.poster_path}" alt="${movie.title || 'Filme'}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='https://via.placeholder.com/300x450?text=MatchFlix'">
+                            <div class="card-overlay"></div>
+                            
+                            <div class="absolute top-3 left-3 flex flex-col gap-1">
+                                <div class="bg-black/60 backdrop-blur-xl border border-white/20 w-8 h-8 rounded-xl flex items-center justify-center shadow-2xl">
+                                    <span class="text-white font-black text-xs">#${dayRank}</span>
+                                </div>
+                                <div class="bg-black/80 backdrop-blur-md px-2 py-0.5 rounded-full text-[8px] font-bold flex items-center justify-center border border-white/5">
+                                    ${trendHTML}
+                                </div>
                             </div>
-                            <h3 class="text-white font-bold text-[10px] line-clamp-1 uppercase tracking-tight">${movie.title}</h3>
-                        </div>
-                    `;
-                    card.addEventListener('click', () => openSynopsis(movie, 'trending', card));
-                    if (trendingGrid) trendingGrid.appendChild(card);
-                    setTimeout(() => card.classList.add('visible'), 50 * i);
-                });
+
+                            <div class="card-info">
+                                <div class="flex items-center gap-1 mb-1">
+                                    <span class="material-symbols-outlined text-yellow-500 text-[10px]" style="font-variation-settings: 'FILL' 1;">star</span>
+                                    <span class="text-yellow-500 font-bold text-[10px]">${safeRating}</span>
+                                </div>
+                                <h3 class="text-white font-bold text-[10px] line-clamp-1 uppercase tracking-tight">${movie.title || 'Sem Título'}</h3>
+                            </div>
+                        `;
+                        card.addEventListener('click', () => openSynopsis(movie, 'trending', card));
+                        if (trendingGrid) trendingGrid.appendChild(card);
+                        setTimeout(() => card.classList.add('visible'), 50 * i);
+                    });
+                }
+            } catch (err) {
+                console.warn("Falha segura ao renderizar Grid Principal de Em Alta:", err);
             }
         }
 
