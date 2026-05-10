@@ -1374,7 +1374,7 @@
     <!-- Input Bar (Posicionado de forma global e fixa, 100% imune a transformações do slider) -->
     <!-- Input Bar (Posicionado de forma global e fixa, 100% imune a transformações do slider) -->
     <div id="ia-chat-input-container" class="hidden fixed bottom-[124px] left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] z-[310] transition-all duration-500 will-change-[transform,opacity]">
-        <div class="glass-panel border border-white/10 rounded-full p-1.5 pl-4 flex items-center gap-2 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-neutral-900/60 backdrop-blur-3xl border-t border-white/20">
+        <div class="border border-white/10 rounded-full p-1.5 pl-4 flex items-center gap-2 shadow-[0_25px_55px_rgba(0,0,0,0.9)] bg-neutral-900 border-t border-white/20">
             <input type="text" id="ia-chat-input" placeholder="Ex: Ação no espaço" 
                    class="flex-grow bg-transparent text-white font-body placeholder:text-white/40 text-sm focus:outline-none border-0 focus:ring-0 py-3">
             <button id="ia-chat-send-btn" class="w-10 h-10 rounded-full bg-primary-container text-white flex items-center justify-center active:scale-90 transition-all shadow-lg shadow-primary-container/30 hover:bg-primary-container/90">
@@ -1497,7 +1497,7 @@
         import { supabase } from './js/supabase.js';
 
         const API_KEY = "416394469462693ee5727abe4c864848";
-        const IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w780";
+        const IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500";
         const BACKDROP_BASE_URL = "https://image.tmdb.org/t/p/w1280";
 
         let genresList = [];
@@ -2436,6 +2436,33 @@
                 }
 
                 let results = [];
+
+                // ===========================================================
+                // MOTOR ML (STAGE PRIME): Tenta Recomendações Inteligentes da VPS primeiro
+                // ===========================================================
+                if (currentPage === 1 && currentUser?.id) {
+                    try {
+                        console.log("🧠 Consultando Motor Inteligente na VPS...");
+                        const responseML = await fetch(`/api/recommendations?userId=${currentUser.id}`);
+                        const dataML = await responseML.json();
+                        
+                        if (dataML.success && Array.isArray(dataML.movies) && dataML.movies.length > 0) {
+                            const filteredML = dataML.movies.filter(m => 
+                                !interactedMovieIds.has(Number(m.id)) && 
+                                !moviesQueue.some(q => Number(q.id) === Number(m.id))
+                            );
+                            
+                            if (filteredML.length > 0) {
+                                console.log(`🚀 Motor ML da VPS entregou ${filteredML.length} sugestões altamente correlacionadas!`);
+                                results = [...results, ...filteredML];
+                            }
+                        }
+                    } catch (mlErr) {
+                        console.warn("⚠️ Motor ML VPS temporariamente indisponível ou sem dados suficientes, aplicando fallback dinâmico...", mlErr);
+                    }
+                }
+                // ===========================================================
+
                 // Multi-Stage Progressive Fallback Ladder (Estágios de 0 a 9)
                 let stage = 0; 
                 
@@ -2736,7 +2763,7 @@
             const opacity = 1 - (stackIndex * 0.4);
 
             const innerCard = document.createElement("div");
-            innerCard.className = "card-wrapper cinematic-shadow relative";
+            innerCard.className = "card-wrapper cinematic-shadow relative will-change-transform";
             wrapper.appendChild(innerCard);
 
             const posterUrl = movie.poster_path ? `${IMAGE_BASE_URL}${movie.poster_path}` : "https://placehold.co/500x750/2a2a2a/ffffff?text=Sem+Poster";
@@ -2747,7 +2774,7 @@
 
             // Frente (Poster)
             const front = document.createElement("div");
-            front.className = "front-content absolute inset-0 rounded-2xl bg-neutral-900 border border-white/5 shadow-2xl preserve-3d";
+            front.className = "front-content absolute inset-0 rounded-2xl bg-neutral-900 border border-white/5 shadow-2xl preserve-3d will-change-transform";
             front.style.zIndex = "30";
             
             let badgeHTML = '';

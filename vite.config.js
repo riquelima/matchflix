@@ -96,6 +96,74 @@ function viteAiOrchestratorPlugin() {
           return; // Encerra o middleware para não cair em 404
         }
         
+        // NOVO: Intercepta chamadas para /api/recommendations
+        if (parsedUrl === '/api/recommendations') {
+          console.log(`[Vite-ML-Engine] Solicitando recomendações locais para usuário via query.`);
+          const urlParams = new URL(req.url, `http://${req.headers.host}`).searchParams;
+          const userId = urlParams.get('userId');
+
+          if (!userId) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'userId is required' }));
+            return;
+          }
+
+          // Execução IIFE assíncrona para lidar com a requisição localmente
+          (async () => {
+            try {
+              const SUPABASE_URL = "https://kewwqxfpjzrxduhoqfxw.supabase.co";
+              const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtld3dxeGZwanpyeGR1aG9xZnh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5NTY4MzEsImV4cCI6MjA5MjUzMjgzMX0.Ane5nDJf_4FjBDPEfiNWlKN3C7RAlEmk5pDlMMsxmZs";
+
+              const rpcUrl = `${SUPABASE_URL}/rest/v1/rpc/get_ml_recommendations`;
+              const dbRes = await fetch(rpcUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'apikey': SUPABASE_KEY,
+                  'Authorization': `Bearer ${SUPABASE_KEY}`
+                },
+                body: JSON.stringify({ p_user_id: userId, p_limit: 15 })
+              });
+
+              if (!dbRes.ok) {
+                const errTxt = await dbRes.text();
+                throw new Error(`RPC Error: ${errTxt}`);
+              }
+
+              const recommendations = await dbRes.json();
+              
+              if (!Array.isArray(recommendations) || recommendations.length === 0) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, movies: [] }));
+                return;
+              }
+
+              console.log(`[Vite-ML-Engine] Encontrados ${recommendations.length} matches. Enriquecendo TMDB...`);
+
+              const promises = recommendations.map(async (rec) => {
+                try {
+                  const tRes = await fetch(`https://api.themoviedb.org/3/movie/${rec.recommended_movie_id}?api_key=${TMDB_API_KEY}&language=pt-BR`);
+                  if (!tRes.ok) return null;
+                  const movieData = await tRes.json();
+                  return { ...movieData, recommendationReason: "Match Inteligente ML", ml_score: rec.similarity_score };
+                } catch(e) { return null; }
+              });
+
+              const finalMovies = (await Promise.all(promises)).filter(m => m && m.poster_path);
+              
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: true, source: 'local-vite', movies: finalMovies }));
+              
+            } catch (err) {
+              console.error('[Vite-ML-Engine] ERRO:', err);
+              res.writeHead(500, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: false, error: err.message }));
+            }
+          })();
+          
+          return; // Finaliza o interceptador para esta rota
+        }
+        
         next(); // Passa para o próximo middleware do Vite para requisições normais
       });
     }
