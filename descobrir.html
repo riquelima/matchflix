@@ -1899,6 +1899,7 @@
             const index = APP_TABS.indexOf(tabName);
             if(index === -1) return;
 
+            const oldIndex = APP_TABS.indexOf(activeTab);
             activeTab = tabName;
             
             // 1. Atualizar UI - Estado Ativo na Navbar
@@ -1906,12 +1907,51 @@
                 item.classList.toggle('active', item.dataset.page === tabName);
             });
 
-            // 2. Animar Slider
+            // 🚀 OTIMIZAÇÃO MESTRA DE MEMÓRIA PARA MOBILE (Prevenção de Crash no WebKit)
+            // Habilitamos o render pipeline apenas para o canal que estamos saindo e o canal destino.
+            // Isso reduz instantaneamente o consumo de VRAM e Composite Layers da GPU do iPhone/Android.
+            const sliderViews = viewSlider ? Array.from(viewSlider.children) : [];
+            if (sliderViews.length > 0) {
+                sliderViews.forEach((child, i) => {
+                    if (i === index || i === oldIndex) {
+                        child.style.visibility = 'visible';
+                        child.style.contentVisibility = 'visible';
+                    } else {
+                        // Desliga a renderização da CPU/GPU para este painel (Ocupa espaço, mas zero memória ativa!)
+                        child.style.visibility = 'hidden';
+                        child.style.contentVisibility = 'hidden'; 
+                    }
+                });
+            }
+
+            // 2. Animar Slider com Transição Segura
             const xTranslationPercent = -(index * 100) / APP_TABS.length;
+            
             if(animate) {
-                gsap.to(viewSlider, { xPercent: xTranslationPercent, duration: 0.25, ease: "power2.out", force3D: true });
+                gsap.to(viewSlider, { 
+                    xPercent: xTranslationPercent, 
+                    duration: 0.25, 
+                    ease: "power2.out", 
+                    force3D: true,
+                    onComplete: () => {
+                        // LIXO ZERO: Após animação, matamos todo e qualquer outro paint layer
+                        sliderViews.forEach((child, i) => {
+                            if (i !== index) {
+                                child.style.visibility = 'hidden';
+                                child.style.contentVisibility = 'hidden';
+                            }
+                        });
+                    }
+                });
             } else {
                 gsap.set(viewSlider, { xPercent: xTranslationPercent });
+                // Prunning imediato no modo sem animação
+                sliderViews.forEach((child, i) => {
+                    if (i !== index) {
+                        child.style.visibility = 'hidden';
+                        child.style.contentVisibility = 'hidden';
+                    }
+                });
             }
 
             // 3. Reset Universal do Header
