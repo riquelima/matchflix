@@ -1798,6 +1798,7 @@
         let isFetchingMatches = false; 
         let isMatchesLoaded = false;
         let isCollectionLoaded = false;
+        let isFetchingCollection = false;
 
         // Definição única e global das abas para evitar erros de índice
         const APP_TABS = ['descobrir', 'trending', 'busca', 'meusmatches', 'colecoes', 'streaming', 'filtro', 'configuracoes', 'ia'];
@@ -1989,7 +1990,6 @@
                         console.log("✅ Matches Hydrated in BG.");
                     }).catch(e => console.error("Erro Silent Matches:", e)),
                     fetchCollection().then(() => {
-                        initCollection();
                         console.log("✅ Coleções Hydrated in BG.");
                     }).catch(e => console.error("Erro Silent Coleções:", e))
                 ]);
@@ -4412,12 +4412,11 @@
         const sectionWatched = document.getElementById('section-watched');
         const collectionEmpty = document.getElementById('collection-empty');
 
-        function initCollection() {
-            fetchCollection();
-        }
+
 
         async function fetchCollection() {
-            if (!currentUser) return;
+            if (!currentUser || isFetchingCollection) return;
+            isFetchingCollection = true;
             try {
                 // Busca filmes curtidos do banco
                 const { data, error } = await supabase
@@ -4451,14 +4450,20 @@
                     idList.push(id);
                 });
 
-                // MEGA FAT CALL: Hidrata a Coleção INTEIRA em uma única pancada via Backbone da VPS
+                // MEGA FAT CALL: Hidrata a Coleção INTEIRA via Backbone da VPS (Chunked por 100 IDs)
                 let enriched = [];
                 try {
                     console.log(`⚡ Hidratando ${idList.length} itens da Coleção via VPS...`);
-                    const hRes = await fetch(`/api/hydrator?ids=${idList.join(',')}`);
-                    enriched = await hRes.json();
+                    const chunkSize = 100;
+                    const chunkPromises = [];
+                    for (let i = 0; i < idList.length; i += chunkSize) {
+                        const chunk = idList.slice(i, i + chunkSize);
+                        chunkPromises.push(fetch(`/api/hydrator?ids=${chunk.join(',')}`).then(r => r.json()));
+                    }
+                    const chunkResults = await Promise.all(chunkPromises);
+                    enriched = chunkResults.flat();
                 } catch(e) {
-                    console.warn("⚠️ Fallback Hydrator Collection. Utilizando browser...");
+                    console.warn("⚠️ Fallback Hydrator Collection. Utilizando browser...", e);
                     enriched = await Promise.all(idList.map(async (id) => {
                         try {
                             const res = await fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${API_KEY}&language=pt-BR`);
@@ -4479,6 +4484,8 @@
                 }
             } catch (err) {
                 console.error("Erro ao carregar coleção:", err);
+            } finally {
+                isFetchingCollection = false;
             }
         }
 
