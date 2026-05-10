@@ -48,7 +48,7 @@ Responda APENAS com um JSON array de exatamente 3 strings, nada mais:
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'minimax-m2.5:cloud',
+        model: 'qwen2.5:7b',
         prompt,
         stream: false,
         options: { temperature: 0.9, num_predict: 120 }

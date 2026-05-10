@@ -3137,21 +3137,8 @@
             front.className = "front-content absolute inset-0 rounded-2xl bg-neutral-900 border border-white/5 shadow-2xl preserve-3d will-change-transform";
             front.style.zIndex = "30";
             
-            let badgeHTML = '';
-            if (movie.recommendationReason) {
-                // O backend já envia o texto completo: '"Filme X", baseado na sua Coleção Real'
-                // Então o prefix 'Porque você curtiu' é fixo aqui no frontend
-                badgeHTML = `
-                    <div class="badge-container-gsap pointer-events-none" style="position: absolute; top: 24px; left: 24px; z-index: 50">
-                        <div class="badge-cyber badge-match -rotate-1">
-                            <span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
-                            <span class="leading-none">
-                                Porque você curtiu <span class="text-white/80 underline underline-offset-2">${movie.recommendationReason}</span>
-                            </span>
-                        </div>
-                    </div>
-                `;
-            }
+            // Badge de recomendação removido do poster — não deve aparecer sobre a imagem
+            // A razão de recomendação é exibida no verso (match overlay) ao interagir
 
             // Status HUD Badges (Top Right)
             let statusBadgesHTML = '';
@@ -3217,7 +3204,6 @@
                 </div>
 
 
-                ${badgeHTML}
                 ${statusBadgesHTML}
             `;
             
@@ -3417,7 +3403,7 @@
             }
         }
 
-        async function startTrailerPreview(movieId, playerContainerId, wrapper, unmuteBtn) {
+        async function startTrailerPreview(movieId, playerContainerId, wrapper, unmuteBtn, movieData) {
             if (isPreviewPlaying || !playerContainerId) return;
             
             const key = await getTrailerKey(movieId);
@@ -3462,15 +3448,10 @@
                                 }
                             }
 
-                            // 🎬 VIBE TAGS: Dispara agora que o trailer está rodando e o container está ativo
-                            const cardWrapper = document.querySelector(`.movie-card-wrapper[data-movie-id="${movieId}"]`);
-                            if (cardWrapper) {
-                                // Encontra o filme na fila para pegar title e overview
-                                const movieData = moviesQueue.find(m => String(m.id) === String(movieId)) 
-                                               || likedMoviesLocal.find(m => String(m.id) === String(movieId));
-                                if (movieData && movieData.overview) {
-                                    fetchAndInjectVibeTags(movieData, cardWrapper);
-                                }
+                            // 🎬 VIBE TAGS: Dispara com o movie passado diretamente pelo caller
+                            if (movieData && movieData.overview) {
+                                const cardWrapper = document.querySelector(`.movie-card-wrapper[data-movie-id="${movieId}"]`);
+                                if (cardWrapper) fetchAndInjectVibeTags(movieData, cardWrapper);
                             }
                         },
                         onStateChange: (event) => {
@@ -3659,7 +3640,7 @@
                     console.log(`[Timer] 3s completados para "${movie.title}". Tentando iniciar trailer...`);
                     const playerContainer = trailerWrapper.querySelector('[id^="trailer-preview-"]');
                     if (playerContainer) {
-                        startTrailerPreview(movie.id, playerContainer.id, trailerWrapper, unmuteBtn);
+                        startTrailerPreview(movie.id, playerContainer.id, trailerWrapper, unmuteBtn, movie);
                     }
                 }, 3000);
             };
@@ -3946,7 +3927,7 @@
                                 trailerTimer = setTimeout(() => {
                                     const playerContainer = trailerWrapper.querySelector('[id^="trailer-preview-"]');
                                     if (playerContainer) {
-                                        startTrailerPreview(movie.id, playerContainer.id, trailerWrapper, unmuteBtn);
+                                        startTrailerPreview(movie.id, playerContainer.id, trailerWrapper, unmuteBtn, movie);
                                     }
                                 }, 3000);
                             }
