@@ -2224,13 +2224,19 @@
                     matchCount++;
                     updateBadge(matchCount);
 
-                    // TRIGGER DINÂMICO: A cada 3 likes, tentamos injetar novos filmes baseados no novo perfil
+                    // PREVENÇÃO DE CRASH: Removemos chamadas de rede ansiosas durante o swipe para manter o main-thread livre.
+                    // A função renderTopCards já gerencia a recarga automática da fila quando ela baixa de 5.
+                    /*
                     if (likedMoviesLocal.length % 3 === 0 && !isFetching) {
-                        console.log("🧠 Perfil de preferência atualizado. Buscando novas sugestões dinâmicas...");
-                        fetchMovies(); 
+                        console.log("🧠 Perfil atualizado. Aguardando fim do buffer para puxar mais...");
                     }
+                    */
                 }
             }
+            
+            // Força as flags dirty para garantir que as abas só renderizem/carreguem o pesado quando forem abertas.
+            matchesDirty = true;
+            collectionDirty = true;
 
             try {
                 const { error } = await supabase.from('curtidas_filmes').upsert({
@@ -2239,8 +2245,10 @@
                     curtiu: liked
                 }, { onConflict: 'usuario_id, filme_id' });
                 
+                // PREVENÇÃO DE CRASH IOS: NUNCA reconstrua o Grid de Matches na aba invisível após cada clique!
+                // O app já detecta 'matchesDirty' e faz a re-renderização sob demanda quando o usuário clica na aba 'Meus Matches'.
                 if (!error && liked) {
-                    fetchMatches(); // Atualiza aba de matches em tempo real
+                    console.log("[Sync] Salvo. Aba 'Meus Matches' marcada para atualização sob demanda.");
                 }
             } catch (err) {
                 console.error("Erro inesperado no Supabase:", err);
