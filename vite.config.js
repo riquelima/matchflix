@@ -130,8 +130,17 @@ function viteAiOrchestratorPlugin() {
                  console.error("[Vite-ML-Engine] History error:", e);
                }
  
+               const watchedHistory = historyData.filter(h => h.assistido === true);
                const likedHistory = historyData.filter(h => h.curtiu === true);
-               const watchedSeeds = likedHistory.sort(() => 0.5 - Math.random()).slice(0, 10);
+               
+               let watchedSeeds = [];
+               if (watchedHistory.length > 0) {
+                 watchedSeeds = watchedHistory.sort(() => 0.5 - Math.random()).slice(0, 10);
+                 console.log(`[Vite-Bootstrap] Usando ${watchedSeeds.length} sementes baseadas em filmes assistidos da galeria.`);
+               } else {
+                 watchedSeeds = likedHistory.sort(() => 0.5 - Math.random()).slice(0, 10);
+                 console.log(`[Vite-Bootstrap] Galeria vazia. Usando ${watchedSeeds.length} sementes baseadas em curtidos.`);
+               }
                let finalMovies = [];
  
                if (watchedSeeds.length > 0) {
@@ -340,8 +349,17 @@ function viteAiOrchestratorPlugin() {
 
               // 3. Initial Queue (Recommendations from Watched Seeds or Popular Famous)
               let initialQueue = [];
-              const likedHistory = historyData.filter(h => h.curtiu === true);
-              const watchedSeeds = likedHistory.sort(() => 0.5 - Math.random()).slice(0, 10);
+                const watchedHistory = historyData.filter(h => h.assistido === true);
+                const likedHistory = historyData.filter(h => h.curtiu === true);
+                
+                let watchedSeeds = [];
+                if (watchedHistory.length > 0) {
+                  watchedSeeds = watchedHistory.sort(() => 0.5 - Math.random()).slice(0, 10);
+                  console.log(`[Vite-ML-Engine] Usando ${watchedSeeds.length} sementes baseadas em filmes assistidos da galeria.`);
+                } else {
+                  watchedSeeds = likedHistory.sort(() => 0.5 - Math.random()).slice(0, 10);
+                  console.log(`[Vite-ML-Engine] Galeria vazia. Usando ${watchedSeeds.length} sementes baseadas em curtidos.`);
+                }
 
               if (watchedSeeds.length > 0) {
                 try {

@@ -52,11 +52,20 @@ export default async function handler(req, res) {
     // IDs de tudo já interagido para evitar repetição na MESMA carga (inclui likes para dedup interno)
     const allInteractedIds = new Set(userHistory.map(h => Number(h.filme_id)));
 
+    // 🛡️ SELEÇÃO DE SEMENTES INTELIGENTE E PRIORITÁRIA (Focada em filmes marcados como assistidos/galeria)
+    const watchedHistory = userHistory.filter(h => h.assistido === true);
     const likedHistory = userHistory.filter(h => h.curtiu === true);
-    // Embaralha as sementes para que cada requisição traga recomendações dinâmicas e infinitas baseadas em curtidos diferentes
-    const watchedSeeds = likedHistory.sort(() => 0.5 - Math.random()).slice(0, 15);
-
-    console.log(`[OMNI-Engine V3] Shield cirúrgico: ${dislikedOrWatched.size} bloqueados (deslikes+vistos). ${watchedSeeds.length} sementes de curtidos prontas.`);
+    
+    let watchedSeeds = [];
+    if (watchedHistory.length > 0) {
+        // Se houver filmes assistidos (galeria), eles são a prioridade absoluta!
+        watchedSeeds = watchedHistory.sort(() => 0.5 - Math.random()).slice(0, 15);
+        console.log(`[OMNI-Engine V3] Usando ${watchedSeeds.length} sementes baseadas em filmes assistidos da galeria.`);
+    } else {
+        // Fallback para curtidos/matches se a galeria estiver vazia
+        watchedSeeds = likedHistory.sort(() => 0.5 - Math.random()).slice(0, 15);
+        console.log(`[OMNI-Engine V3] Galeria vazia. Usando ${watchedSeeds.length} sementes baseadas em curtidos.`);
+    }
 
     // ==============================================================================
     // PASSO 2: MOTOR DE AFINIDADE BASEADO EM FILMES ASSISTIDOS

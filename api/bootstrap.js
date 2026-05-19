@@ -75,9 +75,20 @@ export default async function handler(req, res) {
             );
             console.log(`[Bootstrap-Omni] Escudo cirúrgico ativado. ${dislikedOrWatched.size} deslikes/vistos bloqueados.`);
 
+            // 🛡️ SELEÇÃO DE SEMENTES INTELIGENTE E PRIORITÁRIA (Focada em filmes marcados como assistidos/galeria)
+            const watchedHistory = userHistory.filter(h => h.assistido === true);
             const likedHistory = userHistory.filter(h => h.curtiu === true);
-            // Embaralha as sementes para dinamicidade na inicialização
-            const watchedSeeds = likedHistory.sort(() => 0.5 - Math.random()).slice(0, 15);
+            
+            let watchedSeeds = [];
+            if (watchedHistory.length > 0) {
+                // Se houver filmes assistidos (galeria), eles são a prioridade absoluta!
+                watchedSeeds = watchedHistory.sort(() => 0.5 - Math.random()).slice(0, 15);
+                console.log(`[Bootstrap-Omni] Usando ${watchedSeeds.length} sementes baseadas em filmes assistidos da galeria.`);
+            } else {
+                // Fallback para curtidos/matches se a galeria estiver vazia
+                watchedSeeds = likedHistory.sort(() => 0.5 - Math.random()).slice(0, 15);
+                console.log(`[Bootstrap-Omni] Galeria vazia. Usando ${watchedSeeds.length} sementes baseadas em curtidos.`);
+            }
 
             // ETAPA 2: Disparar motor baseado em filmes assistidos
             
