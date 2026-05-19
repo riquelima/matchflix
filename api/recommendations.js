@@ -52,27 +52,29 @@ export default async function handler(req, res) {
     // IDs de tudo já interagido para evitar repetição na MESMA carga (inclui likes para dedup interno)
     const allInteractedIds = new Set(userHistory.map(h => Number(h.filme_id)));
 
-    const likedSeeds = userHistory.filter(h => h.curtiu === true).slice(0, 8);
+    const likedHistory = userHistory.filter(h => h.curtiu === true);
+    // Embaralha as sementes para que cada requisição traga recomendações dinâmicas e infinitas baseadas em curtidos diferentes
+    const watchedSeeds = likedHistory.sort(() => 0.5 - Math.random()).slice(0, 15);
 
-    console.log(`[OMNI-Engine V3] Shield cirúrgico: ${dislikedOrWatched.size} bloqueados (deslikes+vistos). ${likedSeeds.length} sementes curtidas prontas.`);
+    console.log(`[OMNI-Engine V3] Shield cirúrgico: ${dislikedOrWatched.size} bloqueados (deslikes+vistos). ${watchedSeeds.length} sementes de curtidos prontas.`);
 
     // ==============================================================================
-    // PASSO 2: MOTORES DE AFINIDADE + RPC EM PARALELO
+    // PASSO 2: MOTOR DE AFINIDADE BASEADO EM FILMES ASSISTIDOS
     // ==============================================================================
     
-    // MOTOR A: Afinidade Direta — Usa filmes curtidos como sementes e busca similares no TMDB
+    // Afinidade Direta — Usa filmes ASSISTIDOS como sementes e busca similares no TMDB
     const runAffinity = async () => {
-        if (likedSeeds.length === 0) return [];
-        const buckets = await Promise.all(likedSeeds.map(async (s) => {
+        if (watchedSeeds.length === 0) return [];
+        const buckets = await Promise.all(watchedSeeds.map(async (s) => {
             const [det, rec] = await Promise.all([
                 safeFetchTMDB(`movie/${s.filme_id}`),
                 safeFetchTMDB(`movie/${s.filme_id}/recommendations`, { page: 1 })
             ]);
-            const title = det.title || "Filme Salvo";
+            const title = det.title || "Filme Assistido";
             return (rec.results || []).map(movie => ({ ...movie, _sourceTitle: title }));
         }));
         
-        // Interleave para diversidade de gêneros
+        // Interleave para diversidade de gêneros e origens
         const maxLen = Math.max(0, ...buckets.map(b => b.length));
         const mixed = [];
         for (let i = 0; i < maxLen; i++) {
@@ -81,20 +83,7 @@ export default async function handler(req, res) {
         return mixed;
     };
 
-    // MOTOR B: RPC SQL Inteligente — Correlações por co-ocorrência de likes no banco
-    const runRPC = async () => {
-        try {
-            const rpcUrl = `${SUPABASE_URL}/rest/v1/rpc/get_ml_recommendations`;
-            const r = await fetch(rpcUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
-                body: JSON.stringify({ p_user_id: userId, p_limit: 30 })
-            });
-            return r.ok ? await r.json() : [];
-        } catch (e) { return []; }
-    };
-
-    const [affinityRaw, rpcRaw] = await Promise.all([runAffinity(), runRPC()]);
+    const affinityRaw = await runAffinity();
 
     // ==============================================================================
     // PASSO 3: FUSÃO COM FILTRAGEM CIRÚRGICA
@@ -102,40 +91,33 @@ export default async function handler(req, res) {
     const masterPool = [];
     const localDedupe = new Set(); // Anti-duplicata intra-request
 
-    function safePush(movieObj, label) {
+    function safePush(movieObj, sourceTitle) {
         const mid = Number(movieObj.id);
         if (!mid) return;
 
         // REGRA: Bloqueia DESLIKES e VISTOS SEM VOTO, mas deixa novas sugestões passarem.
-        // Não reutilizamos filmes já na mesma resposta.
         if (!dislikedOrWatched.has(mid) && !localDedupe.has(mid)) {
             localDedupe.add(mid);
-            masterPool.push({ ...movieObj, _reason: label });
+            masterPool.push({ ...movieObj, _sourceTitle: sourceTitle });
         }
     }
 
-    // PRIORIDADE 1: Afinidade com Tags Personalizadas (o que o usuário pediu!)
+    // PRIORIDADE: Afinidade direta com filmes marcados como assistidos
     for (const a of affinityRaw) {
-        const tag = a._sourceTitle ? `"${a._sourceTitle}", baseado na sua Coleção Real` : "baseado na sua Coleção Real";
-        safePush(a, tag);
+        safePush(a, a._sourceTitle);
     }
 
-    // PRIORIDADE 2: RPC para complementar com correlações estatísticas
-    for (const r of rpcRaw) {
-        safePush({ id: r.recommended_movie_id }, "baseado na sua Coleção Real");
-    }
-
-    // FALLBACK DE SEGURANÇA: Se após tudo isso o pool ainda estiver vazio, busca alta qualidade geral
+    // FALLBACK DE SEGURANÇA (NOVO USUÁRIO): Se após tudo isso o pool ainda estiver vazio, busca filmes famosos de alta qualidade
     if (masterPool.length === 0) {
-        console.log("[OMNI-Engine V3] Pool vazio após filtragem. Acionando Fallback de Elite Neutro.");
-        const randomPage = Math.floor(Math.random() * 5) + 1; // Rotaciona para evitar sempre os mesmos filmes
+        console.log("[OMNI-Engine V3] Usuário Novo ou Sem Filmes Assistidos. Carregando sugestões de filmes famosos.");
+        const randomPage = Math.floor(Math.random() * 5) + 1; // Rotaciona para evitar repetição
         const neutral = await safeFetchTMDB('discover/movie', { 
             sort_by: 'vote_count.desc', 
-            'vote_average.gte': 7.5, 
+            'vote_average.gte': 7.2, 
             without_genres: '16,10751',
             page: randomPage
         });
-        (neutral.results || []).forEach(n => safePush(n, "baseado na sua Coleção Real"));
+        (neutral.results || []).forEach(n => safePush(n, null));
     }
 
     // ==============================================================================
@@ -158,7 +140,8 @@ export default async function handler(req, res) {
 
             return {
                 ...data,
-                recommendationReason: item._reason,
+                basedOnWatchedTitle: item._sourceTitle || null,
+                recommendationReason: item._sourceTitle ? "Com base no filme da sua galeria: " + item._sourceTitle : "Match Inteligente ML",
                 pre_fetched_trailer_key: trailerKey
                 // vibe_tags são geradas lazily pelo front-end via /api/vibe para não travar o Vercel
             };

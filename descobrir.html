@@ -2594,9 +2594,14 @@
             document.body.removeChild(textArea);
         }
 
-        // Obter preferências salvas
-        const favGenresRaw = localStorage.getItem("user_favorite_genres");
-        const favoriteGenres = favGenresRaw ? JSON.parse(favGenresRaw) : [];
+        // Obter preferências salvas de forma segura
+        let favoriteGenres = [];
+        try {
+            const favGenresRaw = localStorage.getItem("user_favorite_genres");
+            favoriteGenres = favGenresRaw ? JSON.parse(favGenresRaw) : [];
+        } catch (e) {
+            console.warn("Erro ao fazer parse de user_favorite_genres:", e);
+        }
 
         // Calcular gêneros preferidos baseados nos likes reais (Algoritmo Dinâmico)
         function calculateDynamicGenres() {
@@ -2625,8 +2630,24 @@
             loadingIndicator.style.display = "flex";
             
             try {
-                const savedFilters = localStorage.getItem('mf_filters');
-                const filters = savedFilters ? JSON.parse(savedFilters) : null;
+                let filters = null;
+                try {
+                    const savedFilters = localStorage.getItem('mf_filters');
+                    filters = savedFilters ? JSON.parse(savedFilters) : null;
+                } catch (e) {
+                    console.warn("Erro ao fazer parse dos filtros salvos:", e);
+                }
+
+                // Um filtro é considerado ativo se o usuário escolheu pelo menos um gênero, 
+                // pelo menos um provedor, um ano específico/recente/clássico, um mood específico,
+                // ou alterou a nota mínima (diferente do padrão de 7).
+                const hasActiveFilters = !!(filters && (
+                    (Array.isArray(filters.genres) && filters.genres.length > 0) ||
+                    (Array.isArray(filters.providers) && filters.providers.length > 0) ||
+                    (filters.year && filters.year !== 'all') ||
+                    (filters.mood && filters.mood !== 'any') ||
+                    (filters.minRating !== undefined && filters.minRating !== null && filters.minRating !== 7)
+                ));
 
                 const baseParams = {
                     api_key: API_KEY,
@@ -2716,7 +2737,7 @@
                 // ===========================================================
                 // MOTOR ML (STAGE PRIME): Tenta Recomendações Inteligentes da VPS primeiro
                 // ===========================================================
-                if (currentPage === 1 && currentUser?.id) {
+                if (currentUser?.id && !hasActiveFilters) {
                     try {
                         console.log("🧠 Consultando Motor Inteligente na VPS...");
                         const responseML = await fetch(`/api/recommendations?userId=${currentUser.id}`);
@@ -2761,8 +2782,9 @@
 
                 // Multi-Stage Progressive Fallback Ladder (Estágios de 0 a 9)
                 let stage = 0; 
+                const maxStage = hasActiveFilters ? 0 : 9;
                 
-                while (results.length < targetCount && stage <= 9) {
+                while (results.length < targetCount && stage <= maxStage) {
                     console.log(`🧠 [Filtro Master] Buscando filmes - Estágio ${stage}`);
                     let queryParams = new URLSearchParams(baseParams);
                     let endpoint = 'discover/movie';
@@ -2869,18 +2891,26 @@
                         }
 
                         try {
-                            // ESTRATÉGIA FAT-PAYLOAD: Tentamos rotear a chamada pela VPS Orquestradora primeiro
-                            const proxyUrl = `/api/movies?endpoint=${encodeURIComponent(endpoint)}&${queryParams.toString()}`;
-                            let res = await fetch(proxyUrl);
-                            
-                            // MECANISMO DE RESILIÊNCIA: Se o Proxy falhar, roteia DIRETO no TMDB para garantir uptime infinito do APP
-                            if (!res.ok) {
-                                console.warn("⚠️ VPS Ocupada ou Off. Roteando direto para fallback TMDB...");
-                                const directUrl = `https://api.themoviedb.org/3/${endpoint}?${queryParams.toString()}`;
-                                res = await fetch(directUrl);
+                            let res;
+                            let data = null;
+                            try {
+                                // ESTRATÉGIA FAT-PAYLOAD: Tentamos rotear a chamada pela VPS Orquestradora primeiro
+                                const proxyUrl = `/api/movies?endpoint=${encodeURIComponent(endpoint)}&${queryParams.toString()}`;
+                                res = await fetch(proxyUrl);
+                                if (res.ok) {
+                                    data = await res.json();
+                                }
+                            } catch (proxyErr) {
+                                console.warn("⚠️ Falha de rede ou proxy na chamada da VPS:", proxyErr);
                             }
                             
-                            const data = await res.json();
+                            // MECANISMO DE RESILIÊNCIA EXTREMA: Se a VPS falhar, retornar erro, ou o JSON for inválido, roteia DIRETO no TMDB!
+                            if (!data || !data.results) {
+                                console.warn("⚠️ VPS retornou dados inválidos ou ocupada. Roteando direto para fallback TMDB...");
+                                const directUrl = `https://api.themoviedb.org/3/${endpoint}?${queryParams.toString()}`;
+                                res = await fetch(directUrl);
+                                data = await res.json();
+                            }
                             
                             if (!data.results || data.results.length === 0) {
                                 // Se esgotou páginas, tenta página aleatória segura para variedade
@@ -2899,6 +2929,34 @@
                                 if (hasBlockList && m.genre_ids) {
                                     const hasForbidden = m.genre_ids.some(gId => blockedGenresArray.includes(gId));
                                     if (hasForbidden) return false;
+                                }
+
+                                // Regra 3: VALIDAÇÃO ESTRITA FRONTEND (Garante busca exata sem escape)
+                                if (hasActiveFilters && filters) {
+                                    // Validação de Gêneros: o filme DEVE conter pelo menos um dos gêneros selecionados
+                                    if (Array.isArray(filters.genres) && filters.genres.length > 0) {
+                                        if (!m.genre_ids || !m.genre_ids.some(gId => filters.genres.map(Number).includes(Number(gId)))) {
+                                            return false;
+                                        }
+                                    }
+                                    // Validação de Nota Mínima
+                                    if (filters.minRating !== undefined && filters.minRating !== null) {
+                                        if (m.vote_average === undefined || m.vote_average === null || m.vote_average < parseFloat(filters.minRating)) {
+                                            return false;
+                                        }
+                                    }
+                                    // Validação de Ano
+                                    if (filters.year && filters.year !== 'all') {
+                                        const releaseYear = (m.release_date && typeof m.release_date === 'string') ? parseInt(m.release_date.split('-')[0]) : null;
+                                        if (filters.year === 'recent') {
+                                            const currentYear = new Date().getFullYear();
+                                            if (!releaseYear || releaseYear < currentYear - 3) return false;
+                                        } else if (filters.year === 'classic') {
+                                            if (!releaseYear || releaseYear > 1999) return false;
+                                        } else {
+                                            if (!releaseYear || releaseYear !== parseInt(filters.year)) return false;
+                                        }
+                                    }
                                 }
                                 
                                 return true;
@@ -2943,18 +3001,34 @@
                 } else if (moviesQueue.length === 0) {
                     // Fallback Supremo em caso de esgotamento total de dados no banco / TMDB
                     console.log("⚠️ Esgotamento total de sugestões.");
-                    stackContainer.innerHTML = `
-                        <div class="flex flex-col items-center justify-center h-full text-center p-8 animate-fade-in">
-                            <div class="bg-primary-container/10 w-24 h-24 rounded-full flex items-center justify-center backdrop-blur-md border border-white/10 shadow-[0_0_30px_rgba(229,9,20,0.3)] mb-6">
-                                <span class="material-symbols-outlined text-primary-container text-5xl">restart_alt</span>
+                    
+                    if (hasActiveFilters) {
+                        stackContainer.innerHTML = `
+                            <div class="flex flex-col items-center justify-center h-full text-center p-8 animate-fade-in">
+                                <div class="bg-yellow-500/10 w-24 h-24 rounded-full flex items-center justify-center backdrop-blur-md border border-yellow-500/20 shadow-[0_0_30px_rgba(240,185,11,0.2)] mb-6">
+                                    <span class="material-symbols-outlined text-yellow-500 text-5xl">filter_list_off</span>
+                                </div>
+                                <h3 class="text-xl font-headline font-bold text-white mb-2">Filtros muito específicos</h3>
+                                <p class="text-white/40 text-sm max-w-[240px] mx-auto mb-8">Nenhum filme corresponde exatamente aos seus filtros ativos. Ajuste ou limpe seus filtros abaixo.</p>
+                                <button onclick="window.clearAllFilters();" class="w-full max-w-[200px] px-6 py-4 rounded-2xl bg-yellow-600 text-white text-xs font-bold shadow-lg transition-all active:scale-95 uppercase tracking-widest">
+                                    Limpar Filtros 🧹
+                                </button>
                             </div>
-                            <h3 class="text-xl font-headline font-bold text-white mb-2">Explorando novos horizontes</h3>
-                            <p class="text-white/40 text-sm max-w-[240px] mx-auto mb-8">Você já viu quase tudo! Vamos resetar as sugestões para você continuar descobrindo.</p>
-                            <button onclick="interactedMovieIds.clear(); fetchMovies();" class="w-full max-w-[200px] px-6 py-4 rounded-2xl bg-primary-container text-white text-xs font-bold shadow-lg transition-all active:scale-95 uppercase tracking-widest">
-                                Reiniciar Sugestões
-                            </button>
-                        </div>
-                    `;
+                        `;
+                    } else {
+                        stackContainer.innerHTML = `
+                            <div class="flex flex-col items-center justify-center h-full text-center p-8 animate-fade-in">
+                                <div class="bg-primary-container/10 w-24 h-24 rounded-full flex items-center justify-center backdrop-blur-md border border-white/10 shadow-[0_0_30px_rgba(229,9,20,0.3)] mb-6">
+                                    <span class="material-symbols-outlined text-primary-container text-5xl">restart_alt</span>
+                                </div>
+                                <h3 class="text-xl font-headline font-bold text-white mb-2">Explorando novos horizontes</h3>
+                                <p class="text-white/40 text-sm max-w-[240px] mx-auto mb-8">Você já viu quase tudo! Vamos resetar as sugestões para você continuar descobrindo.</p>
+                                <button onclick="interactedMovieIds.clear(); fetchMovies();" class="w-full max-w-[200px] px-6 py-4 rounded-2xl bg-primary-container text-white text-xs font-bold shadow-lg transition-all active:scale-95 uppercase tracking-widest">
+                                    Reiniciar Sugestões
+                                </button>
+                            </div>
+                        `;
+                    }
                 }
 
             } catch (error) {
@@ -3121,8 +3195,7 @@
             const scale = 1 - (stackIndex * 0.05);
             const yOffset = stackIndex * 20;
             const opacity = 1 - (stackIndex * 0.4);
-
-            const innerCard = document.createElement("div");
+                    const innerCard = document.createElement("div");
             innerCard.className = "card-wrapper cinematic-shadow relative will-change-transform";
             wrapper.appendChild(innerCard);
 
@@ -3137,8 +3210,16 @@
             front.className = "front-content absolute inset-0 rounded-2xl bg-neutral-900 border border-white/5 shadow-2xl preserve-3d will-change-transform";
             front.style.zIndex = "30";
             
-            // Badge de recomendação removido do poster — não deve aparecer sobre a imagem
-            // A razão de recomendação é exibida no verso (match overlay) ao interagir
+            // Badge de recomendação baseada em filme assistido (Top Left)
+            let recommendationBadgeHTML = '';
+            if (movie.basedOnWatchedTitle) {
+                recommendationBadgeHTML = `
+                    <div class="badge-cyber badge-watched-recommendation animate-badge-pulse flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-yellow-500/20 bg-black/60 backdrop-blur-md shadow-[0_0_15px_rgba(240,185,11,0.25)] select-none pointer-events-none" style="position: absolute; top: 24px; left: 24px; z-index: 50; max-width: calc(100% - 160px);">
+                        <span class="material-symbols-outlined text-[14px] text-yellow-500" style="font-variation-settings: 'FILL' 1;">recommend</span>
+                        <span class="text-white text-[10px] font-bold uppercase tracking-wider truncate">Com base no filme da sua galeria: ${movie.basedOnWatchedTitle}</span>
+                    </div>
+                `;
+            }
 
             // Status HUD Badges (Top Right)
             let statusBadgesHTML = '';
@@ -3204,6 +3285,7 @@
                 </div>
 
 
+                ${recommendationBadgeHTML}
                 ${statusBadgesHTML}
             `;
             
@@ -5007,6 +5089,43 @@
             });
         }
         window.closeSynopsis = closeSynopsis;
+
+        window.clearAllFilters = async function() {
+            console.log("🧹 Limpando todos os filtros ativos...");
+            selectedGenresFilters.clear();
+            selectedProvidersFilters.clear();
+            selectedYearFilters = 'all';
+            recommendationStrategy = 'mixed';
+            selectedMood = 'any';
+            
+            const ratingSlider = document.getElementById('filter-rating-slider');
+            if (ratingSlider) {
+                ratingSlider.value = 7;
+                updateRatingDisplayFilters(7);
+            }
+            
+            if (currentUser) {
+                try {
+                    await supabase.from('user_filters').delete().eq('user_id', currentUser.id);
+                } catch(e) {
+                    console.error("Erro ao deletar filtros remotos:", e);
+                }
+            }
+            localStorage.removeItem('mf_filters');
+
+            await fetchStreamingProvidersFilters();
+            renderGenresFilters();
+            updateYearButtonsFilters();
+            
+            showToast("Filtros limpos! Recarregando feed...");
+            
+            // Recarrega filmes com novos filtros limpos
+            gsap.killTweensOf(stackContainer, true);
+            currentPage = 1;
+            moviesQueue = [];
+            stackContainer.innerHTML = '';
+            await fetchMovies();
+        };
 
         modalBackdrop.addEventListener('click', closeSynopsis);
         

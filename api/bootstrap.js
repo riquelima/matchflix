@@ -75,19 +75,21 @@ export default async function handler(req, res) {
             );
             console.log(`[Bootstrap-Omni] Escudo cirúrgico ativado. ${dislikedOrWatched.size} deslikes/vistos bloqueados.`);
 
-            const likedSeeds = userHistory.filter(h => h.curtiu === true).slice(0, 8);
+            const likedHistory = userHistory.filter(h => h.curtiu === true);
+            // Embaralha as sementes para dinamicidade na inicialização
+            const watchedSeeds = likedHistory.sort(() => 0.5 - Math.random()).slice(0, 15);
 
-            // ETAPA 2: Disparar motores em paralelo
+            // ETAPA 2: Disparar motor baseado em filmes assistidos
             
             // MOTOR A: Afinidade Direta
             const runAffinity = async () => {
-                if (likedSeeds.length === 0) return [];
-                const buckets = await Promise.all(likedSeeds.map(async (s) => {
+                if (watchedSeeds.length === 0) return [];
+                const buckets = await Promise.all(watchedSeeds.map(async (s) => {
                     const [detPromise, recsPromise] = await Promise.all([
                         safeFetchTMDB(`movie/${s.filme_id}`),
                         safeFetchTMDB(`movie/${s.filme_id}/recommendations`, { page: 1 })
                     ]);
-                    const title = detPromise.title || "Filme Salvo";
+                    const title = detPromise.title || "Filme Assistido";
                     return (recsPromise.results || []).map(x => ({ ...x, _sourceTitle: title }));
                 }));
                 
@@ -99,52 +101,33 @@ export default async function handler(req, res) {
                 return mixed;
             };
 
-            // MOTOR B: RPC Inteligente Postgres
-            const runRPC = async () => {
-                try {
-                    const rpcUrl = `${SUPABASE_URL}/rest/v1/rpc/get_ml_recommendations`;
-                    const resRPC = await fetch(rpcUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
-                        body: JSON.stringify({ p_user_id: userId, p_limit: 30 })
-                    });
-                    return resRPC.ok ? await resRPC.json() : [];
-                } catch (e) { return []; }
-            };
-
-            const [affinityRaw, rpcRaw] = await Promise.all([runAffinity(), runRPC()]);
+            const affinityRaw = await runAffinity();
 
             // ETAPA 3: Fusão com Filtragem Violenta
             const masterPool = [];
             const localDedupe = new Set();
 
-            function safePush(movieObj, label) {
+            function safePush(movieObj, sourceTitle) {
                 const mid = Number(movieObj.id);
                 if (!mid) return;
 
                 // REGRA CIRÚRGICA: Bloqueia DESLIKES/VISTOS SEM VOTO, e deduplica internamente.
                 if (!dislikedOrWatched.has(mid) && !localDedupe.has(mid)) {
                     localDedupe.add(mid);
-                    masterPool.push({ ...movieObj, _reason: label });
+                    masterPool.push({ ...movieObj, _sourceTitle: sourceTitle });
                 }
             }
 
-            // PRIORIDADE MÁXIMA: Afinidade Real (Exatamente o que o usuário pediu)
+            // PRIORIDADE MÁXIMA: Afinidade com filmes marcados como assistidos
             for (const a of affinityRaw) {
-                const tag = a._sourceTitle ? `"${a._sourceTitle}", baseado na sua Coleção Real` : "baseado na sua Coleção Real";
-                safePush(a, tag);
+                safePush(a, a._sourceTitle);
             }
 
-            // PRIORIDADE COMPLEMENTAR: RPC
-            for (const r of rpcRaw) {
-                safePush({ id: r.recommended_movie_id }, "baseado na sua Coleção Real");
-            }
-
-            // FALLBACK NEUTRO com rotação de página para evitar sempre os mesmos filmes
+            // FALLBACK NEUTRO com rotação de página para evitar sempre os mesmos filmes (USUÁRIO NOVO)
             if (masterPool.length === 0) {
                 const randPage = Math.floor(Math.random() * 5) + 1;
-                const elite = await safeFetchTMDB('discover/movie', { sort_by: 'vote_count.desc', 'vote_average.gte': 7.5, without_genres: '16,10751', page: randPage });
-                (elite.results || []).forEach(n => safePush(n, "baseado na sua Coleção Real"));
+                const elite = await safeFetchTMDB('discover/movie', { sort_by: 'vote_count.desc', 'vote_average.gte': 7.2, without_genres: '16,10751', page: randPage });
+                (elite.results || []).forEach(n => safePush(n, null));
             }
 
             // ETAPA 4: Enriquecimento Simultâneo
@@ -165,7 +148,8 @@ export default async function handler(req, res) {
 
                     return {
                         ...data,
-                        recommendationReason: item._reason,
+                        basedOnWatchedTitle: item._sourceTitle || null,
+                        recommendationReason: item._sourceTitle ? "Com base no filme da sua galeria: " + item._sourceTitle : "Match Inteligente ML",
                         pre_fetched_trailer_key: trailerKey
                         // vibe_tags são geradas lazily pelo front-end via /api/vibe para não travar o Vercel
                     };

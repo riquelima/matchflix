@@ -109,59 +109,117 @@ function viteAiOrchestratorPlugin() {
             return;
           }
 
-          // Execução IIFE assíncrona para lidar com a requisição localmente
-          (async () => {
-            try {
-              const SUPABASE_URL = "https://kewwqxfpjzrxduhoqfxw.supabase.co";
-              const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtld3dxeGZwanpyeGR1aG9xZnh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5NTY4MzEsImV4cCI6MjA5MjUzMjgzMX0.Ane5nDJf_4FjBDPEfiNWlKN3C7RAlEmk5pDlMMsxmZs";
-
-              const rpcUrl = `${SUPABASE_URL}/rest/v1/rpc/get_ml_recommendations`;
-              const dbRes = await fetch(rpcUrl, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'apikey': SUPABASE_KEY,
-                  'Authorization': `Bearer ${SUPABASE_KEY}`
-                },
-                body: JSON.stringify({ p_user_id: userId, p_limit: 15 })
-              });
-
-              if (!dbRes.ok) {
-                const errTxt = await dbRes.text();
-                throw new Error(`RPC Error: ${errTxt}`);
-              }
-
-              const recommendations = await dbRes.json();
-              
-              if (!Array.isArray(recommendations) || recommendations.length === 0) {
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true, movies: [] }));
-                return;
-              }
-
-              console.log(`[Vite-ML-Engine] Encontrados ${recommendations.length} matches. Enriquecendo TMDB...`);
-
-              const promises = recommendations.map(async (rec) => {
-                try {
-                  const tRes = await fetch(`https://api.themoviedb.org/3/movie/${rec.recommended_movie_id}?api_key=${TMDB_API_KEY}&language=pt-BR`);
-                  if (!tRes.ok) return null;
-                  const movieData = await tRes.json();
-                  return { ...movieData, recommendationReason: "Match Inteligente ML", ml_score: rec.similarity_score };
-                } catch(e) { return null; }
-              });
-
-              const finalMovies = (await Promise.all(promises)).filter(m => m && m.poster_path);
-              
-              res.writeHead(200, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ success: true, source: 'local-vite', movies: finalMovies }));
-              
-            } catch (err) {
-              // Supressão de Console Spam (Erros de tipo SQL geram 500 no console do navegador)
-              console.warn('[Vite-ML-Engine] Aviso: Supabase RPC com erro de tipo ou indisponível. Aplicando fallback limpo.', err.message);
-              res.writeHead(200, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ success: true, source: 'local-vite-fallback', movies: [] }));
-            }
-          })();
+           // Execução IIFE assíncrona para lidar com a requisição localmente
+           (async () => {
+             try {
+               const SUPABASE_URL = "https://kewwqxfpjzrxduhoqfxw.supabase.co";
+               const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtld3dxeGZwanpyeGR1aG9xZnh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5NTY4MzEsImV4cCI6MjA5MjUzMjgzMX0.Ane5nDJf_4FjBDPEfiNWlKN3C7RAlEmk5pDlMMsxmZs";
+ 
+               // 1. Fetch history from Supabase
+               let historyData = [];
+               try {
+                 const histUrl = `${SUPABASE_URL}/rest/v1/curtidas_filmes?usuario_id=eq.${userId}&select=filme_id,assistido,curtiu,criado_em&order=criado_em.desc&limit=2500`;
+                 const resp = await fetch(histUrl, {
+                   headers: {
+                     'apikey': SUPABASE_KEY,
+                     'Authorization': `Bearer ${SUPABASE_KEY}`
+                   }
+                 });
+                 if (resp.ok) historyData = await resp.json();
+               } catch (e) {
+                 console.error("[Vite-ML-Engine] History error:", e);
+               }
+ 
+               const likedHistory = historyData.filter(h => h.curtiu === true);
+               const watchedSeeds = likedHistory.sort(() => 0.5 - Math.random()).slice(0, 10);
+               let finalMovies = [];
+ 
+               if (watchedSeeds.length > 0) {
+                 const buckets = await Promise.all(watchedSeeds.map(async (s) => {
+                   try {
+                     const [detRes, recRes] = await Promise.all([
+                       fetch(`https://api.themoviedb.org/3/movie/${s.filme_id}?api_key=${TMDB_API_KEY}&language=pt-BR`),
+                       fetch(`https://api.themoviedb.org/3/movie/${s.filme_id}/recommendations?api_key=${TMDB_API_KEY}&language=pt-BR&page=1`)
+                     ]);
+                     const det = detRes.ok ? await detRes.json() : {};
+                     const rec = recRes.ok ? await recRes.json() : { results: [] };
+                     const title = det.title || "Filme Assistido";
+                     return (rec.results || []).map(movie => ({ ...movie, _sourceTitle: title }));
+                   } catch (e) { return []; }
+                 }));
+ 
+                 const maxLen = Math.max(0, ...buckets.map(b => b.length));
+                 const mixed = [];
+                 for (let i = 0; i < maxLen; i++) {
+                   buckets.forEach(b => { if (b[i]) mixed.push(b[i]); });
+                 }
+ 
+                 // Hydrate details and pre_fetched_trailer_key
+                 const promises = mixed.slice(0, 15).map(async (m) => {
+                   try {
+                     const tr = await fetch(`https://api.themoviedb.org/3/movie/${m.id}?api_key=${TMDB_API_KEY}&language=pt-BR&append_to_response=videos`);
+                     if (!tr.ok) return m;
+                     const full = await tr.json();
+                     let tk = null;
+                     const v = full.videos?.results || [];
+                     if (v.length > 0) {
+                       const f = v.find(x => x.type === 'Trailer' && x.site === 'YouTube') || v.find(x => x.type === 'Teaser') || v[0];
+                       tk = f ? f.key : null;
+                     }
+                     return {
+                       ...m,
+                       ...full,
+                       basedOnWatchedTitle: m._sourceTitle || null,
+                       recommendationReason: m._sourceTitle ? "Com base no filme da sua galeria: " + m._sourceTitle : "Match Inteligente ML",
+                       pre_fetched_trailer_key: tk
+                     };
+                   } catch (e) { return m; }
+                 });
+                 finalMovies = (await Promise.all(promises)).filter(m => m && m.poster_path);
+               }
+ 
+               // Fallback se não houver filmes assistidos (novo usuário)
+               if (finalMovies.length === 0) {
+                 try {
+                   const popUrl = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&language=pt-BR&sort_by=popularity.desc&vote_count.gte=100&page=1`;
+                   const popRes = await fetch(popUrl);
+                   const popData = await popRes.json();
+                   const results = popData.results || [];
+                   const promises = results.slice(0, 15).map(async (m) => {
+                     try {
+                       const tr = await fetch(`https://api.themoviedb.org/3/movie/${m.id}?api_key=${TMDB_API_KEY}&language=pt-BR&append_to_response=videos`);
+                       if (!tr.ok) return m;
+                       const full = await tr.json();
+                       let tk = null;
+                       const v = full.videos?.results || [];
+                       if (v.length > 0) {
+                         const f = v.find(x => x.type === 'Trailer' && x.site === 'YouTube') || v.find(x => x.type === 'Teaser') || v[0];
+                         tk = f ? f.key : null;
+                       }
+                       return {
+                         ...m,
+                         ...full,
+                         basedOnWatchedTitle: null,
+                         recommendationReason: "Match Inteligente ML",
+                         pre_fetched_trailer_key: tk
+                       };
+                     } catch (e) { return m; }
+                   });
+                   finalMovies = (await Promise.all(promises)).filter(m => m && m.poster_path);
+                 } catch (e) {
+                   console.error("[Vite-ML-Engine] Fallback error:", e);
+                 }
+               }
+ 
+               res.writeHead(200, { 'Content-Type': 'application/json' });
+               res.end(JSON.stringify({ success: true, source: 'local-vite', movies: finalMovies }));
+ 
+             } catch (err) {
+               console.warn('[Vite-ML-Engine] Aviso: Erro no engine local. Aplicando fallback limpo.', err.message);
+               res.writeHead(200, { 'Content-Type': 'application/json' });
+               res.end(JSON.stringify({ success: true, source: 'local-vite-fallback', movies: [] }));
+             }
+           })();
           
           return; // Finaliza o interceptador para esta rota
         }
@@ -242,6 +300,141 @@ function viteAiOrchestratorPlugin() {
             } catch (err) {
               res.writeHead(500, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify([]));
+            }
+          })();
+          return;
+        }
+
+        // NOVO: Intercepta chamadas para /api/bootstrap (Super Bootstrap Aggregator Simulator)
+        if (parsedUrl === '/api/bootstrap') {
+          console.log(`[Vite-Bootstrap] Simulador de Aggregator Bootstrap.`);
+          const urlParams = new URL(req.url, `http://${req.headers.host}`).searchParams;
+          const userId = urlParams.get('userId');
+
+          (async () => {
+            try {
+              const SUPABASE_URL = "https://kewwqxfpjzrxduhoqfxw.supabase.co";
+              const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtld3dxeGZwanpyeGR1aG9xZnh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5NTY4MzEsImV4cCI6MjA5MjUzMjgzMX0.Ane5nDJf_4FjBDPEfiNWlKN3C7RAlEmk5pDlMMsxmZs";
+
+              // 1. Genres fetch
+              const genresUrl = `https://api.themoviedb.org/3/genre/movie/list?api_key=${TMDB_API_KEY}&language=pt-BR`;
+              const genresRes = await fetch(genresUrl);
+              const genresData = genresRes.ok ? await genresRes.json() : { genres: [] };
+
+              // 2. User History from Supabase
+              let historyData = [];
+              if (userId) {
+                try {
+                  const histUrl = `${SUPABASE_URL}/rest/v1/curtidas_filmes?usuario_id=eq.${userId}&select=filme_id,assistido,curtiu,criado_em&order=criado_em.desc&limit=2500`;
+                  const resp = await fetch(histUrl, {
+                    headers: {
+                      'apikey': SUPABASE_KEY,
+                      'Authorization': `Bearer ${SUPABASE_KEY}`
+                    }
+                  });
+                  if (resp.ok) historyData = await resp.json();
+                } catch (e) {
+                  console.error("[Vite-Bootstrap] History error:", e);
+                }
+              }
+
+              // 3. Initial Queue (Recommendations from Watched Seeds or Popular Famous)
+              let initialQueue = [];
+              const likedHistory = historyData.filter(h => h.curtiu === true);
+              const watchedSeeds = likedHistory.sort(() => 0.5 - Math.random()).slice(0, 10);
+
+              if (watchedSeeds.length > 0) {
+                try {
+                  const buckets = await Promise.all(watchedSeeds.map(async (s) => {
+                    try {
+                      const [detRes, recRes] = await Promise.all([
+                        fetch(`https://api.themoviedb.org/3/movie/${s.filme_id}?api_key=${TMDB_API_KEY}&language=pt-BR`),
+                        fetch(`https://api.themoviedb.org/3/movie/${s.filme_id}/recommendations?api_key=${TMDB_API_KEY}&language=pt-BR&page=1`)
+                      ]);
+                      const det = detRes.ok ? await detRes.json() : {};
+                      const rec = recRes.ok ? await recRes.json() : { results: [] };
+                      const title = det.title || "Filme Assistido";
+                      return (rec.results || []).map(movie => ({ ...movie, _sourceTitle: title }));
+                    } catch (e) { return []; }
+                  }));
+
+                  const maxLen = Math.max(0, ...buckets.map(b => b.length));
+                  const mixed = [];
+                  for (let i = 0; i < maxLen; i++) {
+                    buckets.forEach(b => { if (b[i]) mixed.push(b[i]); });
+                  }
+                  initialQueue = mixed;
+                } catch (e) {
+                  console.error("[Vite-Bootstrap] Watched affinity error:", e);
+                }
+              }
+
+              // Se a fila inicial estiver vazia (novo usuário), popular com filmes populares famosos globais
+              if (initialQueue.length === 0) {
+                try {
+                  const popUrl = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&language=pt-BR&sort_by=popularity.desc&vote_count.gte=100&page=1`;
+                  const popRes = await fetch(popUrl);
+                  const popData = await popRes.json();
+                  initialQueue = (popData.results || []).map(movie => ({ ...movie, _sourceTitle: null }));
+                } catch(e) {
+                  console.error("[Vite-Bootstrap] Fallback error:", e);
+                }
+              }
+
+              // 4. Enrich Initial Queue with pre-fetched trailers
+              const enrichedQueue = await Promise.all(initialQueue.slice(0, 15).map(async (m) => {
+                try {
+                  const tr = await fetch(`https://api.themoviedb.org/3/movie/${m.id}?api_key=${TMDB_API_KEY}&language=pt-BR&append_to_response=videos`);
+                  if (!tr.ok) return m;
+                  const full = await tr.json();
+                  let tk = null;
+                  const v = full.videos?.results || [];
+                  if (v.length > 0) {
+                    const f = v.find(x => x.type === 'Trailer' && x.site === 'YouTube') || v.find(x => x.type === 'Teaser') || v[0];
+                    tk = f ? f.key : null;
+                  }
+                  return {
+                    ...m,
+                    ...full,
+                    basedOnWatchedTitle: m._sourceTitle || null,
+                    recommendationReason: m._sourceTitle ? "Com base no filme da sua galeria: " + m._sourceTitle : "Match Inteligente ML",
+                    pre_fetched_trailer_key: tk
+                  };
+                } catch(e) { return m; }
+              }));
+
+              // 5. Trending Data
+              let trendingData = {
+                day: { results: [] }, week: { results: [] }, upcoming: { results: [] },
+                awarded: { results: [] }, newReleases: { results: [] }, news: []
+              };
+              try {
+                const trendWeekUrl = `https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_API_KEY}&language=pt-BR`;
+                const trendRes = await fetch(trendWeekUrl);
+                if (trendRes.ok) {
+                  const trendData = await trendRes.json();
+                  trendingData.week.results = trendData.results || [];
+                }
+              } catch(e) {
+                console.error("[Vite-Bootstrap] Trending error:", e);
+              }
+
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({
+                success: true,
+                timestamp: Date.now(),
+                data: {
+                  genres: genresData.genres || [],
+                  history: historyData,
+                  initialQueue: enrichedQueue,
+                  trending: trendingData
+                }
+              }));
+
+            } catch (err) {
+              console.error('[Vite-Bootstrap] CRITICAL ERRO:', err);
+              res.writeHead(500, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: false, error: err.message }));
             }
           })();
           return;
